@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useSwipe } from '@vueuse/core'
 import type { ChecklistItem } from '../../types'
 import AppCheckbox from '../atoms/AppCheckbox.vue'
 
@@ -49,35 +50,78 @@ function onKeydown(e: KeyboardEvent): void {
 }
 
 defineExpose({ cancelEdit })
+
+// ── Swipe-to-delete ──────────────────────────────────────────────────────────
+const rowEl = ref<HTMLElement | null>(null)
+const swipeOffset = ref(0)
+const DELETE_THRESHOLD = 80 // px
+
+const { isSwiping, direction, lengthX } = useSwipe(rowEl, {
+  threshold: 10,
+  onSwipe() {
+    if (isEditing.value) return
+    if (direction.value === 'right') {
+      swipeOffset.value = Math.min(-lengthX.value, DELETE_THRESHOLD * 1.3)
+    }
+  },
+  onSwipeEnd() {
+    if (swipeOffset.value >= DELETE_THRESHOLD) {
+      emit('remove')
+    }
+    swipeOffset.value = 0
+  },
+})
+
+const rowStyle = computed(() =>
+  swipeOffset.value > 0 ? { transform: `translateX(${swipeOffset.value}px)` } : {}
+)
+const deleteProgress = computed(() =>
+  Math.min(swipeOffset.value / DELETE_THRESHOLD, 1)
+)
 </script>
 
 <template>
-  <div class="flex items-center gap-2 py-1 group">
-    <AppCheckbox :model-value="item.done" @update:model-value="$emit('toggle')" />
-
-    <input
-      v-if="isEditing"
-      v-focus
-      v-model="editText"
-      class="bg-transparent border-b border-zinc-700 focus:border-violet-500 outline-none text-zinc-100 text-sm py-0.5 transition-colors flex-1"
-      @keydown="onKeydown"
-      @blur="confirmEdit"
-    />
-
-    <span
-      v-else
-      class="flex-1 cursor-text min-w-0 truncate"
-      :class="item.done ? 'line-through text-zinc-600' : 'text-zinc-300'"
-      @click="startEdit"
+  <div ref="rowEl" class="relative overflow-hidden rounded">
+    <!-- Red delete hint revealed as item slides right -->
+    <div
+      class="absolute inset-0 bg-red-500 flex items-center px-3 pointer-events-none"
+      :style="{ opacity: deleteProgress * 0.85 }"
     >
-      {{ item.text }}
-    </span>
+      <span class="text-white text-xs font-medium">Delete</span>
+    </div>
 
-    <button
-      class="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-all text-xs shrink-0 cursor-pointer"
-      @click="$emit('remove')"
+    <!-- Sliding content layer -->
+    <div
+      class="flex items-center gap-2 py-1 group relative"
+      :class="!isSwiping ? 'transition-transform duration-200' : ''"
+      :style="rowStyle"
     >
-      ✕
-    </button>
+      <AppCheckbox :model-value="item.done" @update:model-value="$emit('toggle')" />
+
+      <input
+        v-if="isEditing"
+        v-focus
+        v-model="editText"
+        class="bg-transparent border-b border-zinc-700 focus:border-violet-500 outline-none text-zinc-100 text-sm py-0.5 transition-colors flex-1"
+        @keydown="onKeydown"
+        @blur="confirmEdit"
+      />
+
+      <span
+        v-else
+        class="flex-1 cursor-text min-w-0 truncate"
+        :class="item.done ? 'line-through text-zinc-600' : 'text-zinc-300'"
+        @click="startEdit"
+      >
+        {{ item.text }}
+      </span>
+
+      <button
+        class="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-all text-xs shrink-0 cursor-pointer hidden sm:block"
+        @click="$emit('remove')"
+      >
+        ✕
+      </button>
+    </div>
   </div>
 </template>
