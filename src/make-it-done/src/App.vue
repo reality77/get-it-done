@@ -9,6 +9,7 @@ import ActiveView from './components/templates/ActiveView.vue'
 import TemplatesView from './components/templates/TemplatesView.vue'
 import ArchiveView from './components/templates/ArchiveView.vue'
 import PasswordPrompt from './components/organisms/PasswordPrompt.vue'
+import { storeToRefs } from 'pinia'
 
 const activeTab = ref<'active' | 'templates' | 'archive'>('active')
 
@@ -28,6 +29,10 @@ const {
   activeChecklists,
   templates,
   archivedChecklists,
+  syncStatus,
+} = storeToRefs(checklistStore)
+
+const {
   getChecklist,
   createChecklist,
   updateChecklist,
@@ -35,7 +40,6 @@ const {
   archiveChecklist,
   unarchiveChecklist,
   runTemplate,
-  syncStatus,
 } = checklistStore
 
 onMounted(async () => {
