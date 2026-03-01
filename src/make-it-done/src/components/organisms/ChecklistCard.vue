@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import type { Checklist } from '../../types'
-import { useChecklists, countItems, countDone } from '../../composables/useChecklists'
+import { useChecklistStore, countItems, countDone } from '../../stores/checklists'
 import AppBadge from '../atoms/AppBadge.vue'
 import AppButton from '../atoms/AppButton.vue'
 import ItemRow from '../molecules/ItemRow.vue'
@@ -19,7 +19,7 @@ const emit = defineEmits<{
   (e: 'archive', checklistId: string): void
 }>()
 
-const { toggleItem, addItem, updateItemText, removeItem, addGroup } = useChecklists()
+const { toggleItem, addItem, updateItemText, removeItem, addGroup } = useChecklistStore()
 
 const isExpanded = ref(true)
 

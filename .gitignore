@@ -1,0 +1,6 @@
+# PocketBase runtime data
+src/pocketbase/pb_data/
+
+# Frontend env files
+src/make-it-done/.env
+src/make-it-done/.env.local
