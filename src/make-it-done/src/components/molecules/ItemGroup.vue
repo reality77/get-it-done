@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import type { ChecklistItemGroup } from '../../types'
-import { useChecklists } from '../../composables/useChecklists'
+import { useChecklistStore } from '../../stores/checklists'
 import ItemRow from './ItemRow.vue'
 
 // Self-reference: Vue 3 resolves <ItemGroup> by this file's name automatically.
@@ -20,7 +20,7 @@ const {
   updateGroupTitle,
   toggleGroupCollapsed,
   removeGroup,
-} = useChecklists()
+} = useChecklistStore()
 
 const itemRowRefs = ref<InstanceType<typeof ItemRow>[]>([])
 
