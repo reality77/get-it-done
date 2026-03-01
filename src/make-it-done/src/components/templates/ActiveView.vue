@@ -9,10 +9,6 @@ defineProps<{
 }>()
 
 defineEmits<{
-  (e: 'toggle-item', checklistId: string, itemId: string): void
-  (e: 'add-item', checklistId: string, text: string): void
-  (e: 'update-item-text', checklistId: string, itemId: string, text: string): void
-  (e: 'remove-item', checklistId: string, itemId: string): void
   (e: 'edit', checklistId: string): void
   (e: 'delete', checklistId: string): void
   (e: 'archive', checklistId: string): void
@@ -38,10 +34,6 @@ defineEmits<{
         :key="checklist.id"
         :checklist="checklist"
         :auto-focus-add-item="focusChecklistId === checklist.id"
-        @toggle-item="(cId, iId) => $emit('toggle-item', cId, iId)"
-        @add-item="(cId, text) => $emit('add-item', cId, text)"
-        @update-item-text="(cId, iId, text) => $emit('update-item-text', cId, iId, text)"
-        @remove-item="(cId, iId) => $emit('remove-item', cId, iId)"
         @edit="(cId) => $emit('edit', cId)"
         @delete="(cId) => $emit('delete', cId)"
         @archive="(cId) => $emit('archive', cId)"

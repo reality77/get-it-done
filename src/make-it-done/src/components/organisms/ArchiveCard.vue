@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import type { Checklist } from '../../types'
+import { ref, computed } from 'vue'
+import type { Checklist, ChecklistItem, ChecklistNode } from '../../types'
 import AppBadge from '../atoms/AppBadge.vue'
 import AppButton from '../atoms/AppButton.vue'
 
-defineProps<{
+const props = defineProps<{
   checklist: Checklist
 }>()
 
@@ -14,6 +14,17 @@ defineEmits<{
 }>()
 
 const isExpanded = ref(false)
+
+function flattenItems(nodes: ChecklistNode[]): ChecklistItem[] {
+  const result: ChecklistItem[] = []
+  for (const node of nodes) {
+    if (node.type === 'item') result.push(node)
+    else result.push(...flattenItems(node.children))
+  }
+  return result
+}
+
+const allItems = computed(() => flattenItems(props.checklist.items))
 
 function formatDate(iso: string | null): string {
   if (!iso) return ''
@@ -49,9 +60,9 @@ function formatDate(iso: string | null): string {
     </div>
 
     <!-- Body (collapsed by default) -->
-    <div v-if="isExpanded && checklist.items.length > 0" class="mt-3 pl-5 space-y-1">
+    <div v-if="isExpanded && allItems.length > 0" class="mt-3 pl-5 space-y-1">
       <div
-        v-for="item in checklist.items"
+        v-for="item in allItems"
         :key="item.id"
         class="flex items-center gap-2 py-0.5"
       >

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import type { Checklist, ChecklistKind } from '../../types'
+import type { Checklist, ChecklistItem, ChecklistItemGroup, ChecklistNode, ChecklistKind } from '../../types'
 import AppButton from '../atoms/AppButton.vue'
 import AppInput from '../atoms/AppInput.vue'
 
@@ -14,19 +14,26 @@ const emit = defineEmits<{
     id: string | null
     kind: ChecklistKind
     title: string
-    items: { id: string | null; text: string; done: boolean }[]
+    items: { id: string | null; type: 'item'; text: string; done: boolean }[]
+    nodes: ChecklistNode[] | null
   }): void
   (e: 'cancel'): void
 }>()
 
 const localTitle = ref(props.checklist?.title ?? '')
 const localKind = ref<ChecklistKind>(props.checklist?.kind ?? props.defaultKind)
-const localItems = ref<{ id: string | null; text: string; done: boolean }[]>(
-  props.checklist?.items.map(i => ({ id: i.id, text: i.text, done: i.done })) ?? [],
+
+// Only flat root items are shown/edited; groups are passed through unchanged.
+const localItems = ref<{ id: string | null; type: 'item'; text: string; done: boolean }[]>(
+  (props.checklist?.items ?? [])
+    .filter((n): n is ChecklistItem => n.type === 'item')
+    .map(i => ({ id: i.id, type: 'item' as const, text: i.text, done: i.done })),
 )
+const rootGroups = (props.checklist?.items ?? [])
+  .filter((n): n is ChecklistItemGroup => n.type === 'group')
 
 function addItem(): void {
-  localItems.value.push({ id: null, text: '', done: false })
+  localItems.value.push({ id: null, type: 'item', text: '', done: false })
 }
 
 function removeItem(index: number): void {
@@ -42,11 +49,25 @@ function onItemKeydown(e: KeyboardEvent, index: number): void {
 
 function submit(): void {
   if (!localTitle.value.trim()) return
+  const filteredItems = localItems.value.filter(i => i.text.trim())
+  // For edit mode: merge edited items + preserved groups into full node array
+  const nodes: ChecklistNode[] | null = props.checklist !== null
+    ? [
+        ...filteredItems.map(i => ({
+          type: 'item' as const,
+          id: i.id ?? crypto.randomUUID(),
+          text: i.text,
+          done: i.done,
+        })),
+        ...rootGroups,
+      ]
+    : null
   emit('save', {
     id: props.checklist?.id ?? null,
     kind: localKind.value,
     title: localTitle.value.trim(),
-    items: localItems.value.filter(i => i.text.trim()),
+    items: filteredItems,
+    nodes,
   })
 }
 

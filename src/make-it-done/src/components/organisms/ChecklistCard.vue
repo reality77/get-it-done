@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import type { Checklist } from '../../types'
+import { useChecklists, countItems, countDone } from '../../composables/useChecklists'
 import AppBadge from '../atoms/AppBadge.vue'
 import AppButton from '../atoms/AppButton.vue'
 import ItemRow from '../molecules/ItemRow.vue'
+import ItemGroup from '../molecules/ItemGroup.vue'
 
 const props = defineProps<{
   checklist: Checklist
@@ -11,28 +13,27 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'toggle-item', checklistId: string, itemId: string): void
-  (e: 'add-item', checklistId: string, text: string): void
-  (e: 'update-item-text', checklistId: string, itemId: string, text: string): void
-  (e: 'remove-item', checklistId: string, itemId: string): void
   (e: 'edit', checklistId: string): void
   (e: 'delete', checklistId: string): void
   (e: 'run', checklistId: string): void
   (e: 'archive', checklistId: string): void
 }>()
 
+const { toggleItem, addItem, updateItemText, removeItem, addGroup } = useChecklists()
+
 const isExpanded = ref(true)
 
 // ── Item rows ─────────────────────────────────────────────────────────────────
 const itemRowRefs = ref<InstanceType<typeof ItemRow>[]>([])
 
-// ── Add item ────────────────────────────────────────────────────────────────
+// ── Add item ──────────────────────────────────────────────────────────────────
 const isAddingItem = ref(false)
 const newItemText = ref('')
 const addItemInputEl = ref<HTMLInputElement | null>(null)
 
 async function startAddItem(): Promise<void> {
   itemRowRefs.value.forEach(r => r.cancelEdit())
+  cancelAddGroup()
   isExpanded.value = true
   isAddingItem.value = true
   await nextTick()
@@ -42,7 +43,7 @@ async function startAddItem(): Promise<void> {
 function confirmAddItem(): void {
   const text = newItemText.value.trim()
   if (!text) { cancelAddItem(); return }
-  emit('add-item', props.checklist.id, text)
+  addItem(props.checklist.id, text)
   newItemText.value = ''
 }
 
@@ -55,6 +56,33 @@ onMounted(() => {
   if (props.autoFocusAddItem) startAddItem()
 })
 
+// ── Add group ─────────────────────────────────────────────────────────────────
+const isAddingGroup = ref(false)
+const newGroupTitle = ref('')
+const addGroupInputEl = ref<HTMLInputElement | null>(null)
+
+async function startAddGroup(): Promise<void> {
+  itemRowRefs.value.forEach(r => r.cancelEdit())
+  cancelAddItem()
+  isExpanded.value = true
+  isAddingGroup.value = true
+  await nextTick()
+  addGroupInputEl.value?.focus()
+}
+
+function confirmAddGroup(): void {
+  const title = newGroupTitle.value.trim()
+  if (!title) { cancelAddGroup(); return }
+  addGroup(props.checklist.id, title)
+  newGroupTitle.value = ''
+}
+
+function cancelAddGroup(): void {
+  isAddingGroup.value = false
+  newGroupTitle.value = ''
+}
+
+// ── Keyboard helpers ──────────────────────────────────────────────────────────
 function makeKeydownHandler(onEnter: () => void, onEscape: () => void) {
   return (e: KeyboardEvent) => {
     if (e.key === 'Enter') { e.preventDefault(); onEnter() }
@@ -63,11 +91,12 @@ function makeKeydownHandler(onEnter: () => void, onEscape: () => void) {
 }
 
 const onAddItemKeydown = makeKeydownHandler(confirmAddItem, cancelAddItem)
+const onAddGroupKeydown = makeKeydownHandler(confirmAddGroup, cancelAddGroup)
 
-// ── Misc ─────────────────────────────────────────────────────────────────────
+// ── Misc ──────────────────────────────────────────────────────────────────────
 const displayTitle = computed(() => props.checklist.runLabel ?? props.checklist.title)
-const doneCount = computed(() => props.checklist.items.reduce((n, i) => n + (i.done ? 1 : 0), 0))
-const totalCount = computed(() => props.checklist.items.length)
+const doneCount = computed(() => countDone(props.checklist.items))
+const totalCount = computed(() => countItems(props.checklist.items))
 const isComplete = computed(
   () => props.checklist.kind !== 'template' && totalCount.value > 0 && doneCount.value === totalCount.value
 )
@@ -153,16 +182,22 @@ watch(isComplete, (val) => {
 
     <!-- Body -->
     <div v-if="isExpanded" class="mt-3 pl-5">
-      <ItemRow
-        v-for="item in checklist.items"
-        :key="item.id"
-        ref="itemRowRefs"
-        :item="item"
-        @toggle="$emit('toggle-item', checklist.id, item.id)"
-        @update-text="(text) => $emit('update-item-text', checklist.id, item.id, text)"
-        @remove="$emit('remove-item', checklist.id, item.id)"
-        @start-edit="cancelAddItem"
-      />
+      <template v-for="node in checklist.items" :key="node.id">
+        <ItemRow
+          v-if="node.type === 'item'"
+          ref="itemRowRefs"
+          :item="node"
+          @toggle="toggleItem(checklist.id, node.id)"
+          @update-text="(text) => updateItemText(checklist.id, node.id, text)"
+          @remove="removeItem(checklist.id, node.id)"
+          @start-edit="cancelAddItem"
+        />
+        <ItemGroup
+          v-else-if="node.type === 'group'"
+          :group="node"
+          :checklist-id="checklist.id"
+        />
+      </template>
 
       <!-- Inline new-item input -->
       <div v-if="isAddingItem" class="flex items-center gap-2 py-1 mt-1">
@@ -176,13 +211,33 @@ watch(isComplete, (val) => {
         />
       </div>
 
-      <button
-        v-else
-        class="text-xs text-zinc-700 hover:text-zinc-400 transition-colors mt-2"
-        @click="startAddItem"
-      >
-        + Add item
-      </button>
+      <!-- Inline new-group input -->
+      <div v-if="isAddingGroup" class="flex items-center gap-2 py-1 mt-1">
+        <input
+          ref="addGroupInputEl"
+          v-model="newGroupTitle"
+          placeholder="Group name…"
+          class="bg-transparent border-b border-zinc-700 focus:border-violet-500 outline-none text-zinc-200 py-0.5 placeholder:text-zinc-600 transition-colors flex-1 font-medium"
+          @keydown="onAddGroupKeydown"
+          @blur="cancelAddGroup"
+        />
+      </div>
+
+      <!-- Footer buttons -->
+      <div v-if="!isAddingItem && !isAddingGroup" class="flex items-center gap-4 mt-2">
+        <button
+          class="text-xs text-zinc-700 hover:text-zinc-400 transition-colors"
+          @click="startAddItem"
+        >
+          + Add item
+        </button>
+        <button
+          class="text-xs text-zinc-700 hover:text-zinc-400 transition-colors"
+          @click="startAddGroup"
+        >
+          + Add group
+        </button>
+      </div>
     </div>
   </div>
 </template>
