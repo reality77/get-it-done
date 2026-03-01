@@ -1,6 +1,6 @@
 <script setup lang="ts">
 defineProps<{
-  variant: 'primary' | 'ghost' | 'danger' | 'icon'
+  variant: 'primary' | 'secondary' | 'ghost' | 'danger' | 'icon'
   type?: 'button' | 'submit'
   disabled?: boolean
 }>()
@@ -13,6 +13,7 @@ defineProps<{
     :class="[
       'transition-colors cursor-pointer',
       variant === 'primary' && 'bg-violet-600 hover:bg-violet-500 text-white rounded-lg px-3 py-1.5 font-medium disabled:opacity-50 disabled:cursor-not-allowed',
+      variant === 'secondary' && 'bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg px-3 py-1.5 font-medium disabled:opacity-50 disabled:cursor-not-allowed',
       variant === 'ghost' && 'text-zinc-400 hover:text-zinc-100',
       variant === 'danger' && 'text-zinc-500 hover:text-red-400',
       variant === 'icon' && 'text-zinc-500 hover:text-zinc-200 p-1 rounded',

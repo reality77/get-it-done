@@ -3,6 +3,7 @@ defineProps<{
   modelValue: string
   placeholder?: string
   autofocus?: boolean
+  type?: 'text' | 'password'
 }>()
 
 defineEmits<{
@@ -14,6 +15,7 @@ defineEmits<{
 
 <template>
   <input
+    :type="type ?? 'text'"
     :value="modelValue"
     :placeholder="placeholder"
     :autofocus="autofocus"

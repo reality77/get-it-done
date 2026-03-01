@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import type { Checklist, ChecklistKind, ChecklistNode } from './types'
-import { useChecklists } from './composables/useChecklists'
+import { useChecklistStore } from './stores/checklists'
+import { useAuthStore } from './stores/auth'
 import TabBar from './components/organisms/TabBar.vue'
 import ChecklistForm from './components/organisms/ChecklistForm.vue'
 import ActiveView from './components/templates/ActiveView.vue'
 import TemplatesView from './components/templates/TemplatesView.vue'
 import ArchiveView from './components/templates/ArchiveView.vue'
+import PasswordPrompt from './components/organisms/PasswordPrompt.vue'
 
 const activeTab = ref<'active' | 'templates' | 'archive'>('active')
 
@@ -16,6 +18,11 @@ const formState = ref<{
 } | null>(null)
 
 const newlyCreatedId = ref<string | null>(null)
+
+const authStore = useAuthStore()
+const checklistStore = useChecklistStore()
+
+const loginPrompted = ref(false)
 
 const {
   activeChecklists,
@@ -28,7 +35,26 @@ const {
   archiveChecklist,
   unarchiveChecklist,
   runTemplate,
-} = useChecklists()
+  syncStatus,
+} = checklistStore
+
+onMounted(async () => {
+  if (authStore.isAuthenticated) {
+    await checklistStore.initSync()
+  }
+})
+
+onUnmounted(() => {
+  checklistStore.unsubscribeRealtime()
+})
+
+watch(() => authStore.isAuthenticated, async (authed) => {
+  if (authed) {
+    await checklistStore.initSync()
+  } else {
+    checklistStore.unsubscribeRealtime()
+  }
+})
 
 function openCreateForm(kind: 'one-time' | 'template'): void {
   formState.value = { checklist: null, defaultKind: kind }
@@ -79,11 +105,36 @@ function handleRunTemplate(checklistId: string): void {
   runTemplate(checklistId)
   activeTab.value = 'active'
 }
+
+const syncStatusClasses: Record<string, string> = {
+  synced:  'bg-green-500',
+  syncing: 'bg-violet-400 animate-pulse',
+  offline: 'bg-zinc-600',
+  pending: 'bg-orange-400',
+}
+
+const syncStatusTitles: Record<string, string> = {
+  synced:  'Synced',
+  syncing: 'Syncing…',
+  offline: 'Offline — retrying',
+  pending: 'Unsynced changes',
+}
 </script>
 
 <template>
-  <header class="mb-8">
+  <header class="mb-8 flex items-center justify-between">
     <h1 class="text-2xl font-semibold tracking-tight text-zinc-100">make-it-done</h1>
+    <span
+      v-if="authStore.isAuthenticated"
+      class="w-2 h-2 rounded-full shrink-0"
+      :class="syncStatusClasses[syncStatus]"
+      :title="syncStatusTitles[syncStatus]"
+    />
+    <button v-else 
+      class="text-zinc-400 hover:text-zinc-200 transition-colors"
+      @click="loginPrompted = true">
+      Log in
+    </button>
   </header>
 
   <TabBar
@@ -130,4 +181,6 @@ function handleRunTemplate(checklistId: string): void {
     @save="handleFormSave"
     @cancel="formState = null"
   />
+
+  <PasswordPrompt v-if="loginPrompted" @cancel="loginPrompted = false" />
 </template>
