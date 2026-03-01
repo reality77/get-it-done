@@ -33,15 +33,6 @@ function findItem(checklist: Checklist, itemId: string): ChecklistItem | undefin
   return checklist.items.find(i => i.id === itemId)
 }
 
-function maybeAutoArchive(checklistId: string): void {
-  const checklist = findChecklist(checklistId)
-  if (!checklist || checklist.kind === 'template' || checklist.archived) return
-  if (checklist.items.length > 0 && checklist.items.every(i => i.done)) {
-    checklist.archived = true
-    checklist.archivedAt = new Date().toISOString()
-  }
-}
-
 // Computed views
 
 const activeChecklists = computed(() =>
@@ -108,7 +99,6 @@ function toggleItem(checklistId: string, itemId: string): void {
   const item = findItem(checklist, itemId)
   if (!item) return
   item.done = !item.done
-  maybeAutoArchive(checklistId)
 }
 
 function archiveChecklist(id: string): void {

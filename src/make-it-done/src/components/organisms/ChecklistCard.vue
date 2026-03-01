@@ -92,10 +92,20 @@ const onEditItemKeydown = makeKeydownHandler(confirmEditItem, cancelEditItem)
 // ── Misc ─────────────────────────────────────────────────────────────────────
 const displayTitle = computed(() => props.checklist.runLabel ?? props.checklist.title)
 const doneCount = computed(() => props.checklist.items.reduce((n, i) => n + (i.done ? 1 : 0), 0))
+const totalCount = computed(() => props.checklist.items.length)
+const isComplete = computed(
+  () => props.checklist.kind !== 'template' && totalCount.value > 0 && doneCount.value === totalCount.value
+)
+const progressPct = computed(() =>
+  totalCount.value > 0 ? Math.round((doneCount.value / totalCount.value) * 100) : 0
+)
 </script>
 
 <template>
-  <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+  <div
+    class="border rounded-xl p-4 transition-colors"
+    :class="isComplete ? 'bg-green-950 border-green-700' : 'bg-zinc-900 border-zinc-800'"
+  >
     <!-- Header -->
     <div class="flex items-center gap-2 min-w-0">
       <button
@@ -110,11 +120,10 @@ const doneCount = computed(() => props.checklist.items.reduce((n, i) => n + (i.d
       <AppBadge :kind="checklist.kind" />
 
       <span
-        v-if="checklist.kind !== 'template' && checklist.items.length > 0"
-        class="text-xs text-zinc-600 shrink-0"
-      >
-        {{ doneCount }}/{{ checklist.items.length }}
-      </span>
+        v-if="isComplete"
+        class="text-green-400 shrink-0 text-base"
+        title="All done!"
+      >✓</span>
 
       <!-- Actions -->
       <div class="flex items-center gap-1 shrink-0">
@@ -141,6 +150,17 @@ const doneCount = computed(() => props.checklist.items.reduce((n, i) => n + (i.d
         </AppButton>
         <AppButton variant="danger" @click="$emit('delete', checklist.id)">Delete</AppButton>
       </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div
+      v-if="!isComplete && checklist.kind !== 'template' && totalCount > 0"
+      class="mt-2 h-1 bg-zinc-800 rounded-full overflow-hidden"
+    >
+      <div
+        class="h-full bg-violet-500 rounded-full transition-all duration-300"
+        :style="{ width: `${progressPct}%` }"
+      />
     </div>
 
     <!-- Body -->
