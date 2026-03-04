@@ -3,6 +3,7 @@ defineProps<{
   label: string
   active: boolean
   count?: number
+  dot?: boolean
 }>()
 
 defineEmits<{
@@ -23,5 +24,9 @@ defineEmits<{
     >
       {{ count }}
     </span>
+    <span
+      v-if="dot"
+      class="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-violet-400 align-middle"
+    />
   </button>
 </template>

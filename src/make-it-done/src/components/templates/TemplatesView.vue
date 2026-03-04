@@ -52,9 +52,9 @@ function confirmNewChecklist(): void {
         :key="template.id"
         :checklist="template"
         :auto-focus-add-item="focusChecklistId === template.id"
-        @edit="(cId) => $emit('edit', cId)"
-        @delete="(cId) => $emit('delete', cId)"
-        @run="(cId) => $emit('run', cId)"
+        @edit="(id: string) => $emit('edit', id)"
+        @delete="(id: string) => $emit('delete', id)"
+        @run="(id: string) => $emit('run', id)"
       />
     </div>
   </div>

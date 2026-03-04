@@ -2,12 +2,13 @@
 import TabItem from '../molecules/TabItem.vue'
 
 defineProps<{
-  activeTab: 'active' | 'templates' | 'archive'
+  activeTab: 'active' | 'templates' | 'archive' | 'tasks'
   archiveCount: number
+  weeklyReviewDue?: boolean
 }>()
 
 defineEmits<{
-  (e: 'change', tab: 'active' | 'templates' | 'archive'): void
+  (e: 'change', tab: 'active' | 'templates' | 'archive' | 'tasks'): void
 }>()
 </script>
 
@@ -16,5 +17,6 @@ defineEmits<{
     <TabItem label="Active" :active="activeTab === 'active'" @select="$emit('change', 'active')" />
     <TabItem label="Templates" :active="activeTab === 'templates'" @select="$emit('change', 'templates')" />
     <TabItem label="Archive" :active="activeTab === 'archive'" :count="archiveCount" @select="$emit('change', 'archive')" />
+    <TabItem label="Tasks" :active="activeTab === 'tasks'" :dot="weeklyReviewDue" @select="$emit('change', 'tasks')" />
   </div>
 </template>

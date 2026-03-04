@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import type { Checklist, ChecklistKind } from './types'
+import type { Checklist, ChecklistKind, TaskPriority, TaskEffort, TaskView } from './types'
 import { useChecklistStore } from './stores/checklists'
 import { useAuthStore } from './stores/auth'
+import { useTaskStore } from './stores/tasks'
 import TabBar from './components/organisms/TabBar.vue'
 import ActiveView from './components/templates/ActiveView.vue'
 import TemplatesView from './components/templates/TemplatesView.vue'
 import ArchiveView from './components/templates/ArchiveView.vue'
+import TasksView from './components/templates/TasksView.vue'
+import TaskForm from './components/organisms/TaskForm.vue'
 import PasswordPrompt from './components/organisms/PasswordPrompt.vue'
 import { storeToRefs } from 'pinia'
 
-const activeTab = ref<'active' | 'templates' | 'archive'>('active')
+const activeTab = ref<'active' | 'templates' | 'archive' | 'tasks'>('active')
 
 const formState = ref<{
   checklist: Checklist | null
@@ -21,6 +24,7 @@ const newlyCreatedId = ref<string | null>(null)
 
 const authStore = useAuthStore()
 const checklistStore = useChecklistStore()
+const taskStore = useTaskStore()
 
 const loginPrompted = ref(false)
 
@@ -32,16 +36,37 @@ const {
 } = storeToRefs(checklistStore)
 
 const {
-  getChecklist,
+  weeklyReviewDue,
+  dayTasks,
+  snoozedTasks,
+  somedayTasks,
+  staleSnoozedTasks,
+  activeTasks,
+  weekTasksByPriority,
+  isDayPlanFresh,
+} = storeToRefs(taskStore)
+
+const {
   createChecklist,
-  updateChecklist,
   deleteChecklist,
   archiveChecklist,
   unarchiveChecklist,
   runTemplate,
 } = checklistStore
 
+// ── Task manager state ────────────────────────────────────────────────────────
+
+const currentTaskView = ref<TaskView>('week')
+const taskFormOpen = ref(false)
+const reviewDismissed = ref(false)
+
+watch(weeklyReviewDue, (due) => {
+  if (due) reviewDismissed.value = false
+})
+
 onMounted(async () => {
+  taskStore.processDueSnoozed()
+  taskStore.refreshDayPlanIfStale()
   if (authStore.isAuthenticated) {
     await checklistStore.initSync()
   }
@@ -59,19 +84,6 @@ watch(() => authStore.isAuthenticated, async (authed) => {
   }
 })
 
-function openCreateForm(kind: 'one-time' | 'template'): void {
-  formState.value = { checklist: null, defaultKind: kind }
-}
-
-function openEditForm(checklistId: string): void {
-  const found = getChecklist(checklistId)
-  if (!found) return
-  formState.value = {
-    checklist: found,
-    defaultKind: found.kind === 'template' ? 'template' : 'one-time',
-  }
-}
-
 async function handleCreateChecklist(title: string, kind: ChecklistKind): Promise<void> {
     const created = createChecklist(
       kind,
@@ -88,6 +100,20 @@ async function handleCreateChecklist(title: string, kind: ChecklistKind): Promis
 function handleRunTemplate(checklistId: string): void {
   runTemplate(checklistId)
   activeTab.value = 'active'
+}
+
+function openTaskForm(_priority?: TaskPriority): void {
+  taskFormOpen.value = true
+}
+
+function handleCreateTask(title: string, priority: TaskPriority, effort: TaskEffort): void {
+  taskStore.createTask(title, priority, effort)
+  taskFormOpen.value = false
+}
+
+function handleSuggestDay(): void {
+  const suggested = taskStore.suggestDayPlan()
+  taskStore.setDayPlan(suggested.map(t => t.id))
 }
 
 const syncStatusClasses: Record<string, string> = {
@@ -124,6 +150,7 @@ const syncStatusTitles: Record<string, string> = {
   <TabBar
     :activeTab="activeTab"
     :archiveCount="archivedChecklists.length"
+    :weekly-review-due="weeklyReviewDue"
     @change="activeTab = $event"
   />
 
@@ -152,7 +179,38 @@ const syncStatusTitles: Record<string, string> = {
       @unarchive="unarchiveChecklist"
       @delete="deleteChecklist"
     />
+
+    <TasksView
+      v-else-if="activeTab === 'tasks'"
+      :weekly-review-due="weeklyReviewDue"
+      :review-dismissed="reviewDismissed"
+      :snoozed-tasks="snoozedTasks"
+      :someday-tasks="somedayTasks"
+      :stale-snoozed-ids="staleSnoozedTasks.map(t => t.id)"
+      :day-tasks="dayTasks"
+      :all-active-tasks="activeTasks"
+      :tasks-by-priority="weekTasksByPriority"
+      :is-day-plan-fresh="isDayPlanFresh"
+      :current-view="currentTaskView"
+      @change-view="currentTaskView = $event"
+      @create-task="openTaskForm"
+      @activate="taskStore.activateTask"
+      @snooze="(id, date) => taskStore.snoozeTask(id, date)"
+      @someday="taskStore.sendToSomeday"
+      @delete="taskStore.deleteTask"
+      @update="(id, patch) => taskStore.updateTask(id, patch)"
+      @suggest-day="handleSuggestDay"
+      @toggle-day="taskStore.toggleDayPlanTask"
+      @complete-review="taskStore.completeWeeklyReview"
+      @dismiss-review="reviewDismissed = true"
+    />
   </main>
 
   <PasswordPrompt v-if="loginPrompted" @cancel="loginPrompted = false" />
+
+  <TaskForm
+    v-if="taskFormOpen"
+    @submit="handleCreateTask"
+    @cancel="taskFormOpen = false"
+  />
 </template>
