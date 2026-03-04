@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Checklist, ChecklistKind } from '../../types'
+import type { Checklist } from '../../types'
 import ChecklistCard from '../organisms/ChecklistCard.vue'
 import AppButton from '../atoms/AppButton.vue'
 import AppInput from '../atoms/AppInput.vue';
@@ -51,9 +51,9 @@ function confirmNewChecklist(): void {
         :key="checklist.id"
         :checklist="checklist"
         :auto-focus-add-item="focusChecklistId === checklist.id"
-        @edit="(cId) => $emit('edit', cId)"
-        @delete="(cId) => $emit('delete', cId)"
-        @archive="(cId) => $emit('archive', cId)"
+        @edit="(cId: string) => $emit('edit', cId)"
+        @delete="(cId: string) => $emit('delete', cId)"
+        @archive="(cId: string) => $emit('archive', cId)"
       />
     </div>
   </div>

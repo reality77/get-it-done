@@ -32,9 +32,7 @@ const {
 } = storeToRefs(checklistStore)
 
 const {
-  getChecklist,
   createChecklist,
-  updateChecklist,
   deleteChecklist,
   archiveChecklist,
   unarchiveChecklist,
@@ -58,19 +56,6 @@ watch(() => authStore.isAuthenticated, async (authed) => {
     checklistStore.unsubscribeRealtime()
   }
 })
-
-function openCreateForm(kind: 'one-time' | 'template'): void {
-  formState.value = { checklist: null, defaultKind: kind }
-}
-
-function openEditForm(checklistId: string): void {
-  const found = getChecklist(checklistId)
-  if (!found) return
-  formState.value = {
-    checklist: found,
-    defaultKind: found.kind === 'template' ? 'template' : 'one-time',
-  }
-}
 
 async function handleCreateChecklist(title: string, kind: ChecklistKind): Promise<void> {
     const created = createChecklist(
