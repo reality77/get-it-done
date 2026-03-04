@@ -156,6 +156,7 @@ function migrateNodes(raw: unknown[]): ChecklistNode[] {
     if (node.selectedForToday) item.selectedForToday = Boolean(node.selectedForToday)
     if (node.snoozeUntil !== undefined) item.snoozeUntil = node.snoozeUntil as string | null
     if (node.snoozedAt !== undefined) item.snoozedAt = node.snoozedAt as string | null
+    if (node.completedAt !== undefined) item.completedAt = node.completedAt as string | null
     return item
   })
 }
@@ -344,11 +345,30 @@ export const useChecklistStore = defineStore('checklists', () => {
     )
   )
 
-  const dayPlanItems = computed(() =>
-    trackedItems.value.filter(r =>
-      r.item.selectedForToday && !r.item.done && (r.item.status ?? 'active') === 'active'
-    )
-  )
+  const dayPlanItems = computed(() => {
+    const today = todayDateString()
+    const result: TrackedItemRef[] = []
+
+    // From non-archived tracked checklists: selected-for-today items and items completed today
+    for (const r of trackedItems.value) {
+      if ((r.item.status ?? 'active') !== 'active') continue
+      if (r.item.selectedForToday && !r.item.done) result.push(r)
+      else if (r.item.done && r.item.completedAt?.startsWith(today)) result.push(r)
+    }
+
+    // From archived tracked checklists: items completed today (checklist was completed today)
+    for (const cl of checklists.value) {
+      if (!cl.tracked || !cl.archived || cl.kind === 'template') continue
+      const title = cl.runLabel ?? cl.title
+      walkNodes(cl.items, n => {
+        if (n.type === 'item' && n.done && n.completedAt?.startsWith(today)) {
+          result.push({ item: n, checklistId: cl.id, checklistTitle: title })
+        }
+      })
+    }
+
+    return result
+  })
 
   const snoozedItems = computed(() =>
     trackedItems.value.filter(r => (r.item.status ?? 'active') === 'snoozed')
@@ -395,6 +415,15 @@ export const useChecklistStore = defineStore('checklists', () => {
     planMeta.value.dayPlanDate === todayDateString()
   )
 
+
+  function clearDayPlan(): void {
+    for (const r of trackedItems.value) {
+      if (r.item.selectedForToday) {
+        r.item.selectedForToday = false
+      }
+    }
+  }
+
   // ── Task-tracking: actions ────────────────────────────────────────────────
 
   function enableTracking(
@@ -416,6 +445,7 @@ export const useChecklistStore = defineStore('checklists', () => {
         n.selectedForToday = n.selectedForToday ?? false
         if (n.snoozeUntil === undefined) n.snoozeUntil = null
         if (n.snoozedAt === undefined) n.snoozedAt = null
+        if (n.completedAt === undefined) n.completedAt = null
       }
     })
     persist()
@@ -435,6 +465,7 @@ export const useChecklistStore = defineStore('checklists', () => {
         delete n.selectedForToday
         delete n.snoozeUntil
         delete n.snoozedAt
+        delete n.completedAt
       }
     })
     persist()
@@ -882,9 +913,15 @@ export const useChecklistStore = defineStore('checklists', () => {
     const item = findItemDeep(checklist.items, itemId)
     if (!item) return
     item.done = !item.done
-    // When completing a tracked item, remove from day plan
-    if (item.done && checklist.tracked) {
-      item.selectedForToday = false
+    if (checklist.tracked) {
+      if (item.done) {
+        // Record completion timestamp; keep selectedForToday so item remains visible today
+        item.completedAt = new Date().toISOString()
+      } else {
+        // Un-completing: clear timestamp, restore to today's plan if it was there
+        item.completedAt = null
+        item.selectedForToday = true
+      }
     }
     if (
       checklist.kind !== 'template' &&
@@ -910,6 +947,7 @@ export const useChecklistStore = defineStore('checklists', () => {
       item.selectedForToday = false
       item.snoozeUntil = null
       item.snoozedAt = null
+      item.completedAt = null
     }
     if (parentGroupId) {
       const group = findGroupDeep(checklist.items, parentGroupId)
@@ -1042,6 +1080,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     processDueSnoozed,
     completeWeeklyReview,
     suggestDayPlan,
+    clearDayPlan,
     // Sync
     initSync,
     unsubscribeRealtime,

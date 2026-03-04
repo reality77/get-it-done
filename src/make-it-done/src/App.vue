@@ -183,6 +183,7 @@ const syncStatusTitles: Record<string, string> = {
       @toggle-day="(id) => checklistStore.toggleItemDayPlan(id)"
       @complete-review="checklistStore.completeWeeklyReview"
       @dismiss-review="reviewDismissed = true"
+      @clear="checklistStore.clearDayPlan()"
     />
   </main>
 

@@ -6,6 +6,7 @@ import KindBadge from '../molecules/KindBadge.vue'
 import AppButton from '../atoms/AppButton.vue'
 import ItemRow from '../molecules/ItemRow.vue'
 import ItemGroup from '../molecules/ItemGroup.vue'
+import TrackButton from '../molecules/TrackButton.vue'
 
 const props = defineProps<{
   checklist: Checklist
@@ -18,7 +19,7 @@ const emit = defineEmits<{
   (e: 'archive', checklistId: string): void
 }>()
 
-const { toggleItem, addItem, updateItemText, removeItem, addGroup, enableTracking, disableTracking } = useChecklistStore()
+const { toggleItem, addItem, updateItemText, removeItem, addGroup } = useChecklistStore()
 
 const isExpanded = ref(true)
 
@@ -144,18 +145,7 @@ watch(isComplete, (val) => {
       <!-- Actions -->
       <div class="flex items-center gap-3 shrink-0">
         <!-- Track as tasks toggle -->
-        <button
-          v-if="checklist.kind !== 'template' && !checklist.archived"
-          class="text-xs px-2 py-0.5 rounded-full border transition-colors cursor-pointer"
-          :class="checklist.tracked
-            ? 'bg-violet-600/20 border-violet-500 text-violet-300'
-            : 'border-zinc-700 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300'"
-          :title="checklist.tracked ? 'Tracked as tasks — click to disable' : 'Track items as tasks'"
-          @click="checklist.tracked ? disableTracking(checklist.id) : enableTracking(checklist.id)"
-        >
-          <span class="sm:hidden">{{ checklist.tracked ? '◎' : '○' }}</span>
-          <span class="hidden sm:inline">{{ checklist.tracked ? '◎ Tracked' : '○ Track' }}</span>
-        </button>
+        <TrackButton :checklist="checklist" />
         <AppButton
           v-if="checklist.kind === 'template'"
           variant="primary"

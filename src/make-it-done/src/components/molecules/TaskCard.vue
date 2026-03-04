@@ -97,8 +97,8 @@ const itemStatus = () => props.item.status ?? 'active'
     </div>
 
     <!-- Badges -->
-    <PriorityBadge v-if="!compact && item.priority" :priority="item.priority" />
-    <EffortBadge v-if="!compact && item.effort" :effort="item.effort" />
+    <PriorityBadge v-if="compact && item.priority" :priority="item.priority" />
+    <EffortBadge v-if="item.effort" :effort="item.effort" />
 
     <!-- Actions (always visible on mobile, hover-reveal on desktop) -->
     <div class="flex items-center gap-1 transition-opacity shrink-0 relative sm:opacity-0 sm:group-hover:opacity-100">

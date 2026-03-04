@@ -28,6 +28,7 @@ export interface ChecklistItem {
   selectedForToday?: boolean
   snoozeUntil?: string | null    // YYYY-MM-DD
   snoozedAt?: string | null      // ISO timestamp, for 14-day alert
+  completedAt?: string | null    // ISO timestamp of completion
 }
 
 export interface ChecklistItemGroup {

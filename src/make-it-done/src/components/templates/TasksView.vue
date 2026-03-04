@@ -34,6 +34,7 @@ const emit = defineEmits<{
   (e: 'toggle-day', id: ChecklistItemId): void
   (e: 'complete-review'): void
   (e: 'dismiss-review'): void
+  (e: 'clear'): void
 }>()
 </script>
 
@@ -87,6 +88,7 @@ const emit = defineEmits<{
       @someday="(id) => $emit('someday', id)"
       @delete="(id) => $emit('delete', id)"
       @update-text="(id, text) => $emit('update-text', id, text)"
+      @clear="$emit('clear')"
     />
 
     <!-- Week view -->
