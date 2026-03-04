@@ -9,6 +9,7 @@ import ItemRow from './ItemRow.vue'
 const props = defineProps<{
   group: ChecklistItemGroup
   checklistId: string
+  tracked?: boolean
 }>()
 
 const {
@@ -153,6 +154,7 @@ const onAddGroupKeydown = makeKeydownHandler(confirmAddGroup, cancelAddGroup)
           v-if="node.type === 'item'"
           ref="itemRowRefs"
           :item="node"
+          :tracked="tracked"
           @toggle="toggleItem(checklistId, node.id)"
           @update-text="(text) => updateItemText(checklistId, node.id, text)"
           @remove="removeItem(checklistId, node.id)"
@@ -163,6 +165,7 @@ const onAddGroupKeydown = makeKeydownHandler(confirmAddGroup, cancelAddGroup)
           v-else-if="node.type === 'group'"
           :group="node"
           :checklist-id="checklistId"
+          :tracked="tracked"
         />
       </template>
 

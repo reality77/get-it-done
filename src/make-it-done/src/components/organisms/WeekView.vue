@@ -1,24 +1,25 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { Task, TaskPriority } from '../../types'
+import type { TrackedItemRef, TaskPriority, TaskEffort } from '../../types'
 import TaskCard from '../molecules/TaskCard.vue'
-import AppButton from '../atoms/AppButton.vue'
 
-defineProps<{
-  tasksByPriority: {
-    urgent: Task[]
-    important: Task[]
-    secondary: Task[]
+const props = defineProps<{
+  itemsByPriority: {
+    urgent: TrackedItemRef[]
+    important: TrackedItemRef[]
+    secondary: TrackedItemRef[]
   }
 }>()
 
 const emit = defineEmits<{
-  (e: 'snooze', taskId: string, date: string): void
-  (e: 'someday', taskId: string): void
-  (e: 'delete', taskId: string): void
-  (e: 'update', taskId: string, patch: Partial<Pick<Task, 'title' | 'priority' | 'effort'>>): void
-  (e: 'toggle-day', taskId: string): void
-  (e: 'create', priority: TaskPriority): void
+  (e: 'snooze', checklistId: string, itemId: string, date: string): void
+  (e: 'someday', checklistId: string, itemId: string): void
+  (e: 'delete', checklistId: string, itemId: string): void
+  (e: 'update-priority', checklistId: string, itemId: string, priority: TaskPriority): void
+  (e: 'update-effort', checklistId: string, itemId: string, effort: TaskEffort): void
+  (e: 'update-text', checklistId: string, itemId: string, text: string): void
+  (e: 'toggle-day', checklistId: string, itemId: string): void
+  (e: 'toggle-done', checklistId: string, itemId: string): void
 }>()
 
 const collapsed = ref<Record<TaskPriority, boolean>>({
@@ -32,6 +33,17 @@ const sections: { priority: TaskPriority; label: string; dotColor: string }[] = 
   { priority: 'important', label: 'Important', dotColor: 'bg-yellow-500' },
   { priority: 'secondary', label: 'Secondary', dotColor: 'bg-zinc-500' },
 ]
+
+/** Group items within a priority section by their checklist title */
+function groupByChecklist(items: TrackedItemRef[]): Map<string, TrackedItemRef[]> {
+  const map = new Map<string, TrackedItemRef[]>()
+  for (const ref of items) {
+    const key = ref.checklistTitle
+    if (!map.has(key)) map.set(key, [])
+    map.get(key)!.push(ref)
+  }
+  return map
+}
 </script>
 
 <template>
@@ -49,47 +61,57 @@ const sections: { priority: TaskPriority; label: string; dotColor: string }[] = 
         >
           {{ section.label }}
           <span class="text-zinc-600 font-normal ml-1">
-            ({{ tasksByPriority[section.priority].length }})
+            ({{ itemsByPriority[section.priority].length }})
           </span>
         </button>
-        <AppButton variant="ghost" class="text-xs" @click="$emit('create', section.priority)">
-          + New
-        </AppButton>
       </div>
 
-      <!-- Tasks -->
-      <div v-if="!collapsed[section.priority]" class="space-y-0.5 pl-4">
+      <!-- Items grouped by checklist -->
+      <div v-if="!collapsed[section.priority]" class="space-y-3 pl-4">
         <div
-          v-if="tasksByPriority[section.priority].length === 0"
+          v-if="itemsByPriority[section.priority].length === 0"
           class="text-xs text-zinc-600 py-2"
         >
-          No {{ section.label.toLowerCase() }} tasks
+          No {{ section.label.toLowerCase() }} items
         </div>
-        <div
-          v-for="task in tasksByPriority[section.priority]"
-          :key="task.id"
-          class="relative"
-        >
-          <!-- Day plan toggle checkbox -->
-          <button
-            class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-5 w-3.5 h-3.5 rounded border transition-colors cursor-pointer"
-            :class="task.selectedForToday
-              ? 'bg-violet-600 border-violet-600'
-              : 'border-zinc-700 hover:border-zinc-500'"
-            :title="task.selectedForToday ? 'Remove from today' : 'Add to today'"
-            @click="$emit('toggle-day', task.id)"
-          >
-            <span v-if="task.selectedForToday" class="text-white text-[10px] leading-none flex items-center justify-center w-full h-full">✓</span>
-          </button>
 
-          <TaskCard
-            :task="task"
-            @snooze="(id, date) => $emit('snooze', id, date)"
-            @someday="(id) => $emit('someday', id)"
-            @activate="() => {}"
-            @delete="(id) => $emit('delete', id)"
-            @update="(id, patch) => $emit('update', id, patch)"
-          />
+        <div
+          v-for="[clTitle, refs] in groupByChecklist(itemsByPriority[section.priority])"
+          :key="clTitle"
+        >
+          <!-- Checklist sub-header -->
+          <p class="text-xs text-zinc-500 mb-1 font-medium">{{ clTitle }}</p>
+          <div class="space-y-0.5">
+            <div
+              v-for="ref in refs"
+              :key="ref.item.id"
+              class="relative"
+            >
+              <!-- Day plan toggle checkbox -->
+              <button
+                class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-5 w-3.5 h-3.5 rounded border transition-colors cursor-pointer"
+                :class="ref.item.selectedForToday
+                  ? 'bg-violet-600 border-violet-600'
+                  : 'border-zinc-700 hover:border-zinc-500'"
+                :title="ref.item.selectedForToday ? 'Remove from today' : 'Add to today'"
+                @click="$emit('toggle-day', ref.checklistId, ref.item.id)"
+              >
+                <span v-if="ref.item.selectedForToday" class="text-white text-[10px] leading-none flex items-center justify-center w-full h-full">✓</span>
+              </button>
+
+              <TaskCard
+                :item="ref.item"
+                :checklist-id="ref.checklistId"
+                :checklist-title="ref.checklistTitle"
+                @toggle-done="(cId, iId) => $emit('toggle-done', cId, iId)"
+                @snooze="(cId, iId, date) => $emit('snooze', cId, iId, date)"
+                @someday="(cId, iId) => $emit('someday', cId, iId)"
+                @activate="() => {}"
+                @delete="(cId, iId) => $emit('delete', cId, iId)"
+                @update-text="(cId, iId, text) => $emit('update-text', cId, iId, text)"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </section>

@@ -1,35 +1,33 @@
 export type ChecklistKind = 'one-time' | 'template' | 'run'
 
-// ── Task Manager ──────────────────────────────────────────────────────────────
+// ── Task fields (used by tracked checklist items) ─────────────────────────────
 
 export type TaskStatus   = 'active' | 'snoozed' | 'someday'
 export type TaskPriority = 'urgent' | 'important' | 'secondary'
 export type TaskEffort   = 'small' | 'medium' | 'large'
 export type TaskView     = 'day' | 'week'
 
-export interface Task {
-  id: string
-  title: string
-  status: TaskStatus
-  priority: TaskPriority
-  effort: TaskEffort
-  selectedForToday: boolean
-  snoozeUntil: string | null     // YYYY-MM-DD
-  snoozedAt: string | null       // ISO timestamp, for 14-day alert
-  createdAt: string
-  updatedAt: string
-}
+// ── Planning metadata (persisted globally) ────────────────────────────────────
 
-export interface TaskMeta {
+export interface PlanMeta {
   lastReviewedAt: string | null  // ISO timestamp of last weekly review
   dayPlanDate: string | null     // YYYY-MM-DD — which day the current plan is for
 }
+
+// ── Checklist types ───────────────────────────────────────────────────────────
 
 export interface ChecklistItem {
   type: 'item'
   id: string
   text: string
   done: boolean
+  // Task fields — only populated when parent checklist is tracked
+  priority?: TaskPriority
+  effort?: TaskEffort
+  status?: TaskStatus            // defaults to 'active'
+  selectedForToday?: boolean
+  snoozeUntil?: string | null    // YYYY-MM-DD
+  snoozedAt?: string | null      // ISO timestamp, for 14-day alert
 }
 
 export interface ChecklistItemGroup {
@@ -52,4 +50,15 @@ export interface Checklist {
   archivedAt: string | null
   templateId: string | null
   runLabel: string | null
+  // Task-tracking fields
+  tracked: boolean
+  defaultPriority: TaskPriority
+  defaultEffort: TaskEffort
+}
+
+/** Flattened reference to a tracked checklist item (used in Tasks views) */
+export interface TrackedItemRef {
+  item: ChecklistItem
+  checklistId: string
+  checklistTitle: string
 }

@@ -6,6 +6,7 @@ import AppCheckbox from '../atoms/AppCheckbox.vue'
 
 const props = defineProps<{
   item: ChecklistItem
+  tracked?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -115,6 +116,25 @@ const deleteProgress = computed(() =>
       >
         {{ item.text }}
       </span>
+
+      <!-- Task badges (tracked items only) -->
+      <template v-if="tracked && !item.done">
+        <span
+          v-if="item.status === 'snoozed'"
+          class="text-[10px] px-1 py-0.5 rounded bg-yellow-950 text-yellow-400 shrink-0"
+          title="Snoozed"
+        >💤</span>
+        <span
+          v-if="item.status === 'someday'"
+          class="text-[10px] px-1 py-0.5 rounded bg-zinc-800 text-zinc-400 shrink-0"
+          title="Someday"
+        >☁</span>
+        <span
+          v-if="item.selectedForToday"
+          class="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0"
+          title="Selected for today"
+        />
+      </template>
 
       <button
         class="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-all text-xs shrink-0 cursor-pointer hidden sm:block"

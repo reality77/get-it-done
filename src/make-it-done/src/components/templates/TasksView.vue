@@ -1,36 +1,37 @@
 <script setup lang="ts">
-import type { Task, TaskPriority, TaskView } from '../../types'
+import type { TrackedItemRef, TaskPriority, TaskEffort, TaskView } from '../../types'
 import WeeklyReviewPanel from '../organisms/WeeklyReviewPanel.vue'
 import DayView from '../organisms/DayView.vue'
 import WeekView from '../organisms/WeekView.vue'
-import AppButton from '../atoms/AppButton.vue'
 
 defineProps<{
   weeklyReviewDue: boolean
   reviewDismissed: boolean
-  snoozedTasks: Task[]
-  somedayTasks: Task[]
+  snoozedItems: TrackedItemRef[]
+  somedayItems: TrackedItemRef[]
   staleSnoozedIds: string[]
-  dayTasks: Task[]
-  allActiveTasks: Task[]
-  tasksByPriority: {
-    urgent: Task[]
-    important: Task[]
-    secondary: Task[]
+  dayItems: TrackedItemRef[]
+  allActiveItems: TrackedItemRef[]
+  itemsByPriority: {
+    urgent: TrackedItemRef[]
+    important: TrackedItemRef[]
+    secondary: TrackedItemRef[]
   }
   currentView: TaskView
 }>()
 
 const emit = defineEmits<{
   (e: 'change-view', view: TaskView): void
-  (e: 'create-task', priority?: TaskPriority): void
-  (e: 'activate', taskId: string): void
-  (e: 'snooze', taskId: string, date: string): void
-  (e: 'someday', taskId: string): void
-  (e: 'delete', taskId: string): void
-  (e: 'update', taskId: string, patch: Partial<Pick<Task, 'title' | 'priority' | 'effort'>>): void
+  (e: 'activate', checklistId: string, itemId: string): void
+  (e: 'snooze', checklistId: string, itemId: string, date: string): void
+  (e: 'someday', checklistId: string, itemId: string): void
+  (e: 'delete', checklistId: string, itemId: string): void
+  (e: 'update-priority', checklistId: string, itemId: string, priority: TaskPriority): void
+  (e: 'update-effort', checklistId: string, itemId: string, effort: TaskEffort): void
+  (e: 'update-text', checklistId: string, itemId: string, text: string): void
+  (e: 'toggle-done', checklistId: string, itemId: string): void
   (e: 'suggest-day'): void
-  (e: 'toggle-day', taskId: string): void
+  (e: 'toggle-day', checklistId: string, itemId: string): void
   (e: 'complete-review'): void
   (e: 'dismiss-review'): void
 }>()
@@ -41,12 +42,12 @@ const emit = defineEmits<{
     <!-- Weekly review panel -->
     <WeeklyReviewPanel
       v-if="weeklyReviewDue && !reviewDismissed"
-      :snoozed-tasks="snoozedTasks"
-      :someday-tasks="somedayTasks"
+      :snoozed-items="snoozedItems"
+      :someday-items="somedayItems"
       :stale-snoozed-ids="staleSnoozedIds"
-      @activate="(id) => $emit('activate', id)"
-      @snooze="(id, date) => $emit('snooze', id, date)"
-      @delete="(id) => $emit('delete', id)"
+      @activate="(cId, iId) => $emit('activate', cId, iId)"
+      @snooze="(cId, iId, date) => $emit('snooze', cId, iId, date)"
+      @delete="(cId, iId) => $emit('delete', cId, iId)"
       @complete-review="$emit('complete-review')"
       @dismiss="$emit('dismiss-review')"
     />
@@ -73,36 +74,33 @@ const emit = defineEmits<{
           Week
         </button>
       </div>
-
-      <!-- New task button -->
-      <AppButton variant="primary" class="ml-auto" @click="$emit('create-task')">
-        + New task
-      </AppButton>
     </div>
 
     <!-- Day view -->
     <DayView
       v-if="currentView === 'day'"
-      :tasks="dayTasks"
-      :all-active-tasks="allActiveTasks"
+      :items="dayItems"
+      :all-active-items="allActiveItems"
       @suggest="$emit('suggest-day')"
-      @toggle-task="(id) => $emit('toggle-day', id)"
-      @snooze="(id, date) => $emit('snooze', id, date)"
-      @someday="(id) => $emit('someday', id)"
-      @delete="(id) => $emit('delete', id)"
-      @update="(id, patch) => $emit('update', id, patch)"
+      @toggle-done="(cId, iId) => $emit('toggle-done', cId, iId)"
+      @snooze="(cId, iId, date) => $emit('snooze', cId, iId, date)"
+      @someday="(cId, iId) => $emit('someday', cId, iId)"
+      @delete="(cId, iId) => $emit('delete', cId, iId)"
+      @update-text="(cId, iId, text) => $emit('update-text', cId, iId, text)"
     />
 
     <!-- Week view -->
     <WeekView
       v-else
-      :tasks-by-priority="tasksByPriority"
-      @snooze="(id, date) => $emit('snooze', id, date)"
-      @someday="(id) => $emit('someday', id)"
-      @delete="(id) => $emit('delete', id)"
-      @update="(id, patch) => $emit('update', id, patch)"
-      @toggle-day="(id) => $emit('toggle-day', id)"
-      @create="(priority) => $emit('create-task', priority)"
+      :items-by-priority="itemsByPriority"
+      @snooze="(cId, iId, date) => $emit('snooze', cId, iId, date)"
+      @someday="(cId, iId) => $emit('someday', cId, iId)"
+      @delete="(cId, iId) => $emit('delete', cId, iId)"
+      @update-priority="(cId, iId, p) => $emit('update-priority', cId, iId, p)"
+      @update-effort="(cId, iId, e) => $emit('update-effort', cId, iId, e)"
+      @update-text="(cId, iId, text) => $emit('update-text', cId, iId, text)"
+      @toggle-day="(cId, iId) => $emit('toggle-day', cId, iId)"
+      @toggle-done="(cId, iId) => $emit('toggle-done', cId, iId)"
     />
   </div>
 </template>

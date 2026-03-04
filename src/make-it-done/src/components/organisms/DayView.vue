@@ -1,32 +1,32 @@
 <script setup lang="ts">
-import type { Task } from '../../types'
+import type { TrackedItemRef } from '../../types'
 import DayPlanBar from '../molecules/DayPlanBar.vue'
 import TaskCard from '../molecules/TaskCard.vue'
 
 defineProps<{
-  tasks: Task[]
-  allActiveTasks: Task[]
+  items: TrackedItemRef[]
+  allActiveItems: TrackedItemRef[]
 }>()
 
 defineEmits<{
   (e: 'suggest'): void
-  (e: 'toggle-task', taskId: string): void
-  (e: 'snooze', taskId: string, date: string): void
-  (e: 'someday', taskId: string): void
-  (e: 'delete', taskId: string): void
-  (e: 'update', taskId: string, patch: Partial<Pick<Task, 'title' | 'priority' | 'effort'>>): void
+  (e: 'toggle-done', checklistId: string, itemId: string): void
+  (e: 'snooze', checklistId: string, itemId: string, date: string): void
+  (e: 'someday', checklistId: string, itemId: string): void
+  (e: 'delete', checklistId: string, itemId: string): void
+  (e: 'update-text', checklistId: string, itemId: string, text: string): void
 }>()
 </script>
 
 <template>
   <div>
     <DayPlanBar
-      :selected-count="tasks.length"
+      :selected-count="items.length"
       @suggest="$emit('suggest')"
       @clear="$emit('suggest')"
     />
 
-    <div v-if="tasks.length === 0" class="text-center py-12">
+    <div v-if="items.length === 0" class="text-center py-12">
       <p class="text-zinc-500 text-sm mb-2">No tasks planned for today</p>
       <p class="text-zinc-600 text-xs">
         Click <strong class="text-zinc-500">Suggest</strong> to auto-pick tasks,
@@ -36,15 +36,18 @@ defineEmits<{
 
     <div v-else class="space-y-1">
       <TaskCard
-        v-for="task in tasks"
-        :key="task.id"
-        :task="task"
+        v-for="ref in items"
+        :key="ref.item.id"
+        :item="ref.item"
+        :checklist-id="ref.checklistId"
+        :checklist-title="ref.checklistTitle"
         :compact="true"
-        @snooze="(id, date) => $emit('snooze', id, date)"
-        @someday="(id) => $emit('someday', id)"
-        @activate="(id) => $emit('toggle-task', id)"
-        @delete="(id) => $emit('delete', id)"
-        @update="(id, patch) => $emit('update', id, patch)"
+        @toggle-done="(cId, iId) => $emit('toggle-done', cId, iId)"
+        @snooze="(cId, iId, date) => $emit('snooze', cId, iId, date)"
+        @someday="(cId, iId) => $emit('someday', cId, iId)"
+        @activate="() => {}"
+        @delete="(cId, iId) => $emit('delete', cId, iId)"
+        @update-text="(cId, iId, text) => $emit('update-text', cId, iId, text)"
       />
     </div>
   </div>

@@ -6,6 +6,10 @@ import type {
   ChecklistItemGroup,
   ChecklistNode,
   ChecklistKind,
+  PlanMeta,
+  TaskPriority,
+  TaskEffort,
+  TrackedItemRef,
 } from '../types'
 import { pb } from '../lib/pocketbase'
 import { useAuthStore } from './auth'
@@ -14,6 +18,37 @@ import { useAuthStore } from './auth'
 
 const STORAGE_KEY = 'make-it-done-v1'
 const PENDING_KEY = 'make-it-done-pending'
+const PLAN_META_KEY = 'make-it-done-plan-meta-v1'
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function todayDateString(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+// ── Snooze date helpers ───────────────────────────────────────────────────────
+
+export function getSnoozeOptions(): Array<{ label: string; date: string }> {
+  const today = new Date()
+  const add = (days: number): string => {
+    const d = new Date(today)
+    d.setDate(d.getDate() + days)
+    return d.toISOString().slice(0, 10)
+  }
+  const nextMonday = (): string => {
+    const d = new Date(today)
+    const dayOfWeek = d.getDay()
+    const daysUntil = dayOfWeek === 1 ? 7 : ((8 - dayOfWeek) % 7 || 7)
+    d.setDate(d.getDate() + daysUntil)
+    return d.toISOString().slice(0, 10)
+  }
+  return [
+    { label: 'Tomorrow',    date: add(1) },
+    { label: 'In 3 days',   date: add(3) },
+    { label: 'Next week',   date: add(7) },
+    { label: 'Next Monday', date: nextMonday() },
+  ]
+}
 
 // ── Tree helpers ──────────────────────────────────────────────────────────────
 
@@ -71,6 +106,16 @@ function cloneNodes(nodes: ChecklistNode[]): ChecklistNode[] {
   })
 }
 
+function loadPlanMeta(): PlanMeta {
+  try {
+    const raw = localStorage.getItem(PLAN_META_KEY)
+    if (!raw) return { lastReviewedAt: null, dayPlanDate: null }
+    return JSON.parse(raw) as PlanMeta
+  } catch {
+    return { lastReviewedAt: null, dayPlanDate: null }
+  }
+}
+
 export function countItems(nodes: ChecklistNode[]): number {
   let count = 0
   walkNodes(nodes, n => { if (n.type === 'item') count++ })
@@ -97,12 +142,20 @@ function migrateNodes(raw: unknown[]): ChecklistNode[] {
         children: migrateNodes((node.children as unknown[]) ?? []),
       }
     }
-    return {
+    const item: ChecklistItem = {
       type: 'item',
       id: String(node.id ?? crypto.randomUUID()),
       text: String(node.text ?? ''),
       done: Boolean(node.done ?? false),
     }
+    // Carry over task fields if present
+    if (node.priority) item.priority = node.priority as TaskPriority
+    if (node.effort) item.effort = node.effort as TaskEffort
+    if (node.status) item.status = node.status as 'active' | 'snoozed' | 'someday'
+    if (node.selectedForToday) item.selectedForToday = Boolean(node.selectedForToday)
+    if (node.snoozeUntil !== undefined) item.snoozeUntil = node.snoozeUntil as string | null
+    if (node.snoozedAt !== undefined) item.snoozedAt = node.snoozedAt as string | null
+    return item
   })
 }
 
@@ -125,6 +178,9 @@ function loadFromStorage(): Checklist[] {
         archivedAt: cl.archivedAt ? String(cl.archivedAt) : null,
         templateId: cl.templateId ? String(cl.templateId) : null,
         runLabel: cl.runLabel ? String(cl.runLabel) : null,
+        tracked: Boolean(cl.tracked ?? false),
+        defaultPriority: (cl.defaultPriority as TaskPriority) ?? 'important',
+        defaultEffort: (cl.defaultEffort as TaskEffort) ?? 'medium',
       }
     })
   } catch {
@@ -155,6 +211,9 @@ interface PbRecord {
   archived_at: string
   template_id: string
   run_label: string
+  tracked: boolean
+  default_priority: string
+  default_effort: string
 }
 
 function pbToChecklist(r: PbRecord): Checklist {
@@ -168,6 +227,9 @@ function pbToChecklist(r: PbRecord): Checklist {
     archivedAt: r.archived_at || null,
     templateId: r.template_id || null,
     runLabel: r.run_label || null,
+    tracked: Boolean(r.tracked ?? false),
+    defaultPriority: (r.default_priority as TaskPriority) || 'important',
+    defaultEffort: (r.default_effort as TaskEffort) || 'medium',
   }
 }
 
@@ -182,6 +244,9 @@ function checklistToPb(c: Checklist): Omit<PbRecord, 'id'> {
     archived_at: c.archivedAt ?? '',
     template_id: c.templateId ?? '',
     run_label: c.runLabel ?? '',
+    tracked: c.tracked,
+    default_priority: c.defaultPriority,
+    default_effort: c.defaultEffort,
   }
 }
 
@@ -203,6 +268,7 @@ export const useChecklistStore = defineStore('checklists', () => {
   const checklists = ref<Checklist[]>(loadFromStorage())
   const syncStatus = ref<SyncStatus>('offline')
   const pendingSync = ref<Set<string>>(loadPendingFromStorage())
+  const planMeta = ref<PlanMeta>(loadPlanMeta())
 
   let unsubscribe: (() => void) | null = null
   let retrying = false
@@ -211,6 +277,10 @@ export const useChecklistStore = defineStore('checklists', () => {
 
   function persist(): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ checklists: checklists.value }))
+  }
+
+  function persistPlanMeta(): void {
+    localStorage.setItem(PLAN_META_KEY, JSON.stringify(planMeta.value))
   }
 
   function persistPending(): void {
@@ -248,6 +318,287 @@ export const useChecklistStore = defineStore('checklists', () => {
 
   function getChecklist(id: string): Checklist | undefined {
     return checklists.value.find(c => c.id === id)
+  }
+
+  // ── Task-tracking: computed views ──────────────────────────────────────────
+
+  /** Collect all items from tracked, non-archived, non-template checklists */
+  function collectTrackedItems(): TrackedItemRef[] {
+    const result: TrackedItemRef[] = []
+    for (const cl of checklists.value) {
+      if (!cl.tracked || cl.archived || cl.kind === 'template') continue
+      const title = cl.runLabel ?? cl.title
+      walkNodes(cl.items, n => {
+        if (n.type === 'item') result.push({ item: n, checklistId: cl.id, checklistTitle: title })
+      })
+    }
+    return result
+  }
+
+  const trackedItems = computed(() => collectTrackedItems())
+
+  const activeTrackedItems = computed(() =>
+    trackedItems.value.filter(r =>
+      !r.item.done && (r.item.status ?? 'active') === 'active'
+    )
+  )
+
+  const dayPlanItems = computed(() =>
+    trackedItems.value.filter(r =>
+      r.item.selectedForToday && !r.item.done && (r.item.status ?? 'active') === 'active'
+    )
+  )
+
+  const snoozedItems = computed(() =>
+    trackedItems.value.filter(r => (r.item.status ?? 'active') === 'snoozed')
+  )
+
+  const somedayItems = computed(() =>
+    trackedItems.value.filter(r => (r.item.status ?? 'active') === 'someday')
+  )
+
+  const dueSnoozedItems = computed(() => {
+    const today = todayDateString()
+    return trackedItems.value.filter(r =>
+      (r.item.status ?? 'active') === 'snoozed' && r.item.snoozeUntil != null && r.item.snoozeUntil <= today
+    )
+  })
+
+  const staleSnoozedItems = computed(() => {
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - 14)
+    return trackedItems.value.filter(r => {
+      if ((r.item.status ?? 'active') !== 'snoozed' || !r.item.snoozedAt) return false
+      return new Date(r.item.snoozedAt) < cutoff
+    })
+  })
+
+  const itemsByPriority = computed(() => ({
+    urgent:    activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'urgent'),
+    important: activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'important'),
+    secondary: activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'secondary'),
+  }))
+
+  const weeklyReviewDue = computed((): boolean => {
+    const today = new Date()
+    const isMonday = today.getDay() === 1
+    const hasDueSnoozed = dueSnoozedItems.value.length > 0
+    const lastReview = planMeta.value.lastReviewedAt
+    const sevenDaysAgo = new Date(today)
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    const overdueReview = !lastReview || new Date(lastReview) < sevenDaysAgo
+    return isMonday || hasDueSnoozed || overdueReview
+  })
+
+  const isDayPlanFresh = computed(() =>
+    planMeta.value.dayPlanDate === todayDateString()
+  )
+
+  // ── Task-tracking: actions ────────────────────────────────────────────────
+
+  function enableTracking(
+    checklistId: string,
+    defaultPriority: TaskPriority = 'important',
+    defaultEffort: TaskEffort = 'medium',
+  ): void {
+    const cl = getChecklist(checklistId)
+    if (!cl) return
+    cl.tracked = true
+    cl.defaultPriority = defaultPriority
+    cl.defaultEffort = defaultEffort
+    // Initialize task fields on existing items
+    walkNodes(cl.items, n => {
+      if (n.type === 'item') {
+        n.priority = n.priority ?? defaultPriority
+        n.effort = n.effort ?? defaultEffort
+        n.status = n.status ?? 'active'
+        n.selectedForToday = n.selectedForToday ?? false
+        if (n.snoozeUntil === undefined) n.snoozeUntil = null
+        if (n.snoozedAt === undefined) n.snoozedAt = null
+      }
+    })
+    persist()
+    syncUpdate(cl)
+  }
+
+  function disableTracking(checklistId: string): void {
+    const cl = getChecklist(checklistId)
+    if (!cl) return
+    cl.tracked = false
+    // Strip task fields from items
+    walkNodes(cl.items, n => {
+      if (n.type === 'item') {
+        delete n.priority
+        delete n.effort
+        delete n.status
+        delete n.selectedForToday
+        delete n.snoozeUntil
+        delete n.snoozedAt
+      }
+    })
+    persist()
+    syncUpdate(cl)
+  }
+
+  function setItemPriority(checklistId: string, itemId: string, priority: TaskPriority): void {
+    const cl = getChecklist(checklistId)
+    if (!cl) return
+    const item = findItemDeep(cl.items, itemId)
+    if (!item) return
+    item.priority = priority
+    persist()
+    syncUpdate(cl)
+  }
+
+  function setItemEffort(checklistId: string, itemId: string, effort: TaskEffort): void {
+    const cl = getChecklist(checklistId)
+    if (!cl) return
+    const item = findItemDeep(cl.items, itemId)
+    if (!item) return
+    item.effort = effort
+    persist()
+    syncUpdate(cl)
+  }
+
+  function snoozeItem(checklistId: string, itemId: string, until: string): void {
+    const cl = getChecklist(checklistId)
+    if (!cl) return
+    const item = findItemDeep(cl.items, itemId)
+    if (!item) return
+    item.status = 'snoozed'
+    item.snoozeUntil = until
+    if (!item.snoozedAt) item.snoozedAt = new Date().toISOString()
+    item.selectedForToday = false
+    persist()
+    syncUpdate(cl)
+  }
+
+  function activateItem(checklistId: string, itemId: string): void {
+    const cl = getChecklist(checklistId)
+    if (!cl) return
+    const item = findItemDeep(cl.items, itemId)
+    if (!item) return
+    item.status = 'active'
+    item.snoozeUntil = null
+    item.snoozedAt = null
+    persist()
+    syncUpdate(cl)
+  }
+
+  function sendItemToSomeday(checklistId: string, itemId: string): void {
+    const cl = getChecklist(checklistId)
+    if (!cl) return
+    const item = findItemDeep(cl.items, itemId)
+    if (!item) return
+    item.status = 'someday'
+    item.snoozeUntil = null
+    item.snoozedAt = null
+    item.selectedForToday = false
+    persist()
+    syncUpdate(cl)
+  }
+
+  function toggleItemDayPlan(checklistId: string, itemId: string): void {
+    const cl = getChecklist(checklistId)
+    if (!cl) return
+    const item = findItemDeep(cl.items, itemId)
+    if (!item || (item.status ?? 'active') !== 'active') return
+    item.selectedForToday = !item.selectedForToday
+    if (!planMeta.value.dayPlanDate) planMeta.value.dayPlanDate = todayDateString()
+    persist()
+    persistPlanMeta()
+    syncUpdate(cl)
+  }
+
+  function setDayPlan(itemKeys: Array<{ checklistId: string; itemId: string }>): void {
+    const keySet = new Set(itemKeys.map(k => `${k.checklistId}:${k.itemId}`))
+    for (const cl of checklists.value) {
+      if (!cl.tracked || cl.archived || cl.kind === 'template') continue
+      let changed = false
+      walkNodes(cl.items, n => {
+        if (n.type === 'item') {
+          const selected = keySet.has(`${cl.id}:${n.id}`)
+          if (n.selectedForToday !== selected) {
+            n.selectedForToday = selected
+            changed = true
+          }
+        }
+      })
+      if (changed) {
+        persist()
+        syncUpdate(cl)
+      }
+    }
+    planMeta.value.dayPlanDate = todayDateString()
+    persistPlanMeta()
+  }
+
+  function refreshDayPlanIfStale(): void {
+    if (planMeta.value.dayPlanDate && planMeta.value.dayPlanDate !== todayDateString()) {
+      for (const cl of checklists.value) {
+        if (!cl.tracked) continue
+        walkNodes(cl.items, n => {
+          if (n.type === 'item') n.selectedForToday = false
+        })
+      }
+      planMeta.value.dayPlanDate = null
+      persist()
+      persistPlanMeta()
+    }
+  }
+
+  function processDueSnoozed(): void {
+    const today = todayDateString()
+    for (const cl of checklists.value) {
+      if (!cl.tracked || cl.archived) continue
+      let changed = false
+      walkNodes(cl.items, n => {
+        if (n.type === 'item' && n.status === 'snoozed' && n.snoozeUntil && n.snoozeUntil <= today) {
+          n.status = 'active'
+          n.snoozeUntil = null
+          n.snoozedAt = null
+          changed = true
+        }
+      })
+      if (changed) {
+        persist()
+        syncUpdate(cl)
+      }
+    }
+  }
+
+  function completeWeeklyReview(): void {
+    planMeta.value.lastReviewedAt = new Date().toISOString()
+    persistPlanMeta()
+  }
+
+  function suggestDayPlan(): Array<{ checklistId: string; itemId: string }> {
+    const priorityScore: Record<TaskPriority, number> = { urgent: 30, important: 20, secondary: 10 }
+    const effortScore: Record<TaskEffort, number> = { small: 3, medium: 2, large: 1 }
+
+    type ScoredRef = { ref: TrackedItemRef; score: number; jitter: number }
+    const scored: ScoredRef[] = activeTrackedItems.value.map(r => ({
+      ref: r,
+      score: priorityScore[r.item.priority ?? 'important'] + effortScore[r.item.effort ?? 'medium'],
+      jitter: Math.random(),
+    }))
+
+    scored.sort((a, b) => b.score - a.score || b.jitter - a.jitter)
+
+    const result: Array<{ checklistId: string; itemId: string }> = []
+    const remaining = scored.map(s => s.ref)
+    let lastEffort: TaskEffort | null = null
+
+    while (result.length < 5 && remaining.length > 0) {
+      let idx = remaining.findIndex(r => (r.item.effort ?? 'medium') !== lastEffort)
+      if (idx === -1) idx = 0
+      const picked = remaining.splice(idx, 1)[0]
+      if (!picked) break
+      lastEffort = picked.item.effort ?? 'medium'
+      result.push({ checklistId: picked.checklistId, itemId: picked.item.id })
+    }
+
+    return result
   }
 
   // ── PocketBase sync helpers ──────────────────────────────────────────────────
@@ -439,6 +790,9 @@ export const useChecklistStore = defineStore('checklists', () => {
       archivedAt: null,
       templateId: null,
       runLabel: null,
+      tracked: false,
+      defaultPriority: 'important',
+      defaultEffort: 'medium',
     }
     checklists.value.push(checklist)
     persist()
@@ -509,6 +863,9 @@ export const useChecklistStore = defineStore('checklists', () => {
       archivedAt: null,
       templateId,
       runLabel: `${template.title} — Run #${runCount + 1}`,
+      tracked: false,
+      defaultPriority: 'important',
+      defaultEffort: 'medium',
     }
     checklists.value.push(run)
     persist()
@@ -524,6 +881,10 @@ export const useChecklistStore = defineStore('checklists', () => {
     const item = findItemDeep(checklist.items, itemId)
     if (!item) return
     item.done = !item.done
+    // When completing a tracked item, remove from day plan
+    if (item.done && checklist.tracked) {
+      item.selectedForToday = false
+    }
     if (
       checklist.kind !== 'template' &&
       countItems(checklist.items) > 0 &&
@@ -540,6 +901,15 @@ export const useChecklistStore = defineStore('checklists', () => {
     const checklist = getChecklist(checklistId)
     if (!checklist) throw new Error(`Checklist ${checklistId} not found`)
     const item: ChecklistItem = { type: 'item', id: crypto.randomUUID(), text, done: false }
+    // Auto-set task fields for tracked checklists
+    if (checklist.tracked) {
+      item.priority = checklist.defaultPriority
+      item.effort = checklist.defaultEffort
+      item.status = 'active'
+      item.selectedForToday = false
+      item.snoozeUntil = null
+      item.snoozedAt = null
+    }
     if (parentGroupId) {
       const group = findGroupDeep(checklist.items, parentGroupId)
       if (!group) throw new Error(`Group ${parentGroupId} not found`)
@@ -625,16 +995,30 @@ export const useChecklistStore = defineStore('checklists', () => {
   return {
     checklists,
     syncStatus,
+    planMeta,
     activeChecklists,
     templates,
     archivedChecklists,
     getChecklist,
+    // Task-tracking computed
+    trackedItems,
+    activeTrackedItems,
+    dayPlanItems,
+    snoozedItems,
+    somedayItems,
+    dueSnoozedItems,
+    staleSnoozedItems,
+    itemsByPriority,
+    weeklyReviewDue,
+    isDayPlanFresh,
+    // Checklist CRUD
     createChecklist,
     updateChecklist,
     deleteChecklist,
     archiveChecklist,
     unarchiveChecklist,
     runTemplate,
+    // Item CRUD
     toggleItem,
     addItem,
     updateItemText,
@@ -643,6 +1027,21 @@ export const useChecklistStore = defineStore('checklists', () => {
     updateGroupTitle,
     toggleGroupCollapsed,
     removeGroup,
+    // Task-tracking actions
+    enableTracking,
+    disableTracking,
+    setItemPriority,
+    setItemEffort,
+    snoozeItem,
+    activateItem,
+    sendItemToSomeday,
+    toggleItemDayPlan,
+    setDayPlan,
+    refreshDayPlanIfStale,
+    processDueSnoozed,
+    completeWeeklyReview,
+    suggestDayPlan,
+    // Sync
     initSync,
     unsubscribeRealtime,
   }

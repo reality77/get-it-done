@@ -18,7 +18,7 @@ const emit = defineEmits<{
   (e: 'archive', checklistId: string): void
 }>()
 
-const { toggleItem, addItem, updateItemText, removeItem, addGroup } = useChecklistStore()
+const { toggleItem, addItem, updateItemText, removeItem, addGroup, enableTracking, disableTracking } = useChecklistStore()
 
 const isExpanded = ref(true)
 
@@ -143,6 +143,18 @@ watch(isComplete, (val) => {
 
       <!-- Actions -->
       <div class="flex items-center gap-3 shrink-0">
+        <!-- Track as tasks toggle -->
+        <button
+          v-if="checklist.kind !== 'template' && !checklist.archived"
+          class="text-xs px-2 py-0.5 rounded-full border transition-colors cursor-pointer"
+          :class="checklist.tracked
+            ? 'bg-violet-600/20 border-violet-500 text-violet-300'
+            : 'border-zinc-700 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300'"
+          :title="checklist.tracked ? 'Tracked as tasks — click to disable' : 'Track items as tasks'"
+          @click="checklist.tracked ? disableTracking(checklist.id) : enableTracking(checklist.id)"
+        >
+          {{ checklist.tracked ? '◎ Tracked' : '○ Track' }}
+        </button>
         <AppButton
           v-if="checklist.kind === 'template'"
           variant="primary"
@@ -182,6 +194,7 @@ watch(isComplete, (val) => {
           v-if="node.type === 'item'"
           ref="itemRowRefs"
           :item="node"
+          :tracked="checklist.tracked"
           @toggle="toggleItem(checklist.id, node.id)"
           @update-text="(text) => updateItemText(checklist.id, node.id, text)"
           @remove="removeItem(checklist.id, node.id)"
@@ -191,6 +204,7 @@ watch(isComplete, (val) => {
           v-else-if="node.type === 'group'"
           :group="node"
           :checklist-id="checklist.id"
+          :tracked="checklist.tracked"
         />
       </template>
 
