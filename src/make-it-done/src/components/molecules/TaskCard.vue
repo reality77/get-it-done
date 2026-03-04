@@ -100,8 +100,8 @@ const itemStatus = () => props.item.status ?? 'active'
     <PriorityBadge v-if="!compact && item.priority" :priority="item.priority" />
     <EffortBadge v-if="!compact && item.effort" :effort="item.effort" />
 
-    <!-- Actions (visible on hover) -->
-    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 relative">
+    <!-- Actions (always visible on mobile, hover-reveal on desktop) -->
+    <div class="flex items-center gap-1 transition-opacity shrink-0 relative sm:opacity-0 sm:group-hover:opacity-100">
       <!-- Activate (for snoozed/someday items) -->
       <AppButton
         v-if="itemStatus() !== 'active'"

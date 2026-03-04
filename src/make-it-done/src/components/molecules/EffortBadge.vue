@@ -11,8 +11,17 @@ const colorMap: Record<TaskEffort, string> = {
   medium: 'text-blue-400 bg-blue-950',
   large:  'text-orange-400 bg-orange-950',
 }
+
+const iconMap: Record<TaskEffort, string> = {
+  small:  'S',
+  medium: 'M',
+  large:  'L',
+}
 </script>
 
 <template>
-  <AppBadge :class="colorMap[effort]">{{ effort }}</AppBadge>
+  <AppBadge :class="colorMap[effort]">
+    <span class="sm:hidden">{{ iconMap[effort] }}</span>
+    <span class="hidden sm:inline">{{ effort }}</span>
+  </AppBadge>
 </template>

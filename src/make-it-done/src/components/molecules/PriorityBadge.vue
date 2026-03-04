@@ -11,8 +11,17 @@ const colorMap: Record<TaskPriority, string> = {
   important: 'text-yellow-400 bg-yellow-950',
   secondary: 'text-zinc-400 bg-zinc-800',
 }
+
+const iconMap: Record<TaskPriority, string> = {
+  urgent:    '🔴',
+  important: '🟡',
+  secondary: '⚪',
+}
 </script>
 
 <template>
-  <AppBadge :class="colorMap[priority]">{{ priority }}</AppBadge>
+  <AppBadge :class="colorMap[priority]">
+    <span class="sm:hidden">{{ iconMap[priority] }}</span>
+    <span class="hidden sm:inline">{{ priority }}</span>
+  </AppBadge>
 </template>

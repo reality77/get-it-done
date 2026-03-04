@@ -131,7 +131,7 @@ watch(isComplete, (val) => {
 
       <span class="font-medium text-lg text-zinc-100 truncate flex-1">{{ displayTitle }}</span>
 
-      <KindBadge :kind="checklist.kind" />
+      <span class="hidden sm:contents"><KindBadge :kind="checklist.kind" /></span>
 
       <Transition name="check">
         <span
@@ -153,7 +153,8 @@ watch(isComplete, (val) => {
           :title="checklist.tracked ? 'Tracked as tasks — click to disable' : 'Track items as tasks'"
           @click="checklist.tracked ? disableTracking(checklist.id) : enableTracking(checklist.id)"
         >
-          {{ checklist.tracked ? '◎ Tracked' : '○ Track' }}
+          <span class="sm:hidden">{{ checklist.tracked ? '◎' : '○' }}</span>
+          <span class="hidden sm:inline">{{ checklist.tracked ? '◎ Tracked' : '○ Track' }}</span>
         </button>
         <AppButton
           v-if="checklist.kind === 'template'"

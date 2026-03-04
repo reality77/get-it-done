@@ -61,12 +61,13 @@ const { isSwiping, direction, lengthX } = useSwipe(rowEl, {
   threshold: 10,
   onSwipe() {
     if (isEditing.value) return
-    if (direction.value === 'right') {
-      swipeOffset.value = Math.min(-lengthX.value, DELETE_THRESHOLD * 1.3)
+    if (direction.value === 'left') {
+      // lengthX > 0 when swiping left; negate to get a negative offset
+      swipeOffset.value = Math.max(-lengthX.value, -(DELETE_THRESHOLD * 1.3))
     }
   },
   onSwipeEnd() {
-    if (swipeOffset.value >= DELETE_THRESHOLD) {
+    if (swipeOffset.value <= -DELETE_THRESHOLD) {
       emit('remove')
     }
     swipeOffset.value = 0
@@ -74,18 +75,18 @@ const { isSwiping, direction, lengthX } = useSwipe(rowEl, {
 })
 
 const rowStyle = computed(() =>
-  swipeOffset.value > 0 ? { transform: `translateX(${swipeOffset.value}px)` } : {}
+  swipeOffset.value !== 0 ? { transform: `translateX(${swipeOffset.value}px)` } : {}
 )
 const deleteProgress = computed(() =>
-  Math.min(swipeOffset.value / DELETE_THRESHOLD, 1)
+  Math.min(Math.abs(swipeOffset.value) / DELETE_THRESHOLD, 1)
 )
 </script>
 
 <template>
   <div ref="rowEl" class="relative overflow-hidden rounded">
-    <!-- Red delete hint revealed as item slides right -->
+    <!-- Red delete hint revealed as item slides left -->
     <div
-      class="absolute inset-0 bg-red-400 flex items-center px-3 pointer-events-none"
+      class="absolute inset-0 bg-red-400 flex items-center justify-end px-3 pointer-events-none"
       :style="{ opacity: deleteProgress * 0.85 }"
     >
       <span class="text-white text-xs font-medium">Delete</span>
