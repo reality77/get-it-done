@@ -195,9 +195,9 @@ watch(isComplete, (val) => {
           ref="itemRowRefs"
           :item="node"
           :tracked="checklist.tracked"
-          @toggle="toggleItem(checklist.id, node.id)"
-          @update-text="(text) => updateItemText(checklist.id, node.id, text)"
-          @remove="removeItem(checklist.id, node.id)"
+          @toggle="toggleItem({ checklistId: checklist.id, itemId: node.id })"
+          @update-text="(text) => updateItemText({ checklistId: checklist.id, itemId: node.id }, text)"
+          @remove="removeItem({ checklistId: checklist.id, itemId: node.id })"
           @start-edit="cancelAddItem"
         />
         <ItemGroup

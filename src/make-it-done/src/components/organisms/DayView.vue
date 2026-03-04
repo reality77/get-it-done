@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TrackedItemRef } from '../../types'
+import type { TrackedItemRef, ChecklistItemId } from '../../types'
 import DayPlanBar from '../molecules/DayPlanBar.vue'
 import TaskCard from '../molecules/TaskCard.vue'
 
@@ -10,11 +10,11 @@ defineProps<{
 
 defineEmits<{
   (e: 'suggest'): void
-  (e: 'toggle-done', checklistId: string, itemId: string): void
-  (e: 'snooze', checklistId: string, itemId: string, date: string): void
-  (e: 'someday', checklistId: string, itemId: string): void
-  (e: 'delete', checklistId: string, itemId: string): void
-  (e: 'update-text', checklistId: string, itemId: string, text: string): void
+  (e: 'toggle-done', id: ChecklistItemId): void
+  (e: 'snooze', id: ChecklistItemId, date: string): void
+  (e: 'someday', id: ChecklistItemId): void
+  (e: 'delete', id: ChecklistItemId): void
+  (e: 'update-text', id: ChecklistItemId, text: string): void
 }>()
 </script>
 
@@ -42,12 +42,12 @@ defineEmits<{
         :checklist-id="ref.checklistId"
         :checklist-title="ref.checklistTitle"
         :compact="true"
-        @toggle-done="(cId, iId) => $emit('toggle-done', cId, iId)"
-        @snooze="(cId, iId, date) => $emit('snooze', cId, iId, date)"
-        @someday="(cId, iId) => $emit('someday', cId, iId)"
+        @toggle-done="(id) => $emit('toggle-done', id)"
+        @snooze="(id, date) => $emit('snooze', id, date)"
+        @someday="(id) => $emit('someday', id)"
         @activate="() => {}"
-        @delete="(cId, iId) => $emit('delete', cId, iId)"
-        @update-text="(cId, iId, text) => $emit('update-text', cId, iId, text)"
+        @delete="(id) => $emit('delete', id)"
+        @update-text="(id, text) => $emit('update-text', id, text)"
       />
     </div>
   </div>

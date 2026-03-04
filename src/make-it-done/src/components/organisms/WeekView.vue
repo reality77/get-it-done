@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { TrackedItemRef, TaskPriority, TaskEffort } from '../../types'
+import type { TrackedItemRef, TaskPriority, TaskEffort, ChecklistItemId } from '../../types'
 import TaskCard from '../molecules/TaskCard.vue'
 
 const props = defineProps<{
@@ -12,14 +12,14 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'snooze', checklistId: string, itemId: string, date: string): void
-  (e: 'someday', checklistId: string, itemId: string): void
-  (e: 'delete', checklistId: string, itemId: string): void
-  (e: 'update-priority', checklistId: string, itemId: string, priority: TaskPriority): void
-  (e: 'update-effort', checklistId: string, itemId: string, effort: TaskEffort): void
-  (e: 'update-text', checklistId: string, itemId: string, text: string): void
-  (e: 'toggle-day', checklistId: string, itemId: string): void
-  (e: 'toggle-done', checklistId: string, itemId: string): void
+  (e: 'snooze', id: ChecklistItemId, date: string): void
+  (e: 'someday', id: ChecklistItemId): void
+  (e: 'delete', id: ChecklistItemId): void
+  (e: 'update-priority', id: ChecklistItemId, priority: TaskPriority): void
+  (e: 'update-effort', id: ChecklistItemId, effort: TaskEffort): void
+  (e: 'update-text', id: ChecklistItemId, text: string): void
+  (e: 'toggle-day', id: ChecklistItemId): void
+  (e: 'toggle-done', id: ChecklistItemId): void
 }>()
 
 const collapsed = ref<Record<TaskPriority, boolean>>({
@@ -94,7 +94,7 @@ function groupByChecklist(items: TrackedItemRef[]): Map<string, TrackedItemRef[]
                   ? 'bg-violet-600 border-violet-600'
                   : 'border-zinc-700 hover:border-zinc-500'"
                 :title="ref.item.selectedForToday ? 'Remove from today' : 'Add to today'"
-                @click="$emit('toggle-day', ref.checklistId, ref.item.id)"
+                @click="$emit('toggle-day', { checklistId: ref.checklistId, itemId: ref.item.id })"
               >
                 <span v-if="ref.item.selectedForToday" class="text-white text-[10px] leading-none flex items-center justify-center w-full h-full">✓</span>
               </button>
@@ -103,12 +103,12 @@ function groupByChecklist(items: TrackedItemRef[]): Map<string, TrackedItemRef[]
                 :item="ref.item"
                 :checklist-id="ref.checklistId"
                 :checklist-title="ref.checklistTitle"
-                @toggle-done="(cId, iId) => $emit('toggle-done', cId, iId)"
-                @snooze="(cId, iId, date) => $emit('snooze', cId, iId, date)"
-                @someday="(cId, iId) => $emit('someday', cId, iId)"
+                @toggle-done="(id) => $emit('toggle-done', id)"
+                @snooze="(id, date) => $emit('snooze', id, date)"
+                @someday="(id) => $emit('someday', id)"
                 @activate="() => {}"
-                @delete="(cId, iId) => $emit('delete', cId, iId)"
-                @update-text="(cId, iId, text) => $emit('update-text', cId, iId, text)"
+                @delete="(id) => $emit('delete', id)"
+                @update-text="(id, text) => $emit('update-text', id, text)"
               />
             </div>
           </div>

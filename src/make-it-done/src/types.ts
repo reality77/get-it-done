@@ -62,3 +62,8 @@ export interface TrackedItemRef {
   checklistId: string
   checklistTitle: string
 }
+
+export interface ChecklistItemId {
+  checklistId: string
+  itemId: string
+}

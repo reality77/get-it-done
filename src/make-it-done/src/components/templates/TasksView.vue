@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TrackedItemRef, TaskPriority, TaskEffort, TaskView } from '../../types'
+import type { TrackedItemRef, TaskPriority, TaskEffort, TaskView, ChecklistItemId } from '../../types'
 import WeeklyReviewPanel from '../organisms/WeeklyReviewPanel.vue'
 import DayView from '../organisms/DayView.vue'
 import WeekView from '../organisms/WeekView.vue'
@@ -22,16 +22,16 @@ defineProps<{
 
 const emit = defineEmits<{
   (e: 'change-view', view: TaskView): void
-  (e: 'activate', checklistId: string, itemId: string): void
-  (e: 'snooze', checklistId: string, itemId: string, date: string): void
-  (e: 'someday', checklistId: string, itemId: string): void
-  (e: 'delete', checklistId: string, itemId: string): void
-  (e: 'update-priority', checklistId: string, itemId: string, priority: TaskPriority): void
-  (e: 'update-effort', checklistId: string, itemId: string, effort: TaskEffort): void
-  (e: 'update-text', checklistId: string, itemId: string, text: string): void
-  (e: 'toggle-done', checklistId: string, itemId: string): void
+  (e: 'activate', id: ChecklistItemId): void
+  (e: 'snooze', id: ChecklistItemId, date: string): void
+  (e: 'someday', id: ChecklistItemId): void
+  (e: 'delete', id: ChecklistItemId): void
+  (e: 'update-priority', id: ChecklistItemId, priority: TaskPriority): void
+  (e: 'update-effort', id: ChecklistItemId, effort: TaskEffort): void
+  (e: 'update-text', id: ChecklistItemId, text: string): void
+  (e: 'toggle-done', id: ChecklistItemId): void
   (e: 'suggest-day'): void
-  (e: 'toggle-day', checklistId: string, itemId: string): void
+  (e: 'toggle-day', id: ChecklistItemId): void
   (e: 'complete-review'): void
   (e: 'dismiss-review'): void
 }>()
@@ -45,9 +45,9 @@ const emit = defineEmits<{
       :snoozed-items="snoozedItems"
       :someday-items="somedayItems"
       :stale-snoozed-ids="staleSnoozedIds"
-      @activate="(cId, iId) => $emit('activate', cId, iId)"
-      @snooze="(cId, iId, date) => $emit('snooze', cId, iId, date)"
-      @delete="(cId, iId) => $emit('delete', cId, iId)"
+      @activate="(id) => $emit('activate', id)"
+      @snooze="(id, date) => $emit('snooze', id, date)"
+      @delete="(id) => $emit('delete', id)"
       @complete-review="$emit('complete-review')"
       @dismiss="$emit('dismiss-review')"
     />
@@ -82,25 +82,25 @@ const emit = defineEmits<{
       :items="dayItems"
       :all-active-items="allActiveItems"
       @suggest="$emit('suggest-day')"
-      @toggle-done="(cId, iId) => $emit('toggle-done', cId, iId)"
-      @snooze="(cId, iId, date) => $emit('snooze', cId, iId, date)"
-      @someday="(cId, iId) => $emit('someday', cId, iId)"
-      @delete="(cId, iId) => $emit('delete', cId, iId)"
-      @update-text="(cId, iId, text) => $emit('update-text', cId, iId, text)"
+      @toggle-done="(id) => $emit('toggle-done', id)"
+      @snooze="(id, date) => $emit('snooze', id, date)"
+      @someday="(id) => $emit('someday', id)"
+      @delete="(id) => $emit('delete', id)"
+      @update-text="(id, text) => $emit('update-text', id, text)"
     />
 
     <!-- Week view -->
     <WeekView
       v-else
       :items-by-priority="itemsByPriority"
-      @snooze="(cId, iId, date) => $emit('snooze', cId, iId, date)"
-      @someday="(cId, iId) => $emit('someday', cId, iId)"
-      @delete="(cId, iId) => $emit('delete', cId, iId)"
-      @update-priority="(cId, iId, p) => $emit('update-priority', cId, iId, p)"
-      @update-effort="(cId, iId, e) => $emit('update-effort', cId, iId, e)"
-      @update-text="(cId, iId, text) => $emit('update-text', cId, iId, text)"
-      @toggle-day="(cId, iId) => $emit('toggle-day', cId, iId)"
-      @toggle-done="(cId, iId) => $emit('toggle-done', cId, iId)"
+      @snooze="(id, date) => $emit('snooze', id, date)"
+      @someday="(id) => $emit('someday', id)"
+      @delete="(id) => $emit('delete', id)"
+      @update-priority="(id, p) => $emit('update-priority', id, p)"
+      @update-effort="(id, e) => $emit('update-effort', id, e)"
+      @update-text="(id, text) => $emit('update-text', id, text)"
+      @toggle-day="(id) => $emit('toggle-day', id)"
+      @toggle-done="(id) => $emit('toggle-done', id)"
     />
   </div>
 </template>

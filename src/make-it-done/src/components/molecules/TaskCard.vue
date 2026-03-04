@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { ChecklistItem } from '../../types'
+import type { ChecklistItem, ChecklistItemId } from '../../types'
 import PriorityBadge from './PriorityBadge.vue'
 import EffortBadge from './EffortBadge.vue'
 import AppButton from '../atoms/AppButton.vue'
@@ -15,12 +15,12 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'toggle-done', checklistId: string, itemId: string): void
-  (e: 'snooze', checklistId: string, itemId: string, date: string): void
-  (e: 'someday', checklistId: string, itemId: string): void
-  (e: 'activate', checklistId: string, itemId: string): void
-  (e: 'delete', checklistId: string, itemId: string): void
-  (e: 'update-text', checklistId: string, itemId: string, text: string): void
+  (e: 'toggle-done', id: ChecklistItemId): void
+  (e: 'snooze', id: ChecklistItemId, date: string): void
+  (e: 'someday', id: ChecklistItemId): void
+  (e: 'activate', id: ChecklistItemId): void
+  (e: 'delete', id: ChecklistItemId): void
+  (e: 'update-text', id: ChecklistItemId, text: string): void
 }>()
 
 const isEditing = ref(false)
@@ -43,7 +43,7 @@ function startEdit(): void {
 function confirmEdit(): void {
   const title = editTitle.value.trim()
   if (title && title !== props.item.text) {
-    emit('update-text', props.checklistId, props.item.id, title)
+    emit('update-text', { checklistId: props.checklistId, itemId: props.item.id }, title)
   }
   isEditing.value = false
 }
@@ -59,7 +59,7 @@ function onKeydown(e: KeyboardEvent): void {
 
 function onSnooze(date: string): void {
   snoozeOpen.value = false
-  emit('snooze', props.checklistId, props.item.id, date)
+  emit('snooze', { checklistId: props.checklistId, itemId: props.item.id }, date)
 }
 
 const itemStatus = () => props.item.status ?? 'active'
@@ -73,7 +73,7 @@ const itemStatus = () => props.item.status ?? 'active'
     <!-- Completion checkbox -->
     <AppCheckbox
       :model-value="item.done"
-      @update:model-value="emit('toggle-done', checklistId, item.id)"
+      @update:model-value="emit('toggle-done', { checklistId, itemId: item.id })"
     />
 
     <!-- Title -->
@@ -107,7 +107,7 @@ const itemStatus = () => props.item.status ?? 'active'
         v-if="itemStatus() !== 'active'"
         variant="icon"
         title="Activate"
-        @click="emit('activate', checklistId, item.id)"
+        @click="emit('activate', { checklistId, itemId: item.id })"
       >
         ↩
       </AppButton>
@@ -127,7 +127,7 @@ const itemStatus = () => props.item.status ?? 'active'
         v-if="itemStatus() === 'active'"
         variant="icon"
         title="Move to someday"
-        @click="emit('someday', checklistId, item.id)"
+        @click="emit('someday', { checklistId, itemId: item.id })"
       >
         ☁
       </AppButton>
@@ -136,7 +136,7 @@ const itemStatus = () => props.item.status ?? 'active'
       <AppButton
         variant="danger"
         title="Delete"
-        @click="emit('delete', checklistId, item.id)"
+        @click="emit('delete', { checklistId, itemId: item.id })"
       >
         ✕
       </AppButton>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TrackedItemRef } from '../../types'
+import type { TrackedItemRef, ChecklistItemId } from '../../types'
 import TaskCard from '../molecules/TaskCard.vue'
 import AppButton from '../atoms/AppButton.vue'
 
@@ -10,9 +10,9 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'activate', checklistId: string, itemId: string): void
-  (e: 'snooze', checklistId: string, itemId: string, date: string): void
-  (e: 'delete', checklistId: string, itemId: string): void
+  (e: 'activate', id: ChecklistItemId): void
+  (e: 'snooze', id: ChecklistItemId, date: string): void
+  (e: 'delete', id: ChecklistItemId): void
   (e: 'complete-review'): void
   (e: 'dismiss'): void
 }>()
@@ -48,10 +48,10 @@ function staleDays(ref: TrackedItemRef): number {
             :checklist-id="ref.checklistId"
             :checklist-title="ref.checklistTitle"
             :compact="true"
-            @activate="(cId, iId) => $emit('activate', cId, iId)"
-            @snooze="(cId, iId, date) => $emit('snooze', cId, iId, date)"
+            @activate="(id) => $emit('activate', id)"
+            @snooze="(id, date) => $emit('snooze', id, date)"
             @someday="() => {}"
-            @delete="(cId, iId) => $emit('delete', cId, iId)"
+            @delete="(id) => $emit('delete', id)"
             @update-text="() => {}"
             @toggle-done="() => {}"
           />
@@ -70,10 +70,10 @@ function staleDays(ref: TrackedItemRef): number {
           :checklist-id="ref.checklistId"
           :checklist-title="ref.checklistTitle"
           :compact="true"
-          @activate="(cId, iId) => $emit('activate', cId, iId)"
-          @snooze="(cId, iId, date) => $emit('snooze', cId, iId, date)"
+          @activate="(id) => $emit('activate', id)"
+          @snooze="(id, date) => $emit('snooze', id, date)"
           @someday="() => {}"
-          @delete="(cId, iId) => $emit('delete', cId, iId)"
+          @delete="(id) => $emit('delete', id)"
           @update-text="() => {}"
           @toggle-done="() => {}"
         />

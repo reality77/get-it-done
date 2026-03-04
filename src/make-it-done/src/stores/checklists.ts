@@ -4,6 +4,7 @@ import type {
   Checklist,
   ChecklistItem,
   ChecklistItemGroup,
+  ChecklistItemId,
   ChecklistNode,
   ChecklistKind,
   PlanMeta,
@@ -440,7 +441,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     syncUpdate(cl)
   }
 
-  function setItemPriority(checklistId: string, itemId: string, priority: TaskPriority): void {
+  function setItemPriority({ checklistId, itemId }: ChecklistItemId, priority: TaskPriority): void {
     const cl = getChecklist(checklistId)
     if (!cl) return
     const item = findItemDeep(cl.items, itemId)
@@ -450,7 +451,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     syncUpdate(cl)
   }
 
-  function setItemEffort(checklistId: string, itemId: string, effort: TaskEffort): void {
+  function setItemEffort({ checklistId, itemId }: ChecklistItemId, effort: TaskEffort): void {
     const cl = getChecklist(checklistId)
     if (!cl) return
     const item = findItemDeep(cl.items, itemId)
@@ -460,7 +461,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     syncUpdate(cl)
   }
 
-  function snoozeItem(checklistId: string, itemId: string, until: string): void {
+  function snoozeItem({ checklistId, itemId }: ChecklistItemId, until: string): void {
     const cl = getChecklist(checklistId)
     if (!cl) return
     const item = findItemDeep(cl.items, itemId)
@@ -473,7 +474,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     syncUpdate(cl)
   }
 
-  function activateItem(checklistId: string, itemId: string): void {
+  function activateItem({ checklistId, itemId }: ChecklistItemId): void {
     const cl = getChecklist(checklistId)
     if (!cl) return
     const item = findItemDeep(cl.items, itemId)
@@ -485,7 +486,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     syncUpdate(cl)
   }
 
-  function sendItemToSomeday(checklistId: string, itemId: string): void {
+  function sendItemToSomeday({ checklistId, itemId }: ChecklistItemId): void {
     const cl = getChecklist(checklistId)
     if (!cl) return
     const item = findItemDeep(cl.items, itemId)
@@ -498,7 +499,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     syncUpdate(cl)
   }
 
-  function toggleItemDayPlan(checklistId: string, itemId: string): void {
+  function toggleItemDayPlan({ checklistId, itemId }: ChecklistItemId): void {
     const cl = getChecklist(checklistId)
     if (!cl) return
     const item = findItemDeep(cl.items, itemId)
@@ -510,7 +511,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     syncUpdate(cl)
   }
 
-  function setDayPlan(itemKeys: Array<{ checklistId: string; itemId: string }>): void {
+  function setDayPlan(itemKeys: Array<ChecklistItemId>): void {
     const keySet = new Set(itemKeys.map(k => `${k.checklistId}:${k.itemId}`))
     for (const cl of checklists.value) {
       if (!cl.tracked || cl.archived || cl.kind === 'template') continue
@@ -572,7 +573,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     persistPlanMeta()
   }
 
-  function suggestDayPlan(): Array<{ checklistId: string; itemId: string }> {
+  function suggestDayPlan(): Array<ChecklistItemId> {
     const priorityScore: Record<TaskPriority, number> = { urgent: 30, important: 20, secondary: 10 }
     const effortScore: Record<TaskEffort, number> = { small: 3, medium: 2, large: 1 }
 
@@ -585,7 +586,7 @@ export const useChecklistStore = defineStore('checklists', () => {
 
     scored.sort((a, b) => b.score - a.score || b.jitter - a.jitter)
 
-    const result: Array<{ checklistId: string; itemId: string }> = []
+    const result: Array<ChecklistItemId> = []
     const remaining = scored.map(s => s.ref)
     let lastEffort: TaskEffort | null = null
 
@@ -875,7 +876,7 @@ export const useChecklistStore = defineStore('checklists', () => {
 
   // ── Item CRUD (tree-aware) ────────────────────────────────────────────────────
 
-  function toggleItem(checklistId: string, itemId: string): void {
+  function toggleItem({ checklistId, itemId }: ChecklistItemId): void {
     const checklist = getChecklist(checklistId)
     if (!checklist) return
     const item = findItemDeep(checklist.items, itemId)
@@ -922,7 +923,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     return item
   }
 
-  function updateItemText(checklistId: string, itemId: string, text: string): void {
+  function updateItemText({ checklistId, itemId }: ChecklistItemId, text: string): void {
     const checklist = getChecklist(checklistId)
     if (!checklist) return
     const item = findItemDeep(checklist.items, itemId)
@@ -932,7 +933,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     syncUpdate(checklist)
   }
 
-  function removeItem(checklistId: string, itemId: string): void {
+  function removeItem({ checklistId, itemId }: ChecklistItemId): void {
     const checklist = getChecklist(checklistId)
     if (!checklist) return
     checklist.items = removeNodeDeep(checklist.items, itemId)
