@@ -37,11 +37,11 @@ const collapsed = ref<Record<TaskPriority, boolean>>({
 
 const mode = ref<WeekMode>("planning");
 
-const sections: { priority: TaskPriority; label: string; dotColor: string }[] =
+const sections: { priority: TaskPriority; label: string; dotColor: string; borderColor: string }[] =
   [
-    { priority: "urgent", label: "Urgent", dotColor: "bg-red-500" },
-    { priority: "important", label: "Important", dotColor: "bg-yellow-500" },
-    { priority: "secondary", label: "Secondary", dotColor: "bg-zinc-500" },
+    { priority: "urgent",    label: "Urgent",    dotColor: "bg-red-500",    borderColor: "border-red-500/50" },
+    { priority: "important", label: "Important", dotColor: "bg-yellow-500", borderColor: "border-yellow-500/50" },
+    { priority: "secondary", label: "Secondary", dotColor: "bg-zinc-500",   borderColor: "border-zinc-500/50" },
   ];
 
 /** Group items within a priority section by their checklist title */
@@ -55,6 +55,149 @@ function groupByChecklist(
     map.get(key)!.push(ref);
   }
   return map;
+}
+
+// ── Drag-and-drop (desktop) ───────────────────────────────────────────────────
+interface DragState {
+  checklistId: string;
+  itemId: string;
+  fromPriority: TaskPriority;
+}
+
+const dragging = ref<DragState | null>(null);
+const dragOverPriority = ref<TaskPriority | null>(null);
+// Counter tracks enter/leave nesting to avoid flicker
+const dragEnterCount = ref<Partial<Record<TaskPriority, number>>>({});
+
+function onDragStart(e: DragEvent, item: TrackedItemRef): void {
+  dragging.value = {
+    checklistId: item.checklistId,
+    itemId: item.item.id,
+    fromPriority: item.item.priority ?? "secondary",
+  };
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", item.item.id);
+  }
+}
+
+function onDragEnd(): void {
+  dragging.value = null;
+  dragOverPriority.value = null;
+  dragEnterCount.value = {};
+}
+
+function onDragEnter(priority: TaskPriority): void {
+  dragEnterCount.value[priority] = (dragEnterCount.value[priority] ?? 0) + 1;
+  dragOverPriority.value = priority;
+}
+
+function onDragLeave(priority: TaskPriority): void {
+  dragEnterCount.value[priority] = Math.max(0, (dragEnterCount.value[priority] ?? 1) - 1);
+  if ((dragEnterCount.value[priority] ?? 0) === 0 && dragOverPriority.value === priority) {
+    dragOverPriority.value = null;
+  }
+}
+
+function onDrop(priority: TaskPriority): void {
+  if (!dragging.value) return;
+  if (priority !== dragging.value.fromPriority) {
+    emit("update-priority", {
+      checklistId: dragging.value.checklistId,
+      itemId: dragging.value.itemId,
+    }, priority);
+  }
+  dragging.value = null;
+  dragOverPriority.value = null;
+  dragEnterCount.value = {};
+}
+
+// ── Touch drag-and-drop (mobile) ──────────────────────────────────────────────
+const touchDragging = ref<DragState | null>(null);
+const touchTargetPriority = ref<TaskPriority | null>(null);
+let touchGhostEl: HTMLElement | null = null;
+
+function onHandleTouchStart(e: TouchEvent, item: TrackedItemRef): void {
+  if (e.touches.length !== 1) return;
+  e.preventDefault(); // prevent scroll while dragging
+
+  touchDragging.value = {
+    checklistId: item.checklistId,
+    itemId: item.item.id,
+    fromPriority: item.item.priority ?? "secondary",
+  };
+  touchTargetPriority.value = null;
+
+  // Create a lightweight ghost pill
+  const touch = e.touches[0];
+  if (!touch) return;
+  touchGhostEl = document.createElement("div");
+  touchGhostEl.textContent = item.item.text;
+  touchGhostEl.style.cssText = [
+    "position:fixed",
+    `left:${touch.clientX - 60}px`,
+    `top:${touch.clientY - 18}px`,
+    "max-width:220px",
+    "padding:6px 12px",
+    "border-radius:8px",
+    "background:#3f3f46",
+    "color:#e4e4e7",
+    "font-size:12px",
+    "white-space:nowrap",
+    "overflow:hidden",
+    "text-overflow:ellipsis",
+    "opacity:0.9",
+    "pointer-events:none",
+    "z-index:9999",
+    "box-shadow:0 4px 12px rgba(0,0,0,0.5)",
+  ].join(";");
+  document.body.appendChild(touchGhostEl);
+
+  document.addEventListener("touchmove", onTouchDragMove, { passive: false });
+  document.addEventListener("touchend", onTouchDragEnd);
+  document.addEventListener("touchcancel", onTouchDragEnd);
+}
+
+function onTouchDragMove(e: TouchEvent): void {
+  if (!touchDragging.value || !touchGhostEl) return;
+  e.preventDefault();
+
+  const touch = e.touches[0];
+  if (!touch) return;
+  touchGhostEl.style.left = `${touch.clientX - 60}px`;
+  touchGhostEl.style.top = `${touch.clientY - 18}px`;
+
+  // Ghost has pointer-events:none so elementFromPoint sees through it
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  const sectionEl = el?.closest("[data-priority]");
+  touchTargetPriority.value =
+    (sectionEl?.getAttribute("data-priority") as TaskPriority) ?? null;
+}
+
+function onTouchDragEnd(): void {
+  if (
+    touchDragging.value &&
+    touchTargetPriority.value &&
+    touchTargetPriority.value !== touchDragging.value.fromPriority
+  ) {
+    emit(
+      "update-priority",
+      {
+        checklistId: touchDragging.value.checklistId,
+        itemId: touchDragging.value.itemId,
+      },
+      touchTargetPriority.value,
+    );
+  }
+
+  touchGhostEl?.remove();
+  touchGhostEl = null;
+  touchDragging.value = null;
+  touchTargetPriority.value = null;
+
+  document.removeEventListener("touchmove", onTouchDragMove);
+  document.removeEventListener("touchend", onTouchDragEnd);
+  document.removeEventListener("touchcancel", onTouchDragEnd);
 }
 </script>
 
@@ -86,7 +229,20 @@ function groupByChecklist(
       </button>
     </div>
 
-    <section v-for="section in sections" :key="section.priority">
+    <section
+      v-for="section in sections"
+      :key="section.priority"
+      :data-priority="section.priority"
+      class="rounded-xl transition-colors duration-150"
+      :class="(dragOverPriority === section.priority && dragging?.fromPriority !== section.priority) ||
+              (touchTargetPriority === section.priority && touchDragging?.fromPriority !== section.priority)
+        ? ['border-2', section.borderColor, 'bg-zinc-800/40']
+        : 'border-2 border-transparent'"
+      @dragover.prevent
+      @dragenter="onDragEnter(section.priority)"
+      @dragleave="onDragLeave(section.priority)"
+      @drop.prevent="onDrop(section.priority)"
+    >
       <!-- Section header -->
       <div class="flex items-center gap-2 mb-2">
         <span class="w-2 h-2 rounded-full shrink-0" :class="section.dotColor" />
@@ -99,6 +255,15 @@ function groupByChecklist(
             ({{ itemsByPriority[section.priority].length }})
           </span>
         </button>
+      </div>
+
+      <!-- Drop hint (mouse or touch) -->
+      <div
+        v-if="(dragOverPriority === section.priority && dragging?.fromPriority !== section.priority) ||
+              (touchTargetPriority === section.priority && touchDragging?.fromPriority !== section.priority)"
+        class="text-xs font-medium text-zinc-400 pl-4 pb-2 pointer-events-none select-none"
+      >
+        ↓ Drop here to mark as {{ section.label }}
       </div>
 
       <!-- Items grouped by checklist -->
@@ -119,7 +284,23 @@ function groupByChecklist(
           <!-- Checklist sub-header -->
           <p class="text-xs text-zinc-500 mb-1 font-medium">{{ clTitle }}</p>
           <div class="space-y-0.5">
-            <div v-for="ref in refs" :key="ref.item.id" class="relative">
+            <div
+              v-for="ref in refs"
+              :key="ref.item.id"
+              class="relative transition-opacity duration-150"
+              :class="dragging?.itemId === ref.item.id || touchDragging?.itemId === ref.item.id ? 'opacity-40' : ''"
+              draggable="true"
+              @dragstart="onDragStart($event, ref)"
+              @dragend="onDragEnd"
+            >
+              <!-- Mobile touch drag handle (planning mode only) -->
+              <button
+                v-if="mode === 'planning'"
+                class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-5 text-zinc-600 active:text-zinc-400 touch-none cursor-grab px-1 sm:hidden"
+                title="Drag to change priority"
+                @touchstart="(e) => onHandleTouchStart(e, ref)"
+              >⠿</button>
+
               <!-- Day plan toggle checkbox (planning mode only) -->
               <button
                 v-if="mode === 'planning'"
