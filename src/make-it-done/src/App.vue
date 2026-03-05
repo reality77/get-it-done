@@ -53,8 +53,9 @@ watch(weeklyReviewDue, (due) => {
 })
 
 onMounted(async () => {
-  checklistStore.processDueSnoozed()
-  checklistStore.refreshDayPlanIfStale()
+  await checklistStore.loadLocal()        // data available offline, before auth (#8)
+  checklistStore.processDueSnoozed()      // now runs on real data (#4)
+  checklistStore.refreshDayPlanIfStale()  // idem
   await authStore.checkSession()
   if (authStore.isAuthenticated) {
     await checklistStore.initSync()
@@ -67,6 +68,7 @@ onUnmounted(() => {
 
 watch(() => authStore.isAuthenticated, async (authed) => {
   if (authed) {
+    loginPrompted.value = false
     await checklistStore.initSync()
   } else {
     checklistStore.unsubscribeRealtime()

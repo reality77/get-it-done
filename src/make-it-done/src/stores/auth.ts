@@ -23,8 +23,15 @@ export const useAuthStore = defineStore('auth', () => {
       await couchLogin(userEmail.value, password)
       await ensureDatabase()
       isAuthenticated.value = true
-    } catch {
-      error.value = 'Invalid password. Please try again.'
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : ''
+      if (msg === 'network') {
+        error.value = 'Cannot reach the server. Check that CouchDB is running.'
+      } else if (msg === 'server') {
+        error.value = 'Server error. Please try again later.'
+      } else {
+        error.value = 'Invalid password. Please try again.'
+      }
     } finally {
       isLoading.value = false
     }

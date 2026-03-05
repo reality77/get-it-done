@@ -5,6 +5,14 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   base: '/make-it-done/',
+  resolve: {
+    alias: {
+      events: 'events/events.js',
+    },
+  },
+  optimizeDeps: {
+    include: ['pouchdb-browser', 'events'],
+  },
   plugins: [
     vue(),
     tailwindcss(),

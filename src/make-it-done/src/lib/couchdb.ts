@@ -1,4 +1,4 @@
-import PouchDB from 'pouchdb'
+import PouchDB from 'pouchdb-browser'
 import type { Checklist } from '../types'
 
 export const COUCH_URL = (import.meta.env.VITE_COUCH_URL as string | undefined) ?? 'http://localhost:5984'
@@ -27,24 +27,32 @@ export const localDB = new PouchDB<CouchDoc>(DB_NAME)
 
 // ── Remote DB factory (uses session cookie) ───────────────────────────────────
 
-function credentialedFetch(url: RequestInfo | URL, opts: RequestInit = {}): Promise<Response> {
-  return fetch(url, { ...opts, credentials: 'include' })
-}
-
-export function createRemoteDB(): PouchDB.Database<CouchDoc> {
+export function createRemoteDB(onNetworkError?: () => void): PouchDB.Database<CouchDoc> {
+  function credentialedFetch(url: RequestInfo | URL, opts: RequestInit = {}): Promise<Response> {
+    return fetch(url, { ...opts, credentials: 'include' }).catch((err: unknown) => {
+      onNetworkError?.()
+      throw err
+    })
+  }
   return new PouchDB<CouchDoc>(`${COUCH_URL}/${DB_NAME}`, { fetch: credentialedFetch })
 }
 
 // ── CouchDB session helpers (raw fetch to /_session) ─────────────────────────
 
 export async function couchLogin(username: string, password: string): Promise<void> {
-  const res = await fetch(`${COUCH_URL}/_session`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: username, password }),
-    credentials: 'include',
-  })
-  if (!res.ok) throw new Error('Login failed')
+  let res: Response
+  try {
+    res = await fetch(`${COUCH_URL}/_session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: username, password }),
+      credentials: 'include',
+    })
+  } catch {
+    throw new Error('network')
+  }
+  if (res.status === 401) throw new Error('unauthorized')
+  if (!res.ok) throw new Error('server')
 }
 
 export function couchLogout(): void {

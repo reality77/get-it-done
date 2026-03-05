@@ -175,6 +175,11 @@ export const useChecklistStore = defineStore('checklists', () => {
 
   let syncHandler: PouchDB.Replication.Sync<CouchDoc> | null = null
   let changesHandler: PouchDB.Core.Changes<CouchDoc> | null = null
+  let syncRetryTimer: ReturnType<typeof setTimeout> | null = null
+  let syncRetryDelay = 5_000  // ms — reset on success, doubles on each failure up to 60 s
+  // Sequence captured before allDocs — used to start the changes feed without gaps (#9)
+  let lastSeq: string | number = 'now'
+  let localLoaded = false
 
   // ── Plan meta persistence ────────────────────────────────────────────────────
 
@@ -215,16 +220,18 @@ export const useChecklistStore = defineStore('checklists', () => {
   }
 
   async function loadFromLocal(): Promise<void> {
+    // Capture seq BEFORE allDocs to avoid missing concurrent writes (#9)
+    const info = await localDB.info()
+    lastSeq = info.update_seq
     const result = await localDB.allDocs<CouchDoc>({ include_docs: true })
     checklists.value = result.rows
       .filter(row => row.doc)
       .map(row => {
-        revCache.set(row.id, row.value.rev)
+        revCache.set(row.id, row.doc!._rev)  // use doc._rev, not row.value.rev (#3)
         const doc = row.doc!
-        // Run migration on items in case of old format
-        const migrated = { ...docToChecklist(doc), items: migrateNodes(doc.items as unknown[]) }
-        return migrated
+        return { ...docToChecklist(doc), items: migrateNodes(doc.items as unknown[]) }
       })
+    localLoaded = true
   }
 
   // ── Computed views ───────────────────────────────────────────────────────────
@@ -542,8 +549,9 @@ export const useChecklistStore = defineStore('checklists', () => {
   // ── PouchDB sync ─────────────────────────────────────────────────────────────
 
   function subscribeChanges(): void {
+    if (changesHandler) return
     changesHandler = localDB.changes<CouchDoc>({
-      since: 'now',
+      since: lastSeq,  // seq captured before allDocs, no gap (#9)
       live: true,
       include_docs: true,
     })
@@ -561,26 +569,64 @@ export const useChecklistStore = defineStore('checklists', () => {
     })
   }
 
+  // Start a single sync attempt (no built-in retry). On failure we schedule a
+  // restart ourselves with exponential back-off to avoid flooding the console.
+  function startSync(): void {
+    const authStore = useAuthStore()
+    if (!authStore.isAuthenticated) return
+
+    // Clear any pending retry timer so we don't double-start.
+    if (syncRetryTimer) { clearTimeout(syncRetryTimer); syncRetryTimer = null }
+    // Cancel a stale handler if any.
+    if (syncHandler) { syncHandler.cancel(); syncHandler = null }
+
+    function scheduleRetry(): void {
+      if (syncRetryTimer !== null) return  // already scheduled, don't double-fire
+      syncStatus.value = 'offline'
+      syncHandler?.cancel()
+      syncHandler = null
+      const delay = syncRetryDelay
+      syncRetryDelay = Math.min(syncRetryDelay * 2, 60_000)
+      syncRetryTimer = setTimeout(() => {
+        syncRetryTimer = null
+        startSync()
+      }, delay)
+    }
+
+    // Intercept network failures at the fetch level (CORS/null status errors may
+    // not surface through PouchDB events when retry is disabled).
+    const remoteDB = createRemoteDB(() => { scheduleRetry() })
+    syncStatus.value = 'syncing'
+
+    syncHandler = localDB.sync(remoteDB, { live: true, retry: false })
+      .on('paused', (err: unknown) => {
+        if (err) {
+          scheduleRetry()
+        } else {
+          // Successfully idle — reset back-off.
+          syncRetryDelay = 5_000
+          syncStatus.value = 'synced'
+        }
+      })
+      .on('active', () => { syncStatus.value = 'syncing' })
+      .on('error', () => { scheduleRetry() })
+      .on('denied', () => { syncStatus.value = 'offline' })
+  }
+
   async function initSync(): Promise<void> {
     const authStore = useAuthStore()
     if (!authStore.isAuthenticated || syncHandler) return
 
-    await loadFromLocal()
+    // loadFromLocal() may have already run on app mount (offline/pre-auth case) (#8)
+    if (!localLoaded) await loadFromLocal()
     subscribeChanges()
 
-    const remoteDB = createRemoteDB()
-    syncStatus.value = 'syncing'
-
-    syncHandler = localDB.sync(remoteDB, { live: true, retry: true })
-      .on('paused', (err: unknown) => {
-        syncStatus.value = err ? 'offline' : 'synced'
-      })
-      .on('active', () => { syncStatus.value = 'syncing' })
-      .on('error', () => { syncStatus.value = 'offline' })
-      .on('denied', () => { syncStatus.value = 'offline' })
+    startSync()
   }
 
   function unsubscribeRealtime(): void {
+    if (syncRetryTimer) { clearTimeout(syncRetryTimer); syncRetryTimer = null }
+    syncRetryDelay = 5_000
     syncHandler?.cancel()
     syncHandler = null
     changesHandler?.cancel()
@@ -848,6 +894,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     suggestDayPlan,
     clearDayPlan,
     // Sync
+    loadLocal: loadFromLocal,
     initSync,
     unsubscribeRealtime,
   }
