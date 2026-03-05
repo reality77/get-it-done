@@ -190,7 +190,7 @@ const snoozeProgress  = computed(() => Math.max(0, Math.min(-swipeOffset.value /
 
     <!-- Row content -->
     <div
-      class="flex items-center gap-2 group rounded-lg hover:bg-zinc-800/50 transition-colors"
+      class="flex items-center gap-2 group rounded-lg hover:bg-zinc-800/50 transition-colors bg-zinc-900"
       :class="compact ? 'py-1.5 px-2' : 'py-2 px-3'"
       :style="rowStyle"
     >
@@ -298,6 +298,16 @@ const snoozeProgress  = computed(() => Math.max(0, Math.min(-swipeOffset.value /
       <div class="relative w-full bg-zinc-900 border-t border-zinc-700 rounded-t-2xl p-4 space-y-5 max-h-[85vh] overflow-y-auto">
         <!-- Task title -->
         <p class="text-sm font-medium text-zinc-200 truncate border-b border-zinc-800 pb-3">{{ item.text }}</p>
+
+        <!-- Activate (non-active items only) -->
+        <div v-if="itemStatus() !== 'active'">
+          <button
+            class="flex items-center justify-center gap-2 w-full py-3 text-sm font-medium rounded-xl border border-violet-600 bg-violet-600/20 text-violet-300 hover:bg-violet-600/30 transition-colors"
+            @click="emit('activate', { checklistId, itemId: item.id }); mobileMenuOpen = false"
+          >
+            ↩ Activate
+          </button>
+        </div>
 
         <!-- Snooze options (open by default) -->
         <div v-if="itemStatus() === 'active'">
