@@ -19,8 +19,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Make It Done',
-        short_name: 'MakeItDone',
+        name: 'Get It Done',
+        short_name: 'GetItDone',
         description: 'A simple checklist app',
         theme_color: '#09090b',
         background_color: '#09090b',

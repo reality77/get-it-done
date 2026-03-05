@@ -2,7 +2,7 @@ import PouchDB from 'pouchdb-browser'
 import type { Checklist } from '../types'
 
 export const COUCH_URL = (import.meta.env.VITE_COUCH_URL as string | undefined) ?? 'http://localhost:5984'
-export const DB_NAME = 'make-it-done'
+export const DB_NAME = 'get-it-done'
 
 // ── Document type ─────────────────────────────────────────────────────────────
 
