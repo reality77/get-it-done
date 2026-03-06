@@ -593,6 +593,11 @@ export const useChecklistStore = defineStore('checklists', () => {
       }, delay)
     }
 
+    function isAuthError(err: unknown): boolean {
+      const s = (err as { status?: number })?.status
+      return s === 401 || s === 403
+    }
+
     // Intercept network failures at the fetch level (CORS/null status errors may
     // not surface through PouchDB events when retry is disabled).
     const remoteDB = createRemoteDB(() => { scheduleRetry() })
@@ -609,8 +614,14 @@ export const useChecklistStore = defineStore('checklists', () => {
         }
       })
       .on('active', () => { syncStatus.value = 'syncing' })
-      .on('error', () => { scheduleRetry() })
-      .on('denied', () => { syncStatus.value = 'offline' })
+      .on('error', (err) => {
+        if (isAuthError(err)) authStore.invalidateSession()
+        else scheduleRetry()
+      })
+      .on('denied', (err) => {
+        if (isAuthError(err)) authStore.invalidateSession()
+        else syncStatus.value = 'offline'
+      })
   }
 
   async function initSync(): Promise<void> {

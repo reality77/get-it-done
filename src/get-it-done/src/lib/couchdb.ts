@@ -59,14 +59,25 @@ export function couchLogout(): void {
   void fetch(`${COUCH_URL}/_session`, { method: 'DELETE', credentials: 'include' })
 }
 
-export async function couchGetSession(): Promise<string | null> {
+export type SessionStatus =
+  | { status: 'authenticated'; name: string }
+  | { status: 'expired' }
+  | { status: 'offline' }
+
+export async function couchGetSession(): Promise<SessionStatus> {
   try {
     const res = await fetch(`${COUCH_URL}/_session`, { credentials: 'include' })
-    if (!res.ok) return null
+    if (res.status === 401 || res.status === 403) return { status: 'expired' }
+    if (!res.ok) return { status: 'offline' }
+    if (!res.ok) return { status: 'offline' }
+    if (!res.ok) return { status: 'offline' }
+    if (!res.ok) return { status: 'offline' }
+    if (!res.ok) return { status: 'offline' }
     const data = await res.json() as { userCtx?: { name: string | null } }
-    return data.userCtx?.name ?? null
+    const name = data.userCtx?.name
+    return name ? { status: 'authenticated', name } : { status: 'expired' }
   } catch {
-    return null
+    return { status: 'offline' }
   }
 }
 
