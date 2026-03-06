@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import type { TrackedItemRef, ChecklistItemId, TaskPriority, TaskEffort } from '../../types'
+import type { TrackedItemRef, ChecklistItemId, TaskPriority, TaskEffort, ButtonActionDef } from '../../types'
 import TaskCard from '../molecules/TaskCard.vue'
+import MobilePlanningSheet from '../molecules/MobilePlanningSheet.vue'
 
 defineProps<{
   snoozedItems: TrackedItemRef[]
   somedayItems: TrackedItemRef[]
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'activate', id: ChecklistItemId): void
   (e: 'snooze', id: ChecklistItemId, date: string): void
   (e: 'someday', id: ChecklistItemId): void
@@ -16,6 +17,21 @@ defineEmits<{
   (e: 'update-priority', id: ChecklistItemId, priority: TaskPriority): void
   (e: 'update-effort', id: ChecklistItemId, effort: TaskEffort): void
 }>()
+
+function backlogActions(ref: TrackedItemRef): ButtonActionDef[] {
+  const id: ChecklistItemId = { checklistId: ref.checklistId, itemId: ref.item.id }
+  const status = ref.item.status ?? 'active'
+  const actions: ButtonActionDef[] = []
+  if (status !== 'active') {
+    actions.push({ label: '↩', title: 'Activate', variant: 'icon', onClick: () => emit('activate', id) })
+  }
+  if (status === 'active') {
+    actions.push({ label: '💤', title: 'Snooze', variant: 'icon', snooze: (date) => emit('snooze', id, date) })
+    actions.push({ label: '☁', title: 'Someday', variant: 'icon', onClick: () => emit('someday', id) })
+  }
+  actions.push({ label: '✕', title: 'Delete', variant: 'danger', onClick: () => emit('delete', id) })
+  return actions
+}
 </script>
 
 <template>
@@ -35,15 +51,23 @@ defineEmits<{
           :item="ref.item"
           :checklist-id="ref.checklistId"
           :checklist-title="ref.checklistTitle"
-          :planning-mode="true"
-          @activate="(id) => $emit('activate', id)"
-          @snooze="(id, date) => $emit('snooze', id, date)"
-          @someday="(id) => $emit('someday', id)"
-          @delete="(id) => $emit('delete', id)"
+          :show-checkbox="false"
+          :actions="backlogActions(ref)"
           @update-text="(id, text) => $emit('update-text', id, text)"
-          @update-priority="(id, p) => $emit('update-priority', id, p)"
-          @update-effort="(id, e) => $emit('update-effort', id, e)"
-        />
+        >
+          <template #mobile-sheet="{ close }">
+            <MobilePlanningSheet
+              :item="ref.item"
+              :item-id="{ checklistId: ref.checklistId, itemId: ref.item.id }"
+              :close="close"
+              @activate="(id) => $emit('activate', id)"
+              @snooze="(id, date) => $emit('snooze', id, date)"
+              @someday="(id) => $emit('someday', id)"
+              @update-priority="(id, p) => $emit('update-priority', id, p)"
+              @update-effort="(id, e) => $emit('update-effort', id, e)"
+            />
+          </template>
+        </TaskCard>
       </div>
     </section>
 
@@ -61,15 +85,23 @@ defineEmits<{
           :item="ref.item"
           :checklist-id="ref.checklistId"
           :checklist-title="ref.checklistTitle"
-          :planning-mode="true"
-          @activate="(id) => $emit('activate', id)"
-          @snooze="(id, date) => $emit('snooze', id, date)"
-          @someday="(id) => $emit('someday', id)"
-          @delete="(id) => $emit('delete', id)"
+          :show-checkbox="false"
+          :actions="backlogActions(ref)"
           @update-text="(id, text) => $emit('update-text', id, text)"
-          @update-priority="(id, p) => $emit('update-priority', id, p)"
-          @update-effort="(id, e) => $emit('update-effort', id, e)"
-        />
+        >
+          <template #mobile-sheet="{ close }">
+            <MobilePlanningSheet
+              :item="ref.item"
+              :item-id="{ checklistId: ref.checklistId, itemId: ref.item.id }"
+              :close="close"
+              @activate="(id) => $emit('activate', id)"
+              @snooze="(id, date) => $emit('snooze', id, date)"
+              @someday="(id) => $emit('someday', id)"
+              @update-priority="(id, p) => $emit('update-priority', id, p)"
+              @update-effort="(id, e) => $emit('update-effort', id, e)"
+            />
+          </template>
+        </TaskCard>
       </div>
     </section>
 

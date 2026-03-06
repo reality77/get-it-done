@@ -5,8 +5,11 @@ import type {
   TaskPriority,
   TaskEffort,
   ChecklistItemId,
+  ButtonActionDef,
+  SwipeActionDef,
 } from "../../types";
 import TaskCard from "../molecules/TaskCard.vue";
+import MobilePlanningSheet from "../molecules/MobilePlanningSheet.vue";
 
 type WeekMode = "planning" | "completion";
 
@@ -174,6 +177,41 @@ function onTouchDragMove(e: TouchEvent): void {
     (sectionEl?.getAttribute("data-priority") as TaskPriority) ?? null;
 }
 
+// ── TaskCard helpers ──────────────────────────────────────────────────────────
+
+function weekSwipeLeft(ref: TrackedItemRef): SwipeActionDef {
+  return {
+    hint: '💤 Next monday',
+    bgClass: 'bg-amber-700',
+    onTrigger() {
+      const id: ChecklistItemId = { checklistId: ref.checklistId, itemId: ref.item.id }
+      const d = new Date()
+      d.setDate(d.getDate() + (1 + 7 - d.getDay()) % 7 || 7)
+      emit('snooze', id, d.toISOString().slice(0, 10))
+    },
+  }
+}
+
+function weekSwipeRight(ref: TrackedItemRef): SwipeActionDef {
+  return {
+    hint: '☁ Someday',
+    bgClass: 'bg-sky-700',
+    onTrigger() {
+      emit('someday', { checklistId: ref.checklistId, itemId: ref.item.id })
+    },
+  }
+}
+
+function weekActions(ref: TrackedItemRef): ButtonActionDef[] | undefined {
+  if (mode.value !== 'planning') return undefined
+  const id: ChecklistItemId = { checklistId: ref.checklistId, itemId: ref.item.id }
+  return [
+    { label: '💤', title: 'Snooze', variant: 'icon', snooze: (date) => emit('snooze', id, date) },
+    { label: '☁', title: 'Someday', variant: 'icon', onClick: () => emit('someday', id) },
+    { label: '✕', title: 'Delete', variant: 'danger', onClick: () => emit('delete', id) },
+  ]
+}
+
 function onTouchDragEnd(): void {
   if (
     touchDragging.value &&
@@ -326,16 +364,25 @@ function onTouchDragEnd(): void {
                 :item="ref.item"
                 :checklist-id="ref.checklistId"
                 :checklist-title="ref.checklistTitle"
-                :planning-mode="mode === 'planning'"
+                :show-checkbox="mode === 'completion'"
+                :swipe-left="mode === 'planning' ? weekSwipeLeft(ref) : undefined"
+                :swipe-right="mode === 'planning' ? weekSwipeRight(ref) : undefined"
+                :actions="weekActions(ref)"
                 @toggle-done="(id) => $emit('toggle-done', id)"
-                @snooze="(id, date) => $emit('snooze', id, date)"
-                @someday="(id) => $emit('someday', id)"
-                @activate="() => {}"
-                @delete="(id) => $emit('delete', id)"
                 @update-text="(id, text) => $emit('update-text', id, text)"
-                @update-priority="(id, p) => $emit('update-priority', id, p)"
-                @update-effort="(id, e) => $emit('update-effort', id, e)"
-              />
+              >
+                <template v-if="mode === 'planning'" #mobile-sheet="{ close }">
+                  <MobilePlanningSheet
+                    :item="ref.item"
+                    :item-id="{ checklistId: ref.checklistId, itemId: ref.item.id }"
+                    :close="close"
+                    @snooze="(id, date) => $emit('snooze', id, date)"
+                    @someday="(id) => $emit('someday', id)"
+                    @update-priority="(id, p) => $emit('update-priority', id, p)"
+                    @update-effort="(id, e) => $emit('update-effort', id, e)"
+                  />
+                </template>
+              </TaskCard>
             </div>
           </div>
         </div>

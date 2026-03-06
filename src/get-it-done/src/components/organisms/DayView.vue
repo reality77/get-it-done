@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { TrackedItemRef, ChecklistItemId } from '../../types'
+import type { TrackedItemRef, ChecklistItemId, ButtonActionDef } from '../../types'
 import DayPlanBar from '../molecules/DayPlanBar.vue'
 import TaskCard from '../molecules/TaskCard.vue'
 
@@ -9,7 +9,7 @@ const props = defineProps<{
   allActiveItems: TrackedItemRef[]
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'suggest'): void
   (e: 'clear'): void
   (e: 'toggle-done', id: ChecklistItemId): void
@@ -18,6 +18,15 @@ defineEmits<{
   (e: 'delete', id: ChecklistItemId): void
   (e: 'update-text', id: ChecklistItemId, text: string): void
 }>()
+
+function dayActions(ref: TrackedItemRef): ButtonActionDef[] {
+  const id: ChecklistItemId = { checklistId: ref.checklistId, itemId: ref.item.id }
+  return [
+    { label: '💤', title: 'Snooze', variant: 'icon', snooze: (date) => emit('snooze', id, date) },
+    { label: '☁', title: 'Someday', variant: 'icon', onClick: () => emit('someday', id) },
+    { label: '✕', title: 'Delete', variant: 'danger', onClick: () => emit('delete', id) },
+  ]
+}
 
 const activeItems = computed(() => props.items.filter(r => !r.item.done))
 const completedItems = computed(() => props.items.filter(r => r.item.done))
@@ -63,17 +72,14 @@ function dismissCelebration(): void {
 
     <div v-if="activeItems.length > 0" class="space-y-1">
       <TaskCard
-        v-for="ref in activeItems"
-        :key="ref.item.id"
-        :item="ref.item"
-        :checklist-id="ref.checklistId"
-        :checklist-title="ref.checklistTitle"
+        v-for="taskRef in activeItems"
+        :key="taskRef.item.id"
+        :item="taskRef.item"
+        :checklist-id="taskRef.checklistId"
+        :checklist-title="taskRef.checklistTitle"
         :compact="true"
+        :actions="dayActions(taskRef)"
         @toggle-done="(id) => $emit('toggle-done', id)"
-        @snooze="(id, date) => $emit('snooze', id, date)"
-        @someday="(id) => $emit('someday', id)"
-        @activate="() => {}"
-        @delete="(id) => $emit('delete', id)"
         @update-text="(id, text) => $emit('update-text', id, text)"
       />
     </div>
@@ -85,17 +91,14 @@ function dismissCelebration(): void {
       </p>
       <div class="space-y-1 opacity-60">
         <TaskCard
-          v-for="ref in completedItems"
-          :key="ref.item.id"
-          :item="ref.item"
-          :checklist-id="ref.checklistId"
-          :checklist-title="ref.checklistTitle"
+          v-for="taskRef in completedItems"
+          :key="taskRef.item.id"
+          :item="taskRef.item"
+          :checklist-id="taskRef.checklistId"
+          :checklist-title="taskRef.checklistTitle"
           :compact="true"
+          :actions="dayActions(taskRef)"
           @toggle-done="(id) => $emit('toggle-done', id)"
-          @snooze="(id, date) => $emit('snooze', id, date)"
-          @someday="(id) => $emit('someday', id)"
-          @activate="() => {}"
-          @delete="(id) => $emit('delete', id)"
           @update-text="(id, text) => $emit('update-text', id, text)"
         />
       </div>

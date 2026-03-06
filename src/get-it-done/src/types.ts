@@ -68,3 +68,21 @@ export interface ChecklistItemId {
   checklistId: string
   itemId: string
 }
+
+// ── TaskCard generic action types ─────────────────────────────────────────────
+
+export interface SwipeActionDef {
+  hint: string
+  bgClass: string
+  onTrigger: () => void
+}
+
+export interface ButtonActionDef {
+  label: string
+  title?: string
+  variant?: 'icon' | 'danger'
+  /** Normal button action */
+  onClick?: () => void
+  /** Snooze button — renders a SnoozeMenu dropdown; calls snooze(date) on pick */
+  snooze?: (date: string) => void
+}

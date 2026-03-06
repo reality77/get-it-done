@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TrackedItemRef, ChecklistItemId } from '../../types'
+import type { TrackedItemRef, ChecklistItemId, ButtonActionDef } from '../../types'
 import TaskCard from '../molecules/TaskCard.vue'
 import AppButton from '../atoms/AppButton.vue'
 
@@ -16,6 +16,20 @@ const emit = defineEmits<{
   (e: 'complete-review'): void
   (e: 'dismiss'): void
 }>()
+
+function reviewActions(ref: TrackedItemRef): ButtonActionDef[] {
+  const id: ChecklistItemId = { checklistId: ref.checklistId, itemId: ref.item.id }
+  const status = ref.item.status ?? 'active'
+  const actions: ButtonActionDef[] = []
+  if (status !== 'active') {
+    actions.push({ label: '↩', title: 'Activate', variant: 'icon', onClick: () => emit('activate', id) })
+  }
+  if (status === 'active') {
+    actions.push({ label: '💤', title: 'Snooze', variant: 'icon', snooze: (date) => emit('snooze', id, date) })
+  }
+  actions.push({ label: '✕', title: 'Delete', variant: 'danger', onClick: () => emit('delete', id) })
+  return actions
+}
 
 function staleDays(ref: TrackedItemRef): number {
   if (!ref.item.snoozedAt) return 0
@@ -48,10 +62,7 @@ function staleDays(ref: TrackedItemRef): number {
             :checklist-id="ref.checklistId"
             :checklist-title="ref.checklistTitle"
             :compact="true"
-            @activate="(id) => $emit('activate', id)"
-            @snooze="(id, date) => $emit('snooze', id, date)"
-            @someday="() => {}"
-            @delete="(id) => $emit('delete', id)"
+            :actions="reviewActions(ref)"
             @update-text="() => {}"
             @toggle-done="() => {}"
           />
@@ -70,10 +81,7 @@ function staleDays(ref: TrackedItemRef): number {
           :checklist-id="ref.checklistId"
           :checklist-title="ref.checklistTitle"
           :compact="true"
-          @activate="(id) => $emit('activate', id)"
-          @snooze="(id, date) => $emit('snooze', id, date)"
-          @someday="() => {}"
-          @delete="(id) => $emit('delete', id)"
+          :actions="reviewActions(ref)"
           @update-text="() => {}"
           @toggle-done="() => {}"
         />
