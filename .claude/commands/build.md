@@ -1,7 +1,7 @@
 Run the Vite build from the correct project subdirectory and report the result.
 
 ```bash
-cd /home/david/src/get-it-done/src/get-it-done && npm run build
+cd src/get-it-done && npm run build
 ```
 
 - If the build succeeds with zero errors, confirm it passed.
