@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { couchLogin, couchLogout, couchGetSession, ensureDatabase } from '../lib/couchdb'
+import type { SessionStatus } from '../lib/couchdb'
 
 export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = ref(false)
@@ -11,9 +12,16 @@ export const useAuthStore = defineStore('auth', () => {
     () => (import.meta.env.VITE_COUCH_USER as string | undefined) ?? 'admin'
   )
 
-  async function checkSession(): Promise<void> {
-    const name = await couchGetSession()
-    isAuthenticated.value = name !== null
+  async function checkSession(): Promise<SessionStatus> {
+    const result = await couchGetSession()
+    if (result.status === 'authenticated') isAuthenticated.value = true
+    else if (result.status === 'expired') isAuthenticated.value = false
+    // 'offline' → leave isAuthenticated as-is
+    return result
+  }
+
+  function invalidateSession(): void {
+    isAuthenticated.value = false
   }
 
   async function login(password: string): Promise<void> {
@@ -44,5 +52,5 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated.value = false
   }
 
-  return { isAuthenticated, isLoading, error, userEmail, login, logout, checkSession }
+  return { isAuthenticated, isLoading, error, userEmail, login, logout, checkSession, invalidateSession }
 })

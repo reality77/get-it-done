@@ -20,6 +20,22 @@ const checklistStore = useChecklistStore()
 
 const loginPrompted = ref(false)
 
+// ── Session keep-alive ────────────────────────────────────────────────────────
+
+let keepAliveTimer: ReturnType<typeof setInterval> | null = null
+
+function startKeepAlive(): void {
+  if (keepAliveTimer) return
+  keepAliveTimer = setInterval(async () => {
+    if (!authStore.isAuthenticated) { stopKeepAlive(); return }
+    await authStore.checkSession()
+  }, 5 * 60 * 1000)
+}
+
+function stopKeepAlive(): void {
+  if (keepAliveTimer) { clearInterval(keepAliveTimer); keepAliveTimer = null }
+}
+
 const {
   activeChecklists,
   templates,
@@ -52,26 +68,41 @@ watch(weeklyReviewDue, (due) => {
   if (due) reviewDismissed.value = false
 })
 
+async function handleVisibilityChange(): Promise<void> {
+  if (document.visibilityState !== 'visible') return
+  const result = await authStore.checkSession()
+  if (result.status === 'expired') loginPrompted.value = true
+}
+
 onMounted(async () => {
   await checklistStore.loadLocal()        // data available offline, before auth (#8)
   checklistStore.processDueSnoozed()      // now runs on real data (#4)
   checklistStore.refreshDayPlanIfStale()  // idem
-  await authStore.checkSession()
+  const result = await authStore.checkSession()
   if (authStore.isAuthenticated) {
+    startKeepAlive()
     await checklistStore.initSync()
+  } else if (result.status === 'expired') {
+    loginPrompted.value = true
   }
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onUnmounted(() => {
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  stopKeepAlive()
   checklistStore.unsubscribeRealtime()
 })
 
-watch(() => authStore.isAuthenticated, async (authed) => {
+watch(() => authStore.isAuthenticated, async (authed, wasAuthed) => {
   if (authed) {
     loginPrompted.value = false
+    startKeepAlive()
     await checklistStore.initSync()
   } else {
+    stopKeepAlive()
     checklistStore.unsubscribeRealtime()
+    if (wasAuthed) loginPrompted.value = true  // session expired during use
   }
 })
 
