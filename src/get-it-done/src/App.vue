@@ -187,7 +187,7 @@ const syncStatusTitles: Record<string, string> = {
     @change="activeTab = $event"
   />
 
-  <main class="pb-24 md:pb-0">
+  <main class="pb-20 md:pb-0">
     <TasksView
       v-if="activeTab === 'tasks'"
       :weekly-review-due="weeklyReviewDue"
