@@ -118,64 +118,6 @@ function onDrop(priority: TaskPriority): void {
 // ── Touch drag-and-drop (mobile) ──────────────────────────────────────────────
 const touchDragging = ref<DragState | null>(null);
 const touchTargetPriority = ref<TaskPriority | null>(null);
-let touchGhostEl: HTMLElement | null = null;
-
-function onHandleTouchStart(e: TouchEvent, item: TrackedItemRef): void {
-  if (e.touches.length !== 1) return;
-  e.preventDefault(); // prevent scroll while dragging
-
-  touchDragging.value = {
-    checklistId: item.checklistId,
-    itemId: item.item.id,
-    fromPriority: item.item.priority ?? "secondary",
-  };
-  touchTargetPriority.value = null;
-
-  // Create a lightweight ghost pill
-  const touch = e.touches[0];
-  if (!touch) return;
-  touchGhostEl = document.createElement("div");
-  touchGhostEl.textContent = item.item.text;
-  touchGhostEl.style.cssText = [
-    "position:fixed",
-    `left:${touch.clientX - 60}px`,
-    `top:${touch.clientY - 18}px`,
-    "max-width:220px",
-    "padding:6px 12px",
-    "border-radius:8px",
-    "background:#3f3f46",
-    "color:#e4e4e7",
-    "font-size:12px",
-    "white-space:nowrap",
-    "overflow:hidden",
-    "text-overflow:ellipsis",
-    "opacity:0.9",
-    "pointer-events:none",
-    "z-index:9999",
-    "box-shadow:0 4px 12px rgba(0,0,0,0.5)",
-  ].join(";");
-  document.body.appendChild(touchGhostEl);
-
-  document.addEventListener("touchmove", onTouchDragMove, { passive: false });
-  document.addEventListener("touchend", onTouchDragEnd);
-  document.addEventListener("touchcancel", onTouchDragEnd);
-}
-
-function onTouchDragMove(e: TouchEvent): void {
-  if (!touchDragging.value || !touchGhostEl) return;
-  e.preventDefault();
-
-  const touch = e.touches[0];
-  if (!touch) return;
-  touchGhostEl.style.left = `${touch.clientX - 60}px`;
-  touchGhostEl.style.top = `${touch.clientY - 18}px`;
-
-  // Ghost has pointer-events:none so elementFromPoint sees through it
-  const el = document.elementFromPoint(touch.clientX, touch.clientY);
-  const sectionEl = el?.closest("[data-priority]");
-  touchTargetPriority.value =
-    (sectionEl?.getAttribute("data-priority") as TaskPriority) ?? null;
-}
 
 // ── TaskCard helpers ──────────────────────────────────────────────────────────
 
@@ -212,31 +154,6 @@ function weekActions(ref: TrackedItemRef): ButtonActionDef[] | undefined {
   ]
 }
 
-function onTouchDragEnd(): void {
-  if (
-    touchDragging.value &&
-    touchTargetPriority.value &&
-    touchTargetPriority.value !== touchDragging.value.fromPriority
-  ) {
-    emit(
-      "update-priority",
-      {
-        checklistId: touchDragging.value.checklistId,
-        itemId: touchDragging.value.itemId,
-      },
-      touchTargetPriority.value,
-    );
-  }
-
-  touchGhostEl?.remove();
-  touchGhostEl = null;
-  touchDragging.value = null;
-  touchTargetPriority.value = null;
-
-  document.removeEventListener("touchmove", onTouchDragMove);
-  document.removeEventListener("touchend", onTouchDragEnd);
-  document.removeEventListener("touchcancel", onTouchDragEnd);
-}
 </script>
 
 <template>

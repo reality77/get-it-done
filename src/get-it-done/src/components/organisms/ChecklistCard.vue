@@ -114,7 +114,6 @@ watch(isComplete, (val) => {
 })
 
 // ── Swipe-to-archive (mobile) ────────────────────────────────────────────────
-const cardEl = ref<HTMLElement | null>(null)
 const cardHeaderEl = ref<HTMLElement | null>(null)
 
 const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgress } = useSwipeAction(cardHeaderEl, {
