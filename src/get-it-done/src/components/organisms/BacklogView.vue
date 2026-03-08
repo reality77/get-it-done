@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TrackedItemRef, ChecklistItemId, TaskPriority, TaskEffort, ButtonActionDef } from '../../types'
+import type { TrackedItemRef, ChecklistItemId, TaskPriority, TaskEffort, ButtonActionDef, SwipeActionDef } from '../../types'
 import TaskCard from '../molecules/TaskCard.vue'
 import MobilePlanningSheet from '../molecules/MobilePlanningSheet.vue'
 
@@ -32,6 +32,20 @@ function backlogActions(ref: TrackedItemRef): ButtonActionDef[] {
   actions.push({ label: '✕', title: 'Delete', variant: 'danger', onClick: () => emit('delete', id) })
   return actions
 }
+
+function swipeLeft(ref: TrackedItemRef): SwipeActionDef {
+  return {
+    hint: 'Add to week',
+    bgClass: 'bg-green-700',
+    onTrigger() {
+      const id: ChecklistItemId = { checklistId: ref.checklistId, itemId: ref.item.id }
+      const d = new Date()
+      d.setDate(d.getDate() + (1 + 7 - d.getDay()) % 7 || 7)
+      emit('snooze', id, d.toISOString().slice(0, 10))
+    },
+  }
+}
+
 </script>
 
 <template>
@@ -52,6 +66,7 @@ function backlogActions(ref: TrackedItemRef): ButtonActionDef[] {
           :checklist-id="ref.checklistId"
           :checklist-title="ref.checklistTitle"
           :show-checkbox="false"
+          :swipe-left="swipeLeft(ref)"
           :actions="backlogActions(ref)"
           @update-text="(id, text) => $emit('update-text', id, text)"
         >

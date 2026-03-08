@@ -123,7 +123,7 @@ const touchTargetPriority = ref<TaskPriority | null>(null);
 
 function weekSwipeLeft(ref: TrackedItemRef): SwipeActionDef {
   return {
-    hint: '💤 Next monday',
+    hint: '💤 Next week',
     bgClass: 'bg-amber-700',
     onTrigger() {
       const id: ChecklistItemId = { checklistId: ref.checklistId, itemId: ref.item.id }
@@ -136,10 +136,10 @@ function weekSwipeLeft(ref: TrackedItemRef): SwipeActionDef {
 
 function weekSwipeRight(ref: TrackedItemRef): SwipeActionDef {
   return {
-    hint: '☁ Someday',
-    bgClass: 'bg-sky-700',
+    hint: 'Add to today',
+    bgClass: 'bg-green-600',
     onTrigger() {
-      emit('someday', { checklistId: ref.checklistId, itemId: ref.item.id })
+      emit('toggle-day', { checklistId: ref.checklistId, itemId: ref.item.id })
     },
   }
 }
