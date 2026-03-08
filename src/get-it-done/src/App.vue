@@ -37,6 +37,18 @@ function startKeepAlive(): void {
       stopKeepAlive()
       return
     }
+  // Only start keep-alive when the document is visible
+  if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+  if (keepAliveTimer) return
+  keepAliveTimer = setInterval(async () => {
+    // Stop keep-alive if user is no longer authenticated or page is hidden
+    if (
+      !authStore.isAuthenticated ||
+      (typeof document !== 'undefined' && document.visibilityState !== 'visible')
+    ) {
+      stopKeepAlive()
+      return
+    }
     await authStore.checkSession()
   }, 5 * 60 * 1000)
 }
@@ -48,6 +60,35 @@ function stopKeepAlive(): void {
   }
 }
 
+function handleVisibilityChange(): void {
+  if (typeof document === 'undefined') return
+  if (document.visibilityState === 'visible') {
+    // Resume keep-alive only when authenticated and visible
+    if (authStore.isAuthenticated) {
+      startKeepAlive()
+    }
+  } else {
+    // Pause keep-alive while the document is hidden
+    stopKeepAlive()
+  }
+}
+
+onMounted(() => {
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    // Initialize keep-alive state based on current visibility and auth
+    if (document.visibilityState === 'visible' && authStore.isAuthenticated) {
+      startKeepAlive()
+    }
+  }
+})
+
+onUnmounted(() => {
+  stopKeepAlive()
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }
+})
 onMounted(() => {
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', handleVisibilityChange)
