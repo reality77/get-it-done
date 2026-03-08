@@ -9,7 +9,7 @@
 
 | Priority | Area | Effort | Impact |
 |---|---|---|---|
-| 🔴 Critical | Split `checklists.ts` god store | Large | Very high |
+| ✅ 🔴 Critical | Split `checklists.ts` god store | Large | Very high |
 | 🔴 Critical | Fix Atomic Design violations (molecules with store access) | Small | High |
 | 🟡 High | Extract repeated patterns (vFocus, edit state, keyboard, action builders) | Medium | High |
 | 🟡 High | Split oversized molecules (TaskCard 244L, ItemGroup 214L) | Medium | High |
