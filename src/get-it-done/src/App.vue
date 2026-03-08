@@ -9,6 +9,7 @@ import TemplatesView from './components/templates/TemplatesView.vue'
 import ArchiveView from './components/templates/ArchiveView.vue'
 import TasksView from './components/templates/TasksView.vue'
 import PasswordPrompt from './components/organisms/PasswordPrompt.vue'
+import BottomNavBar from './components/organisms/BottomNavBar.vue'
 import { storeToRefs } from 'pinia'
 
 const activeTab = ref<'active' | 'templates' | 'archive' | 'tasks'>('tasks')
@@ -186,7 +187,7 @@ const syncStatusTitles: Record<string, string> = {
     @change="activeTab = $event"
   />
 
-  <main>
+  <main class="pb-24 md:pb-0">
     <TasksView
       v-if="activeTab === 'tasks'"
       :weekly-review-due="weeklyReviewDue"
@@ -241,6 +242,13 @@ const syncStatusTitles: Record<string, string> = {
     />
 
   </main>
+
+  <BottomNavBar
+    :activeTab="activeTab"
+    :archiveCount="archivedChecklists.length"
+    :weekly-review-due="weeklyReviewDue"
+    @change="activeTab = $event"
+  />
 
   <PasswordPrompt v-if="loginPrompted" @cancel="loginPrompted = false" />
 </template>

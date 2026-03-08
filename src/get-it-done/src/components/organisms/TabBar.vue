@@ -13,7 +13,7 @@ defineEmits<{
 </script>
 
 <template>
-  <div class="flex gap-6 border-b border-zinc-800 mb-6">
+  <div class="hidden md:flex gap-6 border-b border-zinc-800 mb-6">
     <TabItem label="Tasks" :active="activeTab === 'tasks'" :dot="weeklyReviewDue" @select="$emit('change', 'tasks')" />
     <TabItem label="Lists" :active="activeTab === 'active'" @select="$emit('change', 'active')" />
     <TabItem label="Templates" :active="activeTab === 'templates'" @select="$emit('change', 'templates')" />
