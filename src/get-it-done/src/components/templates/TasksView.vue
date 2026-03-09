@@ -94,6 +94,7 @@ const emit = defineEmits<{
       :all-active-items="allActiveItems"
       @suggest="$emit('suggest-day')"
       @toggle-done="(id) => $emit('toggle-done', id)"
+      @toggle-day="(id) => $emit('toggle-day', id)"
       @snooze="(id, date) => $emit('snooze', id, date)"
       @someday="(id) => $emit('someday', id)"
       @delete="(id) => $emit('delete', id)"

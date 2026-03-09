@@ -33,15 +33,40 @@ function backlogActions(ref: TrackedItemRef): ButtonActionDef[] {
   return actions
 }
 
+function nextMonday(): string {
+  const d = new Date()
+  d.setDate(d.getDate() + (1 + 7 - d.getDay()) % 7 || 7)
+  return d.toISOString().slice(0, 10)
+}
+
 function swipeLeft(ref: TrackedItemRef): SwipeActionDef {
   return {
     hint: 'Add to week',
     bgClass: 'bg-green-700',
     onTrigger() {
       const id: ChecklistItemId = { checklistId: ref.checklistId, itemId: ref.item.id }
-      const d = new Date()
-      d.setDate(d.getDate() + (1 + 7 - d.getDay()) % 7 || 7)
-      emit('snooze', id, d.toISOString().slice(0, 10))
+      emit('snooze', id, nextMonday())
+    },
+  }
+}
+
+function somedaySwipeRight(ref: TrackedItemRef): SwipeActionDef {
+  return {
+    hint: '↩ Activate',
+    bgClass: 'bg-violet-700',
+    onTrigger() {
+      emit('activate', { checklistId: ref.checklistId, itemId: ref.item.id })
+    },
+  }
+}
+
+function somedaySwipeLeft(ref: TrackedItemRef): SwipeActionDef {
+  return {
+    hint: 'Add to week',
+    bgClass: 'bg-green-700',
+    onTrigger() {
+      const id: ChecklistItemId = { checklistId: ref.checklistId, itemId: ref.item.id }
+      emit('snooze', id, nextMonday())
     },
   }
 }
@@ -101,6 +126,8 @@ function swipeLeft(ref: TrackedItemRef): SwipeActionDef {
           :checklist-id="ref.checklistId"
           :checklist-title="ref.checklistTitle"
           :show-checkbox="false"
+          :swipe-right="somedaySwipeRight(ref)"
+          :swipe-left="somedaySwipeLeft(ref)"
           :actions="backlogActions(ref)"
           @update-text="(id, text) => $emit('update-text', id, text)"
         >
