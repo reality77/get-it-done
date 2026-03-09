@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
-import { getSnoozeOptions } from '../../stores/checklists'
+import { getSnoozeOptions } from '../../composables/useSnoozeOptions'
 
 const emit = defineEmits<{
   (e: 'pick', date: string): void
