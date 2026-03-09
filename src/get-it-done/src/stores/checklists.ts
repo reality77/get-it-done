@@ -218,6 +218,10 @@ export const useChecklistStore = defineStore('checklists', () => {
       } else {
         item.completedAt = null
         item.selectedForToday = true
+        if (checklist.archived) {
+          checklist.archived = false
+          checklist.archivedAt = null
+        }
       }
     }
     if (

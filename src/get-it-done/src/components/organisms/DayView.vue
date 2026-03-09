@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { TrackedItemRef, ChecklistItemId, ButtonActionDef } from '../../types'
+import type { TrackedItemRef, ChecklistItemId, ButtonActionDef, SwipeActionDef } from '../../types'
 import DayPlanBar from '../molecules/DayPlanBar.vue'
 import TaskCard from '../molecules/TaskCard.vue'
 
@@ -13,6 +13,7 @@ const emit = defineEmits<{
   (e: 'suggest'): void
   (e: 'clear'): void
   (e: 'toggle-done', id: ChecklistItemId): void
+  (e: 'toggle-day', id: ChecklistItemId): void
   (e: 'snooze', id: ChecklistItemId, date: string): void
   (e: 'someday', id: ChecklistItemId): void
   (e: 'delete', id: ChecklistItemId): void
@@ -26,6 +27,36 @@ function dayActions(ref: TrackedItemRef): ButtonActionDef[] {
     { label: '☁', title: 'Someday', variant: 'icon', onClick: () => emit('someday', id) },
     { label: '✕', title: 'Delete', variant: 'danger', onClick: () => emit('delete', id) },
   ]
+}
+
+function activeSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
+  return {
+    hint: '✓ Complete',
+    bgClass: 'bg-green-700',
+    onTrigger() {
+      emit('toggle-done', { checklistId: taskRef.checklistId, itemId: taskRef.item.id })
+    },
+  }
+}
+
+function activeSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
+  return {
+    hint: '✕ Remove from day',
+    bgClass: 'bg-zinc-700',
+    onTrigger() {
+      emit('toggle-day', { checklistId: taskRef.checklistId, itemId: taskRef.item.id })
+    },
+  }
+}
+
+function completedSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
+  return {
+    hint: '↩ Uncomplete',
+    bgClass: 'bg-amber-700',
+    onTrigger() {
+      emit('toggle-done', { checklistId: taskRef.checklistId, itemId: taskRef.item.id })
+    },
+  }
 }
 
 const activeItems = computed(() => props.items.filter(r => !r.item.done))
@@ -78,6 +109,8 @@ function dismissCelebration(): void {
         :checklist-id="taskRef.checklistId"
         :checklist-title="taskRef.checklistTitle"
         :compact="true"
+        :swipe-right="activeSwipeRight(taskRef)"
+        :swipe-left="activeSwipeLeft(taskRef)"
         :actions="dayActions(taskRef)"
         @toggle-done="(id) => $emit('toggle-done', id)"
         @update-text="(id, text) => $emit('update-text', id, text)"
@@ -97,6 +130,7 @@ function dismissCelebration(): void {
           :checklist-id="taskRef.checklistId"
           :checklist-title="taskRef.checklistTitle"
           :compact="true"
+          :swipe-right="completedSwipeRight(taskRef)"
           :actions="dayActions(taskRef)"
           @toggle-done="(id) => $emit('toggle-done', id)"
           @update-text="(id, text) => $emit('update-text', id, text)"

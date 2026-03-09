@@ -147,6 +147,11 @@ function handleSuggestDay(): void {
   checklistStore.setDayPlan(suggested)
 }
 
+function handleCompleteReview(): void {
+  checklistStore.completeWeeklyReview()
+  reviewDismissed.value = true
+}
+
 const syncStatusClasses: Record<string, string> = {
   synced:       'bg-green-500',
   syncing:      'bg-violet-400 animate-pulse',
@@ -211,7 +216,7 @@ const syncStatusTitles: Record<string, string> = {
       @toggle-done="(id) => checklistStore.toggleItem(id)"
       @suggest-day="handleSuggestDay"
       @toggle-day="(id) => checklistStore.toggleItemDayPlan(id)"
-      @complete-review="checklistStore.completeWeeklyReview"
+      @complete-review="handleCompleteReview"
       @dismiss-review="reviewDismissed = true"
       @clear="checklistStore.clearDayPlan()"
     />
