@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { TrackedItemRef, ChecklistItemId, TaskPriority, TaskEffort, ButtonActionDef, SwipeActionDef } from '../../types'
+import type { TrackedItemRef, ChecklistItemId, TaskPriority, TaskEffort, SwipeActionDef } from '../../types'
+import { makeStatusActions, refToId } from '../../composables/useTaskActions'
 import TaskCard from '../molecules/TaskCard.vue'
 import MobilePlanningSheet from '../molecules/MobilePlanningSheet.vue'
 
@@ -18,19 +19,13 @@ const emit = defineEmits<{
   (e: 'update-effort', id: ChecklistItemId, effort: TaskEffort): void
 }>()
 
-function backlogActions(ref: TrackedItemRef): ButtonActionDef[] {
-  const id: ChecklistItemId = { checklistId: ref.checklistId, itemId: ref.item.id }
-  const status = ref.item.status ?? 'active'
-  const actions: ButtonActionDef[] = []
-  if (status !== 'active') {
-    actions.push({ label: '↩', title: 'Activate', variant: 'icon', onClick: () => emit('activate', id) })
-  }
-  if (status === 'active') {
-    actions.push({ label: '💤', title: 'Snooze', variant: 'icon', snooze: (date) => emit('snooze', id, date) })
-    actions.push({ label: '☁', title: 'Someday', variant: 'icon', onClick: () => emit('someday', id) })
-  }
-  actions.push({ label: '✕', title: 'Delete', variant: 'danger', onClick: () => emit('delete', id) })
-  return actions
+function backlogActions(taskRef: TrackedItemRef) {
+  return makeStatusActions(taskRef, {
+    onActivate: (id) => emit('activate', id),
+    onSnooze: (id, date) => emit('snooze', id, date),
+    onSomeday: (id) => emit('someday', id),
+    onDelete: (id) => emit('delete', id),
+  })
 }
 
 function nextMonday(): string {
@@ -39,35 +34,27 @@ function nextMonday(): string {
   return d.toISOString().slice(0, 10)
 }
 
-function swipeLeft(ref: TrackedItemRef): SwipeActionDef {
+function swipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: 'Add to week',
     bgClass: 'bg-green-700',
-    onTrigger() {
-      const id: ChecklistItemId = { checklistId: ref.checklistId, itemId: ref.item.id }
-      emit('snooze', id, nextMonday())
-    },
+    onTrigger: () => emit('snooze', refToId(taskRef), nextMonday()),
   }
 }
 
-function somedaySwipeRight(ref: TrackedItemRef): SwipeActionDef {
+function somedaySwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: '↩ Activate',
     bgClass: 'bg-violet-700',
-    onTrigger() {
-      emit('activate', { checklistId: ref.checklistId, itemId: ref.item.id })
-    },
+    onTrigger: () => emit('activate', refToId(taskRef)),
   }
 }
 
-function somedaySwipeLeft(ref: TrackedItemRef): SwipeActionDef {
+function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: 'Add to week',
     bgClass: 'bg-green-700',
-    onTrigger() {
-      const id: ChecklistItemId = { checklistId: ref.checklistId, itemId: ref.item.id }
-      emit('snooze', id, nextMonday())
-    },
+    onTrigger: () => emit('snooze', refToId(taskRef), nextMonday()),
   }
 }
 

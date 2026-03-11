@@ -2,6 +2,8 @@
 import { ref } from 'vue'
 import type { ChecklistItem } from '../../types'
 import { useSwipeAction } from '../../composables/useSwipeAction'
+import { useEditableField } from '../../composables/useEditableField'
+import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
 import AppCheckbox from '../atoms/AppCheckbox.vue'
 
 const props = defineProps<{
@@ -16,39 +18,17 @@ const emit = defineEmits<{
   (e: 'start-edit'): void
 }>()
 
-const isEditing = ref(false)
-const editText = ref('')
-
-const vFocus = {
-  mounted(el: Element) {
-    const input = el as HTMLInputElement
-    input.focus()
-    input.select()
-  },
-}
+const { isEditing, editText, startEdit: _startEdit, confirmEdit, cancelEdit } = useEditableField(
+  () => props.item.text,
+  (text) => emit('update-text', text),
+)
 
 function startEdit(): void {
-  isEditing.value = true
-  editText.value = props.item.text
+  _startEdit()
   emit('start-edit')
 }
 
-function confirmEdit(): void {
-  const text = editText.value.trim()
-  if (text) emit('update-text', text)
-  isEditing.value = false
-  editText.value = ''
-}
-
-function cancelEdit(): void {
-  isEditing.value = false
-  editText.value = ''
-}
-
-function onKeydown(e: KeyboardEvent): void {
-  if (e.key === 'Enter') { e.preventDefault(); confirmEdit() }
-  else if (e.key === 'Escape') { cancelEdit() }
-}
+const onKeydown = makeKeydownHandler(confirmEdit, cancelEdit)
 
 defineExpose({ cancelEdit })
 

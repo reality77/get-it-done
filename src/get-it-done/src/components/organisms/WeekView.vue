@@ -5,9 +5,9 @@ import type {
   TaskPriority,
   TaskEffort,
   ChecklistItemId,
-  ButtonActionDef,
   SwipeActionDef,
 } from "../../types";
+import { makeSnoozeSomedayDeleteActions, refToId } from "../../composables/useTaskActions";
 import TaskCard from "../molecules/TaskCard.vue";
 import MobilePlanningSheet from "../molecules/MobilePlanningSheet.vue";
 
@@ -121,37 +121,33 @@ const touchTargetPriority = ref<TaskPriority | null>(null);
 
 // ── TaskCard helpers ──────────────────────────────────────────────────────────
 
-function weekSwipeLeft(ref: TrackedItemRef): SwipeActionDef {
+function weekSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
+  const d = new Date()
+  d.setDate(d.getDate() + (1 + 7 - d.getDay()) % 7 || 7)
+  const nextMonday = d.toISOString().slice(0, 10)
   return {
     hint: '💤 Next week',
     bgClass: 'bg-amber-700',
-    onTrigger() {
-      const id: ChecklistItemId = { checklistId: ref.checklistId, itemId: ref.item.id }
-      const d = new Date()
-      d.setDate(d.getDate() + (1 + 7 - d.getDay()) % 7 || 7)
-      emit('snooze', id, d.toISOString().slice(0, 10))
-    },
+    onTrigger: () => emit('snooze', refToId(taskRef), nextMonday),
   }
 }
 
-function weekSwipeRight(ref: TrackedItemRef): SwipeActionDef {
+function weekSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: 'Add to today',
     bgClass: 'bg-green-600',
-    onTrigger() {
-      emit('toggle-day', { checklistId: ref.checklistId, itemId: ref.item.id })
-    },
+    onTrigger: () => emit('toggle-day', refToId(taskRef)),
   }
 }
 
-function weekActions(ref: TrackedItemRef): ButtonActionDef[] | undefined {
+function weekActions(taskRef: TrackedItemRef) {
   if (mode.value !== 'planning') return undefined
-  const id: ChecklistItemId = { checklistId: ref.checklistId, itemId: ref.item.id }
-  return [
-    { label: '💤', title: 'Snooze', variant: 'icon', snooze: (date) => emit('snooze', id, date) },
-    { label: '☁', title: 'Someday', variant: 'icon', onClick: () => emit('someday', id) },
-    { label: '✕', title: 'Delete', variant: 'danger', onClick: () => emit('delete', id) },
-  ]
+  return makeSnoozeSomedayDeleteActions(
+    taskRef,
+    (id, date) => emit('snooze', id, date),
+    (id) => emit('someday', id),
+    (id) => emit('delete', id),
+  )
 }
 
 </script>
