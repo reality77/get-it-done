@@ -112,6 +112,7 @@ function dismissCelebration(): void {
         :swipe-right="activeSwipeRight(taskRef)"
         :swipe-left="activeSwipeLeft(taskRef)"
         :actions="dayActions(taskRef)"
+        :collapse-mobile-actions="true"
         @toggle-done="(id) => $emit('toggle-done', id)"
         @update-text="(id, text) => $emit('update-text', id, text)"
       />
@@ -132,6 +133,7 @@ function dismissCelebration(): void {
           :compact="true"
           :swipe-right="completedSwipeRight(taskRef)"
           :actions="dayActions(taskRef)"
+          :collapse-mobile-actions="true"
           @toggle-done="(id) => $emit('toggle-done', id)"
           @update-text="(id, text) => $emit('update-text', id, text)"
         />

@@ -21,6 +21,8 @@ const props = defineProps<{
   swipeRight?: SwipeActionDef
   /** Desktop hover buttons (and mobile inline buttons when no mobile-sheet slot) */
   actions?: ButtonActionDef[]
+  /** Collapse actions into a ⋯ sheet on mobile (like when a mobile-sheet slot is provided) */
+  collapseMobileActions?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -84,7 +86,7 @@ const { style: rowStyle, rightProgress, leftProgress } = useSwipeAction(rowEl, {
   onRight: () => props.swipeRight?.onTrigger(),
 })
 
-const hasMobileSheet = () => !!slots['mobile-sheet']
+const hasMobileSheet = () => !!slots['mobile-sheet'] || !!(props.collapseMobileActions && props.actions?.length)
 const hasActions = () => !!(props.actions?.length)
 </script>
 
@@ -217,17 +219,34 @@ const hasActions = () => !!(props.actions?.length)
         <slot name="mobile-sheet" :close="closeMobileMenu">
           <!-- Default: render actions as full-width touch-friendly rows -->
           <div v-if="actions?.length" class="space-y-2">
-            <button
-              v-for="(action, i) in actions"
-              :key="i"
-              class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border transition-colors"
-              :class="action.variant === 'danger'
-                ? 'border-red-800/60 bg-red-900/20 text-red-400 hover:bg-red-900/30'
-                : 'border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700'"
-              @click="action.onClick?.(); closeMobileMenu()"
-            >
-              {{ action.label }}<span v-if="action.title" class="ml-1 text-zinc-500 text-xs">&nbsp;{{ action.title }}</span>
-            </button>
+            <template v-for="(action, i) in actions" :key="i">
+              <!-- Snooze button with inline date picker -->
+              <div v-if="action.snooze">
+                <button
+                  class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border transition-colors border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                  @click="openSnoozeIdx = openSnoozeIdx === i ? null : i"
+                >
+                  {{ action.label }}<span class="ml-1 text-zinc-500 text-xs">&nbsp;{{ action.title }}</span>
+                </button>
+                <SnoozeMenu
+                  v-if="openSnoozeIdx === i"
+                  class="mt-1"
+                  @pick="(date) => { action.snooze!(date); openSnoozeIdx = null; closeMobileMenu() }"
+                  @cancel="openSnoozeIdx = null"
+                />
+              </div>
+              <!-- Regular button -->
+              <button
+                v-else
+                class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border transition-colors"
+                :class="action.variant === 'danger'
+                  ? 'border-red-800/60 bg-red-900/20 text-red-400 hover:bg-red-900/30'
+                  : 'border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700'"
+                @click="action.onClick?.(); closeMobileMenu()"
+              >
+                {{ action.label }}<span v-if="action.title" class="ml-1 text-zinc-500 text-xs">&nbsp;{{ action.title }}</span>
+              </button>
+            </template>
           </div>
           <!-- Default Cancel -->
           <button
