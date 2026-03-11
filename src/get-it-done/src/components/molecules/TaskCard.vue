@@ -229,7 +229,7 @@ const hasActions = () => !!(props.actions?.length)
                   class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border transition-colors border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
                   @click="openSnoozeIdx = openSnoozeIdx === i ? null : i"
                 >
-                  {{ action.label }}<span class="ml-1 text-zinc-500 text-xs">&nbsp;{{ action.title }}</span>
+                  {{ action.label }}<span v-if="action.title" class="ml-1 text-zinc-500 text-xs">&nbsp;{{ action.title }}</span>
                 </button>
                 <SnoozeMenu
                   v-if="openSnoozeIdx === i"
