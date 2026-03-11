@@ -21,7 +21,10 @@ const emit = defineEmits<{
   (e: 'archive', checklistId: string): void
 }>()
 
-const { toggleItem, addItem, updateItemText, removeItem, addGroup } = useChecklistStore()
+const {
+  toggleItem, addItem, updateItemText, removeItem, addGroup,
+  updateGroupTitle, toggleGroupCollapsed, removeGroup,
+} = useChecklistStore()
 
 const isExpanded = ref(true)
 
@@ -94,6 +97,17 @@ function makeKeydownHandler(onEnter: () => void, onEscape: () => void) {
 
 const onAddItemKeydown = makeKeydownHandler(confirmAddItem, cancelAddItem)
 const onAddGroupKeydown = makeKeydownHandler(confirmAddGroup, cancelAddGroup)
+
+// ── ItemGroup event handlers ──────────────────────────────────────────────────
+function onToggleItem(checklistId: string, itemId: string): void {
+  toggleItem({ checklistId, itemId })
+}
+function onUpdateItemText(checklistId: string, itemId: string, text: string): void {
+  updateItemText({ checklistId, itemId }, text)
+}
+function onRemoveItem(checklistId: string, itemId: string): void {
+  removeItem({ checklistId, itemId })
+}
 
 // ── Misc ──────────────────────────────────────────────────────────────────────
 const displayTitle = computed(() => props.checklist.runLabel ?? props.checklist.title)
@@ -220,6 +234,14 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
           :group="node"
           :checklist-id="checklist.id"
           :tracked="checklist.tracked"
+          @toggle-item="onToggleItem"
+          @update-item-text="onUpdateItemText"
+          @remove-item="onRemoveItem"
+          @add-item="addItem"
+          @add-group="addGroup"
+          @update-group-title="updateGroupTitle"
+          @toggle-group-collapsed="toggleGroupCollapsed"
+          @remove-group="removeGroup"
         />
       </template>
 
