@@ -2,6 +2,7 @@
 import { ref, nextTick } from 'vue'
 import type { ChecklistItemGroup } from '../../types'
 import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
+import GroupHeader from './GroupHeader.vue'
 import ItemRow from './ItemRow.vue'
 
 // Self-reference: Vue 3 resolves <ItemGroup> by this file's name automatically.
@@ -24,29 +25,6 @@ const emit = defineEmits<{
 }>()
 
 const itemRowRefs = ref<InstanceType<typeof ItemRow>[]>([])
-
-// ── Title editing ─────────────────────────────────────────────────────────────
-const isEditingTitle = ref(false)
-const editTitleText = ref('')
-const editTitleInputEl = ref<HTMLInputElement | null>(null)
-
-async function startEditTitle(): Promise<void> {
-  editTitleText.value = props.group.title
-  isEditingTitle.value = true
-  await nextTick()
-  editTitleInputEl.value?.focus()
-  editTitleInputEl.value?.select()
-}
-
-function confirmEditTitle(): void {
-  const title = editTitleText.value.trim()
-  if (title) emit('update-group-title', props.checklistId, props.group.id, title)
-  isEditingTitle.value = false
-}
-
-function cancelEditTitle(): void {
-  isEditingTitle.value = false
-}
 
 // ── Add item ──────────────────────────────────────────────────────────────────
 const isAddingItem = ref(false)
@@ -100,7 +78,6 @@ function cancelAddGroup(): void {
 }
 
 // ── Keyboard helpers ──────────────────────────────────────────────────────────
-const onEditTitleKeydown = makeKeydownHandler(confirmEditTitle, cancelEditTitle)
 const onAddItemKeydown = makeKeydownHandler(confirmAddItem, cancelAddItem)
 const onAddGroupKeydown = makeKeydownHandler(confirmAddGroup, cancelAddGroup)
 
@@ -118,37 +95,15 @@ function forwardRemoveGroup(cid: string, gid: string): void { emit('remove-group
 <template>
   <div class="mt-1">
     <!-- Group header -->
-    <div class="flex items-center gap-1.5 py-1 group/header">
-      <button
-        class="text-zinc-600 hover:text-zinc-300 transition-colors text-xs w-3 shrink-0 text-left"
-        @click="emit('toggle-group-collapsed', checklistId, group.id)"
-      >
-        {{ group.collapsed ? '▸' : '▾' }}
-      </button>
-
-      <input
-        v-if="isEditingTitle"
-        ref="editTitleInputEl"
-        v-model="editTitleText"
-        class="bg-transparent border-b border-zinc-700 focus:border-violet-500 outline-none text-zinc-200 text-sm py-0 flex-1 font-medium"
-        @keydown="onEditTitleKeydown"
-        @blur="confirmEditTitle"
-      />
-      <span
-        v-else
-        class="text-zinc-400 text-sm font-medium cursor-text select-none flex-1 truncate"
-        @click="startEditTitle"
-      >
-        {{ group.title }}
-      </span>
-
-      <button
-        class="opacity-0 group-hover/header:opacity-100 text-zinc-600 hover:text-red-400 transition-all text-xs shrink-0 cursor-pointer"
-        @click="emit('remove-group', checklistId, group.id)"
-      >
-        ✕
-      </button>
-    </div>
+    <GroupHeader
+      :group-id="group.id"
+      :checklist-id="checklistId"
+      :title="group.title"
+      :collapsed="group.collapsed ?? false"
+      @toggle-collapsed="emit('toggle-group-collapsed', checklistId, group.id)"
+      @update-title="(title) => emit('update-group-title', checklistId, group.id, title)"
+      @remove="emit('remove-group', checklistId, group.id)"
+    />
 
     <!-- Children -->
     <div v-if="!group.collapsed" class="pl-4 border-l border-zinc-800 ml-1.5">
