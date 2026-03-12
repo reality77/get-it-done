@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { TrackedItemRef, ChecklistItemId, ButtonActionDef, SwipeActionDef } from '../../types'
+import type { TrackedItemRef, ChecklistItemId, SwipeActionDef } from '../../types'
+import { makeSnoozeSomedayDeleteActions, refToId } from '../../composables/useTaskActions'
 import DayPlanBar from '../molecules/DayPlanBar.vue'
 import TaskCard from '../molecules/TaskCard.vue'
 
@@ -20,22 +21,20 @@ const emit = defineEmits<{
   (e: 'update-text', id: ChecklistItemId, text: string): void
 }>()
 
-function dayActions(ref: TrackedItemRef): ButtonActionDef[] {
-  const id: ChecklistItemId = { checklistId: ref.checklistId, itemId: ref.item.id }
-  return [
-    { label: '💤', title: 'Snooze', variant: 'icon', snooze: (date) => emit('snooze', id, date) },
-    { label: '☁', title: 'Someday', variant: 'icon', onClick: () => emit('someday', id) },
-    { label: '✕', title: 'Delete', variant: 'danger', onClick: () => emit('delete', id) },
-  ]
+function dayActions(taskRef: TrackedItemRef) {
+  return makeSnoozeSomedayDeleteActions(
+    taskRef,
+    (id, date) => emit('snooze', id, date),
+    (id) => emit('someday', id),
+    (id) => emit('delete', id),
+  )
 }
 
 function activeSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: '✓ Complete',
     bgClass: 'bg-green-700',
-    onTrigger() {
-      emit('toggle-done', { checklistId: taskRef.checklistId, itemId: taskRef.item.id })
-    },
+    onTrigger: () => emit('toggle-done', refToId(taskRef)),
   }
 }
 
@@ -43,9 +42,7 @@ function activeSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: '✕ Remove from day',
     bgClass: 'bg-zinc-700',
-    onTrigger() {
-      emit('toggle-day', { checklistId: taskRef.checklistId, itemId: taskRef.item.id })
-    },
+    onTrigger: () => emit('toggle-day', refToId(taskRef)),
   }
 }
 
@@ -53,9 +50,7 @@ function completedSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: '↩ Uncomplete',
     bgClass: 'bg-amber-700',
-    onTrigger() {
-      emit('toggle-done', { checklistId: taskRef.checklistId, itemId: taskRef.item.id })
-    },
+    onTrigger: () => emit('toggle-done', refToId(taskRef)),
   }
 }
 

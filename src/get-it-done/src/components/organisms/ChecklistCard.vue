@@ -2,6 +2,7 @@
 import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import type { Checklist } from '../../types'
 import { useSwipeAction } from '../../composables/useSwipeAction'
+import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
 import { useChecklistStore } from '../../stores/checklists'
 import { countItems, countDone } from '../../composables/useTreeHelpers'
 import KindBadge from '../molecules/KindBadge.vue'
@@ -88,13 +89,6 @@ function cancelAddGroup(): void {
 }
 
 // ── Keyboard helpers ──────────────────────────────────────────────────────────
-function makeKeydownHandler(onEnter: () => void, onEscape: () => void) {
-  return (e: KeyboardEvent) => {
-    if (e.key === 'Enter') { e.preventDefault(); onEnter() }
-    else if (e.key === 'Escape') { onEscape() }
-  }
-}
-
 const onAddItemKeydown = makeKeydownHandler(confirmAddItem, cancelAddItem)
 const onAddGroupKeydown = makeKeydownHandler(confirmAddGroup, cancelAddGroup)
 

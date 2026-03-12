@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import type { ChecklistItemGroup } from '../../types'
+import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
 import ItemRow from './ItemRow.vue'
 
 // Self-reference: Vue 3 resolves <ItemGroup> by this file's name automatically.
@@ -99,13 +100,6 @@ function cancelAddGroup(): void {
 }
 
 // ── Keyboard helpers ──────────────────────────────────────────────────────────
-function makeKeydownHandler(onEnter: () => void, onEscape: () => void) {
-  return (e: KeyboardEvent) => {
-    if (e.key === 'Enter') { e.preventDefault(); onEnter() }
-    else if (e.key === 'Escape') { onEscape() }
-  }
-}
-
 const onEditTitleKeydown = makeKeydownHandler(confirmEditTitle, cancelEditTitle)
 const onAddItemKeydown = makeKeydownHandler(confirmAddItem, cancelAddItem)
 const onAddGroupKeydown = makeKeydownHandler(confirmAddGroup, cancelAddGroup)

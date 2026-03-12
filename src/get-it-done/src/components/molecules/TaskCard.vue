@@ -2,6 +2,8 @@
 import { ref, useSlots } from 'vue'
 import type { ChecklistItem, ChecklistItemId, SwipeActionDef, ButtonActionDef } from '../../types'
 import { useSwipeAction } from '../../composables/useSwipeAction'
+import { useEditableField } from '../../composables/useEditableField'
+import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
 import PriorityBadge from './PriorityBadge.vue'
 import EffortBadge from './EffortBadge.vue'
 import AppButton from '../atoms/AppButton.vue'
@@ -33,38 +35,16 @@ const emit = defineEmits<{
 const slots = useSlots()
 
 // ── Text editing ──────────────────────────────────────────────────────────────
-const isEditing = ref(false)
-const editTitle = ref('')
-
-const vFocus = {
-  mounted(el: Element) {
-    const input = el as HTMLInputElement
-    input.focus()
-    input.select()
+const { isEditing, editText: editTitle, startEdit, confirmEdit, cancelEdit } = useEditableField(
+  () => props.item.text,
+  (text) => {
+    if (text !== props.item.text) {
+      emit('update-text', { checklistId: props.checklistId, itemId: props.item.id }, text)
+    }
   },
-}
+)
 
-function startEdit(): void {
-  isEditing.value = true
-  editTitle.value = props.item.text
-}
-
-function confirmEdit(): void {
-  const title = editTitle.value.trim()
-  if (title && title !== props.item.text) {
-    emit('update-text', { checklistId: props.checklistId, itemId: props.item.id }, title)
-  }
-  isEditing.value = false
-}
-
-function cancelEdit(): void {
-  isEditing.value = false
-}
-
-function onKeydown(e: KeyboardEvent): void {
-  if (e.key === 'Enter') { e.preventDefault(); confirmEdit() }
-  else if (e.key === 'Escape') cancelEdit()
-}
+const onKeydown = makeKeydownHandler(confirmEdit, cancelEdit)
 
 // ── Mobile sheet ──────────────────────────────────────────────────────────────
 const mobileMenuOpen = ref(false)

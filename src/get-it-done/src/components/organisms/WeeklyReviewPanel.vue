@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { TrackedItemRef, ChecklistItemId, ButtonActionDef } from '../../types'
+import type { TrackedItemRef, ChecklistItemId } from '../../types'
+import { makeStatusActions } from '../../composables/useTaskActions'
 import TaskCard from '../molecules/TaskCard.vue'
 import AppButton from '../atoms/AppButton.vue'
 
@@ -17,18 +18,12 @@ const emit = defineEmits<{
   (e: 'dismiss'): void
 }>()
 
-function reviewActions(ref: TrackedItemRef): ButtonActionDef[] {
-  const id: ChecklistItemId = { checklistId: ref.checklistId, itemId: ref.item.id }
-  const status = ref.item.status ?? 'active'
-  const actions: ButtonActionDef[] = []
-  if (status !== 'active') {
-    actions.push({ label: '↩', title: 'Activate', variant: 'icon', onClick: () => emit('activate', id) })
-  }
-  if (status === 'active') {
-    actions.push({ label: '💤', title: 'Snooze', variant: 'icon', snooze: (date) => emit('snooze', id, date) })
-  }
-  actions.push({ label: '✕', title: 'Delete', variant: 'danger', onClick: () => emit('delete', id) })
-  return actions
+function reviewActions(taskRef: TrackedItemRef) {
+  return makeStatusActions(taskRef, {
+    onActivate: (id) => emit('activate', id),
+    onSnooze: (id, date) => emit('snooze', id, date),
+    onDelete: (id) => emit('delete', id),
+  })
 }
 
 function staleDays(ref: TrackedItemRef): number {

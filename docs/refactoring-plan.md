@@ -10,8 +10,8 @@
 | Priority | Area | Effort | Impact |
 |---|---|---|---|
 | ✅ 🔴 Critical | Split `checklists.ts` god store | Large | Very high |
-| 🔴 Critical | Fix Atomic Design violations (molecules with store access) | Small | High |
-| 🟡 High | Extract repeated patterns (vFocus, edit state, keyboard, action builders) | Medium | High |
+| ✅ 🔴 Critical | Fix Atomic Design violations (molecules with store access) | Small | High |
+| ✅ 🟡 High | Extract repeated patterns (vFocus, edit state, keyboard, action builders) | Medium | High |
 | 🟡 High | Split oversized molecules (TaskCard 244L, ItemGroup 214L) | Medium | High |
 | 🟠 Medium | Centralize magic numbers/constants | Small | Medium |
 | 🟠 Medium | Extract App.vue composables (keepAlive, syncStatus) | Small | Medium |
@@ -66,7 +66,7 @@ export const DAY_PLAN_EFFORT_SCORES: Record<TaskEffort, number> = { small: 3, me
 
 ---
 
-## 2. 🔴 CRITICAL: Atomic Design Violations in Molecules
+## 2. ✅ 🔴 CRITICAL: Atomic Design Violations in Molecules
 
 Atoms and molecules must be **presentation-only** — they must not access the Pinia store directly. Currently:
 
@@ -86,7 +86,7 @@ Atoms and molecules must be **presentation-only** — they must not access the P
 
 ---
 
-## 3. 🟡 HIGH: Repeated Patterns With No Abstraction
+## 3. ✅ 🟡 HIGH: Repeated Patterns With No Abstraction
 
 ### a) `vFocus` custom directive duplicated
 Defined identically in `ItemRow.vue` (lines 22–28) and `TaskCard.vue` (lines 37–43).
