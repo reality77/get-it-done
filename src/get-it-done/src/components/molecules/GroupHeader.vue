@@ -3,8 +3,6 @@ import { useEditableField } from '../../composables/useEditableField'
 import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
 
 const props = defineProps<{
-  groupId: string
-  checklistId: string
   title: string
   collapsed: boolean
 }>()

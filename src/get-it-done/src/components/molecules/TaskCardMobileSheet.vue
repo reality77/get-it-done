@@ -13,7 +13,7 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const openSnoozeIdx = ref<number | null>(null)
+const openSnoozeLabel = ref<string | null>(null)
 </script>
 
 <template>
@@ -30,20 +30,20 @@ const openSnoozeIdx = ref<number | null>(null)
         <!-- Default slot for custom content; fallback renders the actions list -->
         <slot :close="() => emit('close')">
           <div v-if="actions?.length" class="space-y-2">
-            <template v-for="(action, i) in actions" :key="i">
+            <template v-for="action in actions" :key="action.label">
               <!-- Snooze button with inline date picker -->
               <div v-if="action.snooze">
                 <button
                   class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border transition-colors border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
-                  @click="openSnoozeIdx = openSnoozeIdx === i ? null : i"
+                  @click="openSnoozeLabel = openSnoozeLabel === action.label ? null : action.label"
                 >
                   {{ action.label }}<span v-if="action.title" class="ml-1 text-zinc-500 text-xs">&nbsp;{{ action.title }}</span>
                 </button>
                 <SnoozeMenu
-                  v-if="openSnoozeIdx === i"
+                  v-if="openSnoozeLabel === action.label"
                   class="mt-1"
-                  @pick="(date) => { action.snooze!(date); openSnoozeIdx = null; emit('close') }"
-                  @cancel="openSnoozeIdx = null"
+                  @pick="(date) => { action.snooze!(date); openSnoozeLabel = null; emit('close') }"
+                  @cancel="openSnoozeLabel = null"
                 />
               </div>
               <!-- Regular button -->

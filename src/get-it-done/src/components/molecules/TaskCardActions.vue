@@ -13,7 +13,7 @@ const emit = defineEmits<{
   (e: 'open-mobile-menu'): void
 }>()
 
-const openSnoozeIdx = ref<number | null>(null)
+const openSnoozeLabel = ref<string | null>(null)
 </script>
 
 <template>
@@ -37,19 +37,19 @@ const openSnoozeIdx = ref<number | null>(null)
         ? 'hidden sm:flex sm:opacity-0 sm:group-hover:opacity-100'
         : 'flex sm:opacity-0 sm:group-hover:opacity-100'"
     >
-      <template v-for="(action, i) in actions" :key="i">
+      <template v-for="action in actions" :key="action.label">
         <!-- Snooze button with dropdown -->
         <div v-if="action.snooze" class="relative">
           <AppButton
             variant="icon"
             :title="action.title"
-            @click="openSnoozeIdx = openSnoozeIdx === i ? null : i"
+            @click="openSnoozeLabel = openSnoozeLabel === action.label ? null : action.label"
           >{{ action.label }}</AppButton>
           <SnoozeMenu
-            v-if="openSnoozeIdx === i"
+            v-if="openSnoozeLabel === action.label"
             class="absolute right-0 top-full mt-1 z-10"
-            @pick="(date) => { action.snooze!(date); openSnoozeIdx = null }"
-            @cancel="openSnoozeIdx = null"
+            @pick="(date) => { action.snooze!(date); openSnoozeLabel = null }"
+            @cancel="openSnoozeLabel = null"
           />
         </div>
         <!-- Regular button -->

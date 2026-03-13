@@ -96,8 +96,6 @@ function forwardRemoveGroup(cid: string, gid: string): void { emit('remove-group
   <div class="mt-1">
     <!-- Group header -->
     <GroupHeader
-      :group-id="group.id"
-      :checklist-id="checklistId"
       :title="group.title"
       :collapsed="group.collapsed ?? false"
       @toggle-collapsed="emit('toggle-group-collapsed', checklistId, group.id)"
