@@ -12,7 +12,7 @@
 | ✅ 🔴 Critical | Split `checklists.ts` god store | Large | Very high |
 | ✅ 🔴 Critical | Fix Atomic Design violations (molecules with store access) | Small | High |
 | ✅ 🟡 High | Extract repeated patterns (vFocus, edit state, keyboard, action builders) | Medium | High |
-| 🟡 High | Split oversized molecules (TaskCard 244L, ItemGroup 214L) | Medium | High |
+| ✅ 🟡 High | Split oversized molecules (TaskCard 244L, ItemGroup 214L) | Medium | High |
 | 🟠 Medium | Centralize magic numbers/constants | Small | Medium |
 | 🟠 Medium | Extract App.vue composables (keepAlive, syncStatus) | Small | Medium |
 | 🟠 Medium | Fix props drilling / store access inconsistency | Medium | Medium |
@@ -125,7 +125,23 @@ export function useEditableField(initialValue: () => string, onConfirm: (v: stri
 
 ---
 
-## 4. 🟠 MEDIUM: Missing Constants Centralization
+## 4. ✅ 🟡 HIGH: Split Oversized Molecules
+
+**Completed.** `TaskCard.vue` was split into three components:
+
+- **`TaskCard.vue`** — row layout, checkbox, title editing, swipe gesture, badges
+- **`TaskCardActions.vue`** — desktop hover action button strip + ⋯ mobile trigger
+- **`TaskCardMobileSheet.vue`** — Teleport bottom sheet with slot forwarding
+
+`ItemGroup.vue` was split by extracting:
+
+- **`GroupHeader.vue`** — collapse toggle, inline title editing (`useEditableField` + `v-focus`), remove button
+
+`ItemGroup.vue` now focuses solely on recursive children rendering and add-item/add-group controls.
+
+---
+
+## 5. 🟠 MEDIUM: Missing Constants Centralization
 
 Scattered hardcoded values that should live in `src/config/constants.ts`:
 
@@ -142,7 +158,7 @@ Scattered hardcoded values that should live in `src/config/constants.ts`:
 
 ---
 
-## 5. 🟠 MEDIUM: App.vue Composable Extractions
+## 6. 🟠 MEDIUM: App.vue Composable Extractions
 
 Two self-contained pieces of `App.vue` logic should become composables:
 
@@ -151,7 +167,7 @@ Two self-contained pieces of `App.vue` logic should become composables:
 
 ---
 
-## 6. 🟠 MEDIUM: Props Drilling & Communication Inconsistency
+## 7. 🟠 MEDIUM: Props Drilling & Communication Inconsistency
 
 ### Deep relay through `TasksView.vue`
 `TasksView.vue` receives 9 props from `App.vue` and re-emits 13 events — it is a **pure relay with zero own logic**. The data chain is:
@@ -171,7 +187,7 @@ App.vue (owns state) → TasksView.vue (relay only) → DayView / WeekView / Bac
 
 ---
 
-## 7. 🔵 LOW: Missing Vue Router
+## 8. 🔵 LOW: Missing Vue Router
 
 Tab and view state is stored in plain `ref`s with no URL integration:
 
@@ -191,7 +207,7 @@ This is a larger change but significantly improves UX and enables navigation-lev
 
 ---
 
-## 8. 🔵 LOW: Missing Test Infrastructure
+## 9. 🔵 LOW: Missing Test Infrastructure
 
 No test files exist anywhere in the project. The most complex logic (`suggestDayPlan`, snooze date math, PouchDB sync retry, `migrateNodes`) has zero coverage.
 

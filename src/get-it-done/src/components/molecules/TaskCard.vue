@@ -6,9 +6,9 @@ import { useEditableField } from '../../composables/useEditableField'
 import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
 import PriorityBadge from './PriorityBadge.vue'
 import EffortBadge from './EffortBadge.vue'
-import AppButton from '../atoms/AppButton.vue'
 import AppCheckbox from '../atoms/AppCheckbox.vue'
-import SnoozeMenu from './SnoozeMenu.vue'
+import TaskCardActions from './TaskCardActions.vue'
+import TaskCardMobileSheet from './TaskCardMobileSheet.vue'
 
 const props = defineProps<{
   item: ChecklistItem
@@ -23,7 +23,7 @@ const props = defineProps<{
   swipeRight?: SwipeActionDef
   /** Desktop hover buttons (and mobile inline buttons when no mobile-sheet slot) */
   actions?: ButtonActionDef[]
-  /** Collapse actions into a ⋯ sheet on mobile (like when a mobile-sheet slot is provided) */
+  /** Collapse actions into a ⋯ sheet on mobile */
   collapseMobileActions?: boolean
 }>()
 
@@ -49,13 +49,6 @@ const onKeydown = makeKeydownHandler(confirmEdit, cancelEdit)
 // ── Mobile sheet ──────────────────────────────────────────────────────────────
 const mobileMenuOpen = ref(false)
 
-function closeMobileMenu(): void {
-  mobileMenuOpen.value = false
-}
-
-// ── Snooze dropdown (desktop action bar) ──────────────────────────────────────
-const openSnoozeIdx = ref<number | null>(null)
-
 // ── Swipe gesture ─────────────────────────────────────────────────────────────
 const rowEl = ref<HTMLElement | null>(null)
 
@@ -66,9 +59,6 @@ const { style: rowStyle, rightProgress, leftProgress } = useSwipeAction(rowEl, {
   onRight: () => props.swipeRight?.onTrigger(),
 })
 
-// Treat as having a "mobile sheet" either when a `mobile-sheet` slot is provided,
-// or when actions are collapsed into the built-in mobile actions sheet via
-// `collapseMobileActions`.
 const hasMobileSheet = () => !!slots['mobile-sheet'] || !!(props.collapseMobileActions && props.actions?.length)
 const hasActions = () => !!(props.actions?.length)
 </script>
@@ -134,112 +124,25 @@ const hasActions = () => !!(props.actions?.length)
       <PriorityBadge v-if="compact && item.priority" :priority="item.priority" />
       <EffortBadge v-if="item.effort" :effort="item.effort" />
 
-      <!-- Actions area -->
-      <div v-if="hasActions() || hasMobileSheet()" class="flex items-center gap-1 shrink-0 relative">
-
-        <!-- Mobile ⋯ trigger (only when mobile-sheet slot is provided) -->
-        <AppButton
-          v-if="hasMobileSheet()"
-          class="sm:hidden"
-          variant="icon"
-          title="Actions"
-          @click="mobileMenuOpen = true"
-        >
-          ⋯
-        </AppButton>
-
-        <!-- Action buttons:
-             - when mobile-sheet slot: desktop-only (sm:flex), hover-reveal
-             - when no slot: always visible on mobile (flex), hover-reveal on desktop -->
-        <div
-          v-if="hasActions()"
-          class="items-center gap-1 transition-opacity relative"
-          :class="hasMobileSheet()
-            ? 'hidden sm:flex sm:opacity-0 sm:group-hover:opacity-100'
-            : 'flex sm:opacity-0 sm:group-hover:opacity-100'"
-        >
-          <template v-for="(action, i) in actions" :key="i">
-            <!-- Snooze button with dropdown -->
-            <div v-if="action.snooze" class="relative">
-              <AppButton
-                variant="icon"
-                :title="action.title"
-                @click="openSnoozeIdx = openSnoozeIdx === i ? null : i"
-              >{{ action.label }}</AppButton>
-              <SnoozeMenu
-                v-if="openSnoozeIdx === i"
-                class="absolute right-0 top-full mt-1 z-10"
-                @pick="(date) => { action.snooze!(date); openSnoozeIdx = null }"
-                @cancel="openSnoozeIdx = null"
-              />
-            </div>
-            <!-- Regular button -->
-            <AppButton
-              v-else
-              :variant="action.variant ?? 'icon'"
-              :title="action.title"
-              @click="action.onClick?.()"
-            >{{ action.label }}</AppButton>
-          </template>
-        </div>
-      </div>
+      <!-- Actions -->
+      <TaskCardActions
+        v-if="hasActions() || hasMobileSheet()"
+        :actions="actions ?? []"
+        :has-mobile-sheet="hasMobileSheet()"
+        @open-mobile-menu="mobileMenuOpen = true"
+      />
     </div>
   </div>
 
   <!-- Mobile bottom sheet -->
-  <Teleport to="body">
-    <div
-      v-if="mobileMenuOpen"
-      class="fixed inset-0 z-50 flex items-end sm:hidden"
-    >
-      <div class="absolute inset-0 bg-black/60" @click="closeMobileMenu" />
-
-      <div class="relative w-full bg-zinc-900 border-t border-zinc-700 rounded-t-2xl p-4 space-y-4 max-h-[85vh] overflow-y-auto">
-        <!-- Task title -->
-        <p class="text-sm font-medium text-zinc-200 truncate border-b border-zinc-800 pb-3">{{ item.text }}</p>
-
-        <!-- Custom slot content OR default action list + Cancel -->
-        <slot name="mobile-sheet" :close="closeMobileMenu">
-          <!-- Default: render actions as full-width touch-friendly rows -->
-          <div v-if="actions?.length" class="space-y-2">
-            <template v-for="(action, i) in actions" :key="i">
-              <!-- Snooze button with inline date picker -->
-              <div v-if="action.snooze">
-                <button
-                  class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border transition-colors border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
-                  @click="openSnoozeIdx = openSnoozeIdx === i ? null : i"
-                >
-                  {{ action.label }}<span v-if="action.title" class="ml-1 text-zinc-500 text-xs">&nbsp;{{ action.title }}</span>
-                </button>
-                <SnoozeMenu
-                  v-if="openSnoozeIdx === i"
-                  class="mt-1"
-                  @pick="(date) => { action.snooze!(date); openSnoozeIdx = null; closeMobileMenu() }"
-                  @cancel="openSnoozeIdx = null"
-                />
-              </div>
-              <!-- Regular button -->
-              <button
-                v-else
-                class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border transition-colors"
-                :class="action.variant === 'danger'
-                  ? 'border-red-800/60 bg-red-900/20 text-red-400 hover:bg-red-900/30'
-                  : 'border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700'"
-                @click="action.onClick?.(); closeMobileMenu()"
-              >
-                {{ action.label }}<span v-if="action.title" class="ml-1 text-zinc-500 text-xs">&nbsp;{{ action.title }}</span>
-              </button>
-            </template>
-          </div>
-          <!-- Default Cancel -->
-          <button
-            class="flex items-center justify-center w-full py-3 text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors border border-zinc-700 rounded-xl"
-            @click="closeMobileMenu"
-          >
-            Cancel
-          </button>
-        </slot>
-      </div>
-    </div>
-  </Teleport>
+  <TaskCardMobileSheet
+    :item="item"
+    :actions="actions"
+    :open="mobileMenuOpen"
+    @close="mobileMenuOpen = false"
+  >
+    <template v-if="$slots['mobile-sheet']" #default="slotProps">
+      <slot name="mobile-sheet" v-bind="slotProps" />
+    </template>
+  </TaskCardMobileSheet>
 </template>
