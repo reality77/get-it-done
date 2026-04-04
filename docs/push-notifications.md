@@ -176,25 +176,28 @@ Each document represents one device subscription:
 
 ### API Endpoints
 
+All endpoints require the `Cookie: AuthSession=...` header (forwarded automatically
+by the browser). The server validates it against `GET ${COUCH_URL}/_session` and
+derives the `userId` from CouchDB's response — clients never self-report their identity.
+
 #### `POST /api/push/subscribe`
-Save or update a subscription.
+Save or update a subscription for the authenticated user.
 
 ```jsonc
-// Request body
+// Request body (userId derived from session, not from body)
 {
-  "userId": "alice",
   "subscription": { /* PushSubscription JSON */ },
-  "dailyReminderTime": "08:00"   // optional
+  "dailyReminderTime": "08:00"   // optional, null to disable
 }
 // Response: 201 Created
 ```
 
 #### `DELETE /api/push/subscribe`
-Remove a subscription (unsubscribe).
+Remove a subscription for the authenticated user.
 
 ```jsonc
 // Request body
-{ "userId": "alice", "endpoint": "https://fcm.googleapis.com/..." }
+{ "endpoint": "https://fcm.googleapis.com/..." }
 // Response: 204 No Content
 ```
 
@@ -269,6 +272,8 @@ The reminder push payload:
 
 ### Phase 3 — Backend
 - [ ] Scaffold `push-server/` with TypeScript + web-push
+- [ ] Add `push-server` service to `docker-compose.yml`
+- [ ] Implement CouchDB session validation middleware
 - [ ] Implement subscribe/unsubscribe HTTP endpoints
 - [ ] Implement snooze expiry watcher (`_changes` feed)
 - [ ] Implement daily reminder cron
@@ -281,9 +286,51 @@ The reminder push payload:
 
 ---
 
-## Open Questions
+## Decisions
 
-1. **Backend hosting** — Where does `push-server/` run? Same host as CouchDB, or separate process?
-2. **Auth** — Should the subscribe endpoint verify the CouchDB session cookie to prevent spoofing?
-3. **Multiple devices** — One user may have several subscriptions (phone + tablet). The design supports this; confirm it's desired.
-4. **iOS** — iOS 16.4+ supports Web Push but only for PWAs added to the home screen. Scope iOS support for a later phase.
+1. **Backend hosting** — `push-server` runs as a dedicated Docker service alongside the existing CouchDB container. Added to `docker-compose.yml` with a shared network.
+2. **Auth** — The subscribe/unsubscribe endpoints verify the CouchDB `AuthSession` cookie by proxying a `GET /_session` call. Requests without a valid session are rejected with `401`.
+3. **Multiple devices** — Fully supported. Each device subscription is stored as a separate document. Pushes are fanned out to all subscriptions for a given `userId`.
+4. **iOS** — Deferred to a later phase. iOS 16.4+ is technically supported but requires the PWA to be installed to the home screen. No special handling needed beyond what the design already covers.
+
+---
+
+## Docker Compose
+
+Add to `docker-compose.yml` alongside the existing `couchdb` service:
+
+```yaml
+push-server:
+  build: ./push-server
+  restart: unless-stopped
+  environment:
+    VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+    VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+    VAPID_SUBJECT: ${VAPID_SUBJECT}           # mailto:admin@example.com
+    COUCH_URL: http://couchdb:5984
+    COUCH_USER: ${COUCH_USER}
+    COUCH_PASSWORD: ${COUCH_PASSWORD}
+    PORT: 3000
+  ports:
+    - "3000:3000"
+  depends_on:
+    - couchdb
+  networks:
+    - couch_net
+```
+
+The push server validates incoming requests by forwarding the client's
+`Cookie: AuthSession=...` header to `GET ${COUCH_URL}/_session`. CouchDB
+returns the authenticated username, which is used to scope subscription
+documents.
+
+### `push-server/Dockerfile`
+
+```dockerfile
+FROM node:22-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --production
+COPY dist/ ./dist/
+CMD ["node", "dist/index.js"]
+```
