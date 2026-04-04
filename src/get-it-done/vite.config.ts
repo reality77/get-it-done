@@ -17,6 +17,9 @@ export default defineConfig({
     vue(),
     tailwindcss(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       manifest: {
         name: 'Get It Done',
@@ -30,7 +33,7 @@ export default defineConfig({
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
       },
     }),
