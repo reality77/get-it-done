@@ -268,10 +268,10 @@ The reminder push payload:
 > **Note:** `push_subscriptions` CouchDB database creation is deferred to Phase 3
 > when the push-server is scaffolded, as it requires server-side setup.
 
-### Phase 2 — Client subscription
-- [ ] Implement `useNotifications.ts` composable
-- [ ] Build `NotificationSettings.vue` with enable/disable toggle
-- [ ] Wire settings into the app (new settings panel or tab)
+### Phase 2 — Client subscription ✓
+- [x] Implement `useNotifications.ts` composable
+- [x] Build `NotificationSettings.vue` with enable/disable toggle
+- [x] Wire settings into the app (bell icon in header → modal panel)
 
 ### Phase 3 — Backend
 - [ ] Scaffold `push-server/` with TypeScript + web-push

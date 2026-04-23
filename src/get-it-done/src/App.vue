@@ -10,9 +10,11 @@ import ArchiveView from './components/templates/ArchiveView.vue'
 import TasksView from './components/templates/TasksView.vue'
 import PasswordPrompt from './components/organisms/PasswordPrompt.vue'
 import BottomNavBar from './components/organisms/BottomNavBar.vue'
+import NotificationSettings from './components/organisms/NotificationSettings.vue'
 import { storeToRefs } from 'pinia'
 
 const activeTab = ref<'active' | 'templates' | 'archive' | 'tasks'>('tasks')
+const notificationsOpen = ref(false)
 
 const newlyCreatedId = ref<string | null>(null)
 
@@ -172,17 +174,29 @@ const syncStatusTitles: Record<string, string> = {
 <template>
   <header class="mb-8 flex items-center justify-between">
     <h1 class="text-2xl font-semibold tracking-tight text-zinc-100">get-it-done</h1>
-    <span
-      v-if="authStore.isAuthenticated"
-      class="w-2 h-2 rounded-full shrink-0"
-      :class="syncStatusClasses[syncStatus]"
-      :title="syncStatusTitles[syncStatus]"
-    />
-    <button v-else 
-      class="text-zinc-400 hover:text-zinc-200 transition-colors"
-      @click="loginPrompted = true">
-      Log in
-    </button>
+    <div class="flex items-center gap-3">
+      <button
+        class="text-zinc-500 hover:text-zinc-200 transition-colors"
+        title="Notification settings"
+        @click="notificationsOpen = true"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </button>
+      <span
+        v-if="authStore.isAuthenticated"
+        class="w-2 h-2 rounded-full shrink-0"
+        :class="syncStatusClasses[syncStatus]"
+        :title="syncStatusTitles[syncStatus]"
+      />
+      <button v-else
+        class="text-zinc-400 hover:text-zinc-200 transition-colors"
+        @click="loginPrompted = true">
+        Log in
+      </button>
+    </div>
   </header>
 
   <TabBar
@@ -256,4 +270,5 @@ const syncStatusTitles: Record<string, string> = {
   />
 
   <PasswordPrompt v-if="loginPrompted" @cancel="loginPrompted = false" />
+  <NotificationSettings v-if="notificationsOpen" @close="notificationsOpen = false" />
 </template>
