@@ -21,6 +21,28 @@ services:
       - reverse_proxy_network
       - default
 
+  push-server:
+    build: ../push-server
+    container_name: get-it-done-push
+    hostname: getitdone-push
+    restart: unless-stopped
+    environment:
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@niarud.com}
+      COUCH_URL: http://couchdb:5984
+      COUCH_USER: ${COUCHDB_USER:-admin}
+      COUCH_PASSWORD: ${ADMIN_PASSWORD}
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      couchdb:
+        condition: service_healthy
+    networks:
+      - default
+      - reverse_proxy_network
+
 networks:
   default:
   reverse_proxy_network:
