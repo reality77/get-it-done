@@ -6,3 +6,7 @@ src/get-it-done/.env
 src/get-it-done/.env.local
 
 .local/
+node_modules/
+target/
+dist/
+build/

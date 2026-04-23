@@ -24,6 +24,7 @@ services:
   push-server:
     build: ../push-server
     container_name: get-it-done-push
+    hostname: getitdone-push
     restart: unless-stopped
     environment:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
