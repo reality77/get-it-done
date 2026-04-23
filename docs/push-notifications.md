@@ -78,7 +78,7 @@ const { permission, supported, subscribe, unsubscribe, isSubscribed } = useNotif
 1. `await Notification.requestPermission()` — abort if not `'granted'`
 2. Get SW registration: `await navigator.serviceWorker.ready`
 3. `await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VITE_VAPID_PUBLIC_KEY) })`
-4. POST the subscription JSON + `userId` to `POST /api/push/subscribe`
+4. POST the subscription JSON to `POST /api/push/subscribe`; the backend derives the user identity from the authenticated CouchDB session — the client never self-reports identity
 5. Set `isSubscribed.value = true`; persist flag in localStorage
 
 ### 3. Notification Settings UI — `src/components/organisms/NotificationSettings.vue`
@@ -251,9 +251,9 @@ The reminder push payload:
 
 | Trigger | Title | Body | URL |
 |---------|-------|------|-----|
-| Snooze expired | `"Snooze ended: {task title}"` | `"This task is ready for you"` | `/#day` |
-| Daily planning | `"Plan your day"` | `"N tasks are waiting in your Day view"` | `/#day` |
-| Weekly review | `"Weekly review ready"` | `"Take a moment to review your backlog"` | `/#backlog` |
+| Snooze expired | `"Snooze ended: {task title}"` | `"This task is ready for you"` | `/get-it-done/#day` |
+| Daily planning | `"Plan your day"` | `"N tasks are waiting in your Day view"` | `/get-it-done/#day` |
+| Weekly review | `"Weekly review ready"` | `"Take a moment to review your backlog"` | `/get-it-done/#backlog` |
 
 ---
 

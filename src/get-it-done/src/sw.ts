@@ -1,7 +1,9 @@
 /// <reference lib="webworker" />
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
 
-declare const self: ServiceWorkerGlobalScope
+declare const self: ServiceWorkerGlobalScope & {
+  __WB_MANIFEST: (string | { url: string; revision: string | null })[]
+}
 
 // Injected by vite-plugin-pwa at build time
 precacheAndRoute(self.__WB_MANIFEST)
@@ -10,9 +12,9 @@ cleanupOutdatedCaches()
 // ── Push payload shape ────────────────────────────────────────────────────────
 
 interface PushPayload {
-  title: string
-  body: string
-  url: string
+  title?: string
+  body?: string
+  url?: string
   actions?: { action: string; title: string }[]
 }
 
@@ -21,14 +23,25 @@ interface PushPayload {
 self.addEventListener('push', (event) => {
   if (!event.data) return
 
-  const data = event.data.json() as PushPayload
+  let data: PushPayload
+  try {
+    data = event.data.json() as PushPayload
+  } catch {
+    const text = event.data.text()
+    if (!text) return
+    data = { title: 'Get It Done', body: text, url: '/get-it-done/' }
+  }
+
+  const title = data.title || 'Get It Done'
+  const body  = data.body  || ''
+  const url   = data.url   || '/get-it-done/'
 
   event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
+    self.registration.showNotification(title, {
+      body,
       icon: '/get-it-done/pwa-192x192.png',
       badge: '/get-it-done/pwa-192x192.png',
-      data: { url: data.url ?? '/get-it-done/' },
+      data: { url },
       actions: data.actions ?? [],
     } as NotificationOptions),
   )
