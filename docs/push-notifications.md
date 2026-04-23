@@ -273,19 +273,22 @@ The reminder push payload:
 - [x] Build `NotificationSettings.vue` with enable/disable toggle
 - [x] Wire settings into the app (bell icon in header → modal panel)
 
-### Phase 3 — Backend
-- [ ] Scaffold `push-server/` with TypeScript + web-push
-- [ ] Add `push-server` service to `docker-compose.yml`
-- [ ] Implement CouchDB session validation middleware
-- [ ] Implement subscribe/unsubscribe HTTP endpoints
-- [ ] Implement snooze expiry watcher (`_changes` feed)
-- [ ] Implement daily reminder cron
+### Phase 3 — Backend ✓
+- [x] Scaffold `push-server/` with TypeScript + Fastify + web-push
+- [x] Add `push-server` service to `docker-compose.yml`
+- [x] Implement CouchDB session validation middleware (`validateSession` in `couch.ts`)
+- [x] Implement subscribe/unsubscribe HTTP endpoints (`POST /api/push/subscribe`, `DELETE /api/push/subscribe`)
+- [x] Implement snooze expiry watcher (polling scan at 09:00 daily via node-cron)
+- [x] Implement daily reminder cron (per-minute match against `dailyReminderTime`)
 
-### Phase 4 — Polish
-- [ ] Handle `410 Gone` subscription cleanup
-- [ ] Show notification permission state in UI
-- [ ] Test on Android Chrome with an installed PWA
-- [ ] Add `dailyReminderTime` preference to user PouchDB document
+> **Note:** Snooze watcher uses a scheduled `allDocs` scan instead of the `_changes` feed.
+> `snoozeUntil` is a date-only string (`YYYY-MM-DD`); notifications fire at 09:00 on the due date.
+
+### Phase 4 — Polish ✓
+- [x] Handle `410 Gone` subscription cleanup (in `sender.ts` — stale subscriptions auto-deleted)
+- [x] Show notification permission state in UI (blocked/unsupported states in `NotificationSettings.vue`)
+- [ ] Test on Android Chrome with an installed PWA *(manual step — cannot automate)*
+- [ ] Add `dailyReminderTime` to user PouchDB document *(future enhancement — currently stored per-device in localStorage and push-server)*
 
 ---
 
