@@ -1,4 +1,5 @@
 import Fastify, { type FastifyRequest, type FastifyReply } from 'fastify'
+import cors from '@fastify/cors'
 import { ensureSubsDb, validateSession, saveSubscription, deleteSubscription } from './couch.js'
 import type { PushSubscription } from './couch.js'
 import { startScheduler } from './scheduler.js'
@@ -6,6 +7,26 @@ import { startScheduler } from './scheduler.js'
 // ── Fastify instance ──────────────────────────────────────────────────────────
 
 const app = Fastify({ logger: true })
+
+const allowedOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
+
+async function registerCors(): Promise<void> {
+  await app.register(cors, {
+    credentials: true,
+    methods: ['POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type'],
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true)
+        return
+      }
+      callback(new Error(`Origin not allowed: ${origin}`), false)
+    },
+  })
+}
 
 // ── Type augmentation for per-request userId ──────────────────────────────────
 
@@ -62,6 +83,7 @@ app.delete<{ Body: UnsubscribeBody }>(
 const PORT = Number(process.env.PORT ?? 3000)
 
 async function start(): Promise<void> {
+  await registerCors()
   await ensureSubsDb()
   startScheduler()
   await app.listen({ port: PORT, host: '0.0.0.0' })
