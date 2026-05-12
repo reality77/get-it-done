@@ -13,20 +13,18 @@ const allowedOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
   .map((origin) => origin.trim())
   .filter(Boolean)
 
-async function registerCors(): Promise<void> {
-  await app.register(cors, {
-    credentials: true,
-    methods: ['POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type'],
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true)
-        return
-      }
-      callback(new Error(`Origin not allowed: ${origin}`), false)
-    },
-  })
-}
+app.register(cors, {
+  credentials: true,
+  methods: ['POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type'],
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true)
+      return
+    }
+    callback(new Error(`Origin not allowed: ${origin}`), false)
+  },
+})
 
 // ── Type augmentation for per-request userId ──────────────────────────────────
 
@@ -91,7 +89,6 @@ app.delete<{ Body: UnsubscribeBody }>('/subscribe', { preHandler: requireAuth },
 const PORT = Number(process.env.PORT ?? 3000)
 
 async function start(): Promise<void> {
-  await registerCors()
   await ensureSubsDb()
   startScheduler()
   await app.listen({ port: PORT, host: '0.0.0.0' })
