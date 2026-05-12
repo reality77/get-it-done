@@ -59,24 +59,32 @@ interface UnsubscribeBody {
   endpoint: string
 }
 
+async function handleSubscribe(request: FastifyRequest<{ Body: SubscribeBody }>, reply: FastifyReply): Promise<FastifyReply> {
+  const { subscription, dailyReminderTime } = request.body
+  await saveSubscription(request.userId, subscription, dailyReminderTime ?? null)
+  return reply.status(201).send({ ok: true })
+}
+
+async function handleUnsubscribe(request: FastifyRequest<{ Body: UnsubscribeBody }>, reply: FastifyReply): Promise<FastifyReply> {
+  await deleteSubscription(request.userId, request.body.endpoint)
+  return reply.status(204).send()
+}
+
 app.post<{ Body: SubscribeBody }>(
   '/api/push/subscribe',
   { preHandler: requireAuth },
-  async (request, reply) => {
-    const { subscription, dailyReminderTime } = request.body
-    await saveSubscription(request.userId, subscription, dailyReminderTime ?? null)
-    return reply.status(201).send({ ok: true })
-  },
+  handleSubscribe,
 )
 
 app.delete<{ Body: UnsubscribeBody }>(
   '/api/push/subscribe',
   { preHandler: requireAuth },
-  async (request, reply) => {
-    await deleteSubscription(request.userId, request.body.endpoint)
-    return reply.status(204).send()
-  },
+  handleUnsubscribe,
 )
+
+// Compatibility routes for reverse proxies that strip the /api/push prefix.
+app.post<{ Body: SubscribeBody }>('/subscribe', { preHandler: requireAuth }, handleSubscribe)
+app.delete<{ Body: UnsubscribeBody }>('/subscribe', { preHandler: requireAuth }, handleUnsubscribe)
 
 // ── Startup ───────────────────────────────────────────────────────────────────
 
