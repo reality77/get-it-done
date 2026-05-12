@@ -3,6 +3,8 @@
 In the `location` part, add this 
 ```
 location /api/push/ {
+    # Keep proxy_pass without trailing slash to preserve /api/push/ prefix.
+    # If you use a trailing slash here, NGINX rewrites /api/push/subscribe to /subscribe.
     proxy_pass http://getitdone-push:3000;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
