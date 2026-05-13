@@ -1,81 +1,82 @@
 # Configuration NGINX — get-it-done
 
-L'objectif est de faire passer **toutes les requêtes par le même domaine** (même schème + hôte + port). Ainsi le navigateur ne déclenche jamais de preflight OPTIONS/CORS : l'app Vue, CouchDB et le push-server ont la même origine.
+## Architecture de déploiement
 
 ```
-https://mondomaine.com/get-it-done/   → fichiers statiques Vue SPA
-https://mondomaine.com/couchdb/       → CouchDB  (proxy → getitdone:5984)
-https://mondomaine.com/api/push/      → push-server (proxy → getitdone-push:3000)
+Navigateur (GitHub Pages)          Serveur backend
+────────────────────────           ────────────────────────────────────────
+https://reality77.github.io   ←→  NGINX (SSL)
+  /get-it-done/                      ├─ /couchdb/  → CouchDB :5984
+                                     └─ /api/push/ → push-server :3000
 ```
+
+Le frontend est servi par GitHub Pages. **Toutes les requêtes vers le backend
+sont cross-origin** : CORS est obligatoire à trois niveaux.
 
 ---
 
-## 1. Variables d'environnement de build (frontend)
+## Niveau 1 — CouchDB : `local.ini`
 
-Ces variables sont **embarquées dans le bundle JavaScript au moment du build** par Vite.
-Elles doivent être fixées **avant** `npm run build`.
-
-Fichier `src/get-it-done/.env.production` (ou export dans CI) :
+Copier `local.ini.example` → `local.ini` et vérifier :
 
 ```ini
-VITE_COUCH_URL=https://mondomaine.com/couchdb
-VITE_PUSH_SERVER_URL=https://mondomaine.com
-VITE_VAPID_PUBLIC_KEY=<clé publique VAPID>
-VITE_COUCH_USER=admin
+[httpd]
+enable_cors = true
+
+[cors]
+origins = https://reality77.github.io,http://localhost:5173
+credentials = true
+methods = GET, PUT, POST, HEAD, DELETE, OPTIONS
+headers = accept, authorization, content-type, origin, referer
 ```
 
-> **Attention** : si `VITE_PUSH_SERVER_URL` n'est pas défini, Vite utilise le défaut
-> `http://localhost:3000` — le navigateur tente alors de joindre `localhost` sur la
-> machine du visiteur, ce qui échoue systématiquement en production.
+Points critiques :
+- `origins` : liste exacte sans slash final ni espace autour des virgules.
+- `credentials = true` : requis car PouchDB utilise `credentials: 'include'`.
+- `OPTIONS` dans `methods` : requis pour le preflight navigateur.
 
 ---
 
-## 2. Variables d'environnement du push-server
+## Niveau 2 — Push-server : variable d'environnement
 
-Fichier `src/push-server/.env` (ou dans `docker-compose.yml`) :
+Dans `docker-compose.yml` (ou `.env`) :
 
 ```ini
-VAPID_PUBLIC_KEY=<clé publique>
-VAPID_PRIVATE_KEY=<clé privée>
-VAPID_SUBJECT=mailto:admin@mondomaine.com
-COUCH_URL=http://couchdb:5984
-COUCH_USER=admin
-COUCH_PASSWORD=<mot de passe>
-PORT=3000
-# CORS_ORIGINS n'a pas besoin d'être défini en production :
-# toutes les requêtes arrivent depuis le même domaine (pas d'en-tête Origin envoyé).
+CORS_ORIGINS=https://reality77.github.io
+```
+
+Le push-server autorise uniquement cette origine. Les requêtes depuis
+`localhost:5173` (dev) doivent être ajoutées séparément si nécessaire :
+
+```ini
+CORS_ORIGINS=https://reality77.github.io,http://localhost:5173
 ```
 
 ---
 
-## 3. Bloc server NGINX complet
-
-> Ce bloc suppose que NGINX tourne **dans un conteneur Docker** connecté au réseau
-> `reverse_proxy_network` (il peut donc joindre `getitdone` et `getitdone-push`
-> par leur hostname Docker). Adaptez les `proxy_pass` si NGINX est sur l'hôte
-> (utilisez `localhost:5984` / `localhost:3000`).
+## Niveau 3 — NGINX : proxy avec cookie cross-site
 
 ```nginx
-# ── Redirection HTTP → HTTPS ──────────────────────────────────────────────────
+# ── HTTP → HTTPS ──────────────────────────────────────────────────────────────
 server {
     listen 80;
-    server_name mondomaine.com;
+    server_name monbackend.com;
     return 301 https://$host$request_uri;
 }
 
 # ── HTTPS ─────────────────────────────────────────────────────────────────────
 server {
     listen 443 ssl http2;
-    server_name mondomaine.com;
+    server_name monbackend.com;
 
-    ssl_certificate     /etc/letsencrypt/live/mondomaine.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/mondomaine.com/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/monbackend.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/monbackend.com/privkey.pem;
     ssl_protocols       TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers on;
 
     # ── Push-server ───────────────────────────────────────────────────────────
-    # proxy_pass SANS slash final : NGINX conserve le préfixe /api/push/
-    # Le push-server reçoit bien /api/push/subscribe (pas /subscribe).
+    # SANS slash final sur proxy_pass : conserve le préfixe /api/push/
+    # Le push-server reçoit /api/push/subscribe (pas /subscribe).
     location /api/push/ {
         proxy_pass         http://getitdone-push:3000;
         proxy_http_version 1.1;
@@ -86,92 +87,74 @@ server {
     }
 
     # ── CouchDB ───────────────────────────────────────────────────────────────
-    # proxy_pass AVEC slash final : NGINX supprime /couchdb du chemin.
-    # /couchdb/_session  →  http://getitdone:5984/_session
-    # /couchdb/get-it-done/_changes  →  http://getitdone:5984/get-it-done/_changes
+    # AVEC slash final sur proxy_pass : NGINX retire /couchdb du chemin.
+    # /couchdb/_session       →  http://getitdone:5984/_session
+    # /couchdb/get-it-done    →  http://getitdone:5984/get-it-done
     location /couchdb/ {
         proxy_pass         http://getitdone:5984/;
         proxy_http_version 1.1;
         proxy_set_header   Host              $host;
         proxy_set_header   X-Forwarded-Proto $scheme;
 
-        # Ajoute Secure + SameSite=None sur le cookie AuthSession de CouchDB
-        # pour qu'il soit transmis dans tous les contextes HTTPS.
+        # Ajoute Secure + SameSite=None sur AuthSession.
+        # Obligatoire pour que le navigateur envoie le cookie dans les
+        # requêtes cross-site (GitHub Pages → backend).
         proxy_cookie_flags ~ secure samesite=none;
 
-        # Nécessaire pour le _changes feed de la réplication PouchDB live
-        # (connexion longue, pas de tampon intermédiaire).
+        # Long-polling pour le _changes feed (réplication PouchDB live)
         proxy_read_timeout 600s;
         proxy_buffering    off;
-    }
-
-    # ── SPA Vue (fichiers statiques) ──────────────────────────────────────────
-    # Déployez le contenu de dist/ dans /var/www/get-it-done/
-    # (index.html, assets/, sw.js, pwa-*.png…)
-    location /get-it-done/ {
-        root /var/www;   # NGINX cherche /var/www/get-it-done/<fichier>
-        try_files $uri $uri/ /get-it-done/index.html;
-
-        # Cache long pour les assets Vite (noms avec hash content-addressable)
-        location ~* \.(js|css|woff2?|png|ico|svg)$ {
-            expires 1y;
-            add_header Cache-Control "public, immutable";
-        }
-    }
-
-    # Redirige la racine vers l'app
-    location = / {
-        return 301 /get-it-done/;
     }
 }
 ```
 
+> **Note :** ce serveur ne sert pas de fichiers statiques — GitHub Pages s'en charge.
+
 ---
 
-## 4. Déploiement des fichiers statiques
+## Variables de build frontend
 
-```bash
-# Dans src/get-it-done/ (après avoir défini les variables .env.production)
-npm run build
+Ces variables sont **embarquées dans le bundle au moment du build** par Vite.
+Créer `src/get-it-done/.env.production` avant `npm run build` :
 
-# Copier le contenu de dist/ sur le serveur
-rsync -av dist/ user@mondomaine.com:/var/www/get-it-done/
+```ini
+VITE_COUCH_URL=https://monbackend.com/couchdb
+VITE_PUSH_SERVER_URL=https://monbackend.com
+VITE_VAPID_PUBLIC_KEY=<clé publique VAPID>
+VITE_COUCH_USER=admin
 ```
 
 ---
 
-## 5. Pourquoi cette config élimine les problèmes CORS
+## Flux CORS complet (preflight + requête)
 
-| Requête navigateur | Origine | Destination | Même origine ? |
-|---|---|---|---|
-| `POST /api/push/subscribe` | `https://mondomaine.com` | `https://mondomaine.com` | ✓ pas d'en-tête `Origin` |
-| `POST /couchdb/_session` | `https://mondomaine.com` | `https://mondomaine.com` | ✓ pas d'en-tête `Origin` |
-| Réplication PouchDB | `https://mondomaine.com` | `https://mondomaine.com` | ✓ pas d'en-tête `Origin` |
+```
+GitHub Pages                    NGINX / backend
+────────────────────────────    ────────────────────────────────────────
+OPTIONS /api/push/subscribe
+  Origin: https://reality77.github.io
+  Access-Control-Request-Method: POST   ──────────────────────────────▶
+                                         push-server (@fastify/cors)
+                                         vérifie CORS_ORIGINS ✓
+                                         ◀──────────────────────────────
+                                         204 No Content
+                                         Access-Control-Allow-Origin: https://reality77.github.io
+                                         Access-Control-Allow-Credentials: true
 
-Le navigateur ne déclenche **aucun preflight OPTIONS** pour des requêtes same-origin.
-Le bloc `@fastify/cors` du push-server ne voit jamais d'en-tête `Origin` → branche
-`!origin → callback(null, true)` → aucune erreur 500 ou 404.
+POST /api/push/subscribe
+  Cookie: AuthSession=…
+  Origin: https://reality77.github.io   ──────────────────────────────▶
+                                         requireAuth → valide cookie
+                                         ◀──────────────────────────────
+                                         201 Created
+```
 
 ---
 
-## 6. Flux d'authentification (résumé)
+## Checklist de déploiement
 
-```
-Navigateur                    NGINX                  CouchDB / push-server
-    │                           │                           │
-    │ POST /couchdb/_session     │                           │
-    │ ─────────────────────────▶│                           │
-    │                           │ POST /_session            │
-    │                           │ ─────────────────────────▶│
-    │◀─────────────────────────│ Set-Cookie: AuthSession    │
-    │  Set-Cookie: AuthSession  │ (Secure; SameSite=None)   │
-    │                           │                           │
-    │ POST /api/push/subscribe  │                           │
-    │ Cookie: AuthSession=…     │                           │
-    │ ─────────────────────────▶│                           │
-    │                           │ POST /api/push/subscribe  │
-    │                           │ Cookie: AuthSession=…     │
-    │                           │ ─────────────────────────▶│ push-server valide
-    │                           │                           │ le cookie via CouchDB
-    │◀─────────────────────────│◀─────────────────────────│ 201 Created
-```
+- [ ] `local.ini` créé depuis `local.ini.example` avec l'origine GitHub Pages
+- [ ] CouchDB redémarré après modification de `local.ini`
+- [ ] `CORS_ORIGINS=https://reality77.github.io` dans l'environnement du push-server
+- [ ] Build frontend avec `.env.production` (vérifier `VITE_PUSH_SERVER_URL`)
+- [ ] Cookie `AuthSession` : vérifier `SameSite=None; Secure` dans les DevTools

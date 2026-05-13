@@ -5,8 +5,9 @@
 enable_cors = true
 
 [cors]
-; List origins that are allowed to connect (update for production)
-origins = http://localhost:5173,http://localhost:4173,http://localhost:5174
+; Origines autorisées. En production : GitHub Pages + localhost pour le développement.
+; IMPORTANT : pas de slash final, pas d'espace entre les virgules.
+origins = https://reality77.github.io,http://localhost:5173,http://localhost:4173,http://localhost:5174
 credentials = true
-methods = GET, PUT, POST, HEAD, DELETE
+methods = GET, PUT, POST, HEAD, DELETE, OPTIONS
 headers = accept, authorization, content-type, origin, referer

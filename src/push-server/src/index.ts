@@ -22,7 +22,7 @@ app.register(cors, {
       callback(null, true)
       return
     }
-    callback(new Error(`Origin not allowed: ${origin}`), false)
+    callback(null, false)
   },
 })
 
