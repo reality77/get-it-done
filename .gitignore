@@ -1,3 +1,5 @@
+publish.env.sh
+
 # PocketBase runtime data
 src/pocketbase/pb_data/
 
