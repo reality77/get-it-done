@@ -1,5 +1,11 @@
 import cron from 'node-cron'
-import { getAllSubscriptions, findDueSnoozedItems } from './couch.js'
+import {
+  getAllSubscriptions,
+  findDueSnoozedItems,
+  findDueTaskReminders,
+  isReminderFired,
+  markReminderFired,
+} from './couch.js'
 import { sendToUser, sendToAll } from './sender.js'
 
 function todayDate(): string {
@@ -43,7 +49,20 @@ async function runSnoozeCheck(): Promise<void> {
   await sendToAll({ title, body, url: '/get-it-done/#day' })
 }
 
+// Runs every minute — fires push notifications for due task reminders
+async function runTaskReminders(): Promise<void> {
+  const now = new Date()
+  const windowStart = new Date(now.getTime() - 60_000)
+  const due = await findDueTaskReminders(windowStart, now)
+  for (const { checklistId, itemId, text, reminderAt } of due) {
+    if (await isReminderFired(checklistId, itemId, reminderAt)) continue
+    await sendToAll({ title: '⏰ Reminder', body: text, url: '/get-it-done/#day' })
+    await markReminderFired(checklistId, itemId, reminderAt)
+  }
+}
+
 export function startScheduler(): void {
   cron.schedule('* * * * *',  () => { void runDailyReminders() })
+  cron.schedule('* * * * *',  () => { void runTaskReminders() })
   cron.schedule('0 9 * * *', () => { void runSnoozeCheck() })
 }

@@ -4,8 +4,9 @@ const COUCH_URL  = process.env.COUCH_URL      ?? 'http://localhost:5984'
 const COUCH_USER = process.env.COUCH_USER     ?? 'admin'
 const COUCH_PASS = process.env.COUCH_PASSWORD ?? ''
 
-const SUBS_DB = 'push_subscriptions'
-const DATA_DB = 'get-it-done'
+const SUBS_DB   = 'push_subscriptions'
+const DATA_DB   = 'get-it-done'
+const FIRED_DB  = 'push_fired_reminders'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -28,9 +29,11 @@ type ChecklistNode = ChecklistItem | ChecklistGroup
 
 interface ChecklistItem {
   type: 'item'
+  id: string
   text: string
   status?: 'active' | 'snoozed' | 'someday'
   snoozeUntil?: string | null
+  reminders?: string[]
 }
 
 interface ChecklistGroup {
@@ -144,4 +147,75 @@ export async function findDueSnoozedItems(today: string): Promise<{ text: string
     }
   }
   return due
+}
+
+// ── Task reminder scanner ─────────────────────────────────────────────────────
+
+export interface DueReminder {
+  checklistId: string
+  itemId: string
+  text: string
+  reminderAt: string
+}
+
+export async function findDueTaskReminders(
+  windowStart: Date,
+  windowEnd: Date,
+): Promise<DueReminder[]> {
+  const result = await couchFetch<{ rows: Array<{ id: string; doc: ChecklistDoc | null }> }>(
+    `/${DATA_DB}/_all_docs?include_docs=true`,
+  )
+  const due: DueReminder[] = []
+  for (const { id: checklistId, doc } of result.rows) {
+    if (!doc?.items) continue
+    for (const item of flattenItems(doc.items)) {
+      if (!item.reminders?.length) continue
+      for (const reminderAt of item.reminders) {
+        const t = new Date(reminderAt)
+        if (t >= windowStart && t < windowEnd) {
+          due.push({ checklistId, itemId: item.id, text: item.text, reminderAt })
+        }
+      }
+    }
+  }
+  return due
+}
+
+// ── Fired-reminders DB ────────────────────────────────────────────────────────
+
+export async function ensureFiredRemindersDb(): Promise<void> {
+  try {
+    await couchFetch(`/${FIRED_DB}`, { method: 'PUT' })
+  } catch (e) {
+    if (!(e instanceof Error && e.message.includes('412'))) throw e
+  }
+}
+
+function firedId(checklistId: string, itemId: string, reminderAt: string): string {
+  return createHash('sha256')
+    .update(`${checklistId}:${itemId}:${reminderAt}`)
+    .digest('hex')
+    .slice(0, 32)
+}
+
+export async function isReminderFired(
+  checklistId: string,
+  itemId: string,
+  reminderAt: string,
+): Promise<boolean> {
+  const id = firedId(checklistId, itemId, reminderAt)
+  const result = await couchFetch<{ _id: string }>(`/${FIRED_DB}/${id}`).catch(() => null)
+  return result !== null
+}
+
+export async function markReminderFired(
+  checklistId: string,
+  itemId: string,
+  reminderAt: string,
+): Promise<void> {
+  const id = firedId(checklistId, itemId, reminderAt)
+  await couchFetch(`/${FIRED_DB}/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ _id: id, checklistId, itemId, reminderAt, firedAt: new Date().toISOString() }),
+  })
 }

@@ -30,6 +30,8 @@ const emit = defineEmits<{
   (e: 'update-priority', id: ChecklistItemId, priority: TaskPriority): void
   (e: 'update-effort', id: ChecklistItemId, effort: TaskEffort): void
   (e: 'update-text', id: ChecklistItemId, text: string): void
+  (e: 'update-deadline', id: ChecklistItemId, deadline: string | null): void
+  (e: 'update-reminders', id: ChecklistItemId, reminders: string[]): void
   (e: 'toggle-done', id: ChecklistItemId): void
   (e: 'suggest-day'): void
   (e: 'toggle-day', id: ChecklistItemId): void
@@ -99,6 +101,10 @@ const emit = defineEmits<{
       @someday="(id) => $emit('someday', id)"
       @delete="(id) => $emit('delete', id)"
       @update-text="(id, text) => $emit('update-text', id, text)"
+      @update-priority="(id, p) => $emit('update-priority', id, p)"
+      @update-effort="(id, e) => $emit('update-effort', id, e)"
+      @update-deadline="(id, d) => $emit('update-deadline', id, d)"
+      @update-reminders="(id, r) => $emit('update-reminders', id, r)"
       @clear="$emit('clear')"
     />
 
@@ -112,6 +118,8 @@ const emit = defineEmits<{
       @update-priority="(id, p) => $emit('update-priority', id, p)"
       @update-effort="(id, e) => $emit('update-effort', id, e)"
       @update-text="(id, text) => $emit('update-text', id, text)"
+      @update-deadline="(id, d) => $emit('update-deadline', id, d)"
+      @update-reminders="(id, r) => $emit('update-reminders', id, r)"
       @toggle-day="(id) => $emit('toggle-day', id)"
       @toggle-done="(id) => $emit('toggle-done', id)"
     />
@@ -128,6 +136,8 @@ const emit = defineEmits<{
       @update-text="(id, text) => $emit('update-text', id, text)"
       @update-priority="(id, p) => $emit('update-priority', id, p)"
       @update-effort="(id, e) => $emit('update-effort', id, e)"
+      @update-deadline="(id, d) => $emit('update-deadline', id, d)"
+      @update-reminders="(id, r) => $emit('update-reminders', id, r)"
     />
   </div>
 </template>
