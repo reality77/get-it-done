@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { ChecklistItem, ChecklistItemId, TaskPriority, TaskEffort } from '../../types'
 import { getSnoozeOptions } from '../../stores/checklists'
 
@@ -31,6 +31,8 @@ const pendingEffort = ref<TaskEffort | undefined>(props.item.effort)
 
 const pendingText = ref(props.item.text)
 
+watch(() => props.item.text, (t) => { pendingText.value = t }, { immediate: true })
+
 // ── Deadline ──────────────────────────────────────────────────────────────────
 
 function deadlineDatePart(d: string | null | undefined): string {
@@ -46,6 +48,13 @@ function deadlineTimePart(d: string | null | undefined): string {
 const pendingDeadlineDate = ref(deadlineDatePart(props.item.deadline))
 const pendingDeadlineTime = ref(deadlineTimePart(props.item.deadline))
 const deadlineHasTime = ref(Boolean(props.item.deadline && props.item.deadline.length > 10))
+
+// Keep deadline state in sync with prop — handles component reuse between opens
+watch(() => props.item.deadline, (d) => {
+  pendingDeadlineDate.value = deadlineDatePart(d)
+  pendingDeadlineTime.value = deadlineTimePart(d)
+  deadlineHasTime.value = Boolean(d && d.length > 10)
+}, { immediate: true })
 
 function buildDeadline(): string | null {
   if (!pendingDeadlineDate.value) return null
@@ -64,6 +73,11 @@ function clearDeadline(): void {
 // ── Reminders ─────────────────────────────────────────────────────────────────
 
 const pendingReminders = ref<string[]>([...(props.item.reminders ?? [])])
+
+// Keep reminders in sync with prop — handles component reuse between opens
+watch(() => props.item.reminders, (r) => {
+  pendingReminders.value = [...(r ?? [])]
+}, { immediate: true })
 
 interface ReminderPreset { key: string; label: string; compute: () => string }
 
