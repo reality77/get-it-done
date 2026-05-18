@@ -29,6 +29,8 @@ export interface ChecklistItem {
   snoozeUntil?: string | null    // YYYY-MM-DD
   snoozedAt?: string | null      // ISO timestamp, for 14-day alert
   completedAt?: string | null    // ISO timestamp of completion
+  deadline?: string | null       // ISO date 'YYYY-MM-DD' or datetime 'YYYY-MM-DDTHH:mm'
+  reminders?: string[]           // absolute ISO timestamps for push notifications
 }
 
 export interface ChecklistItemGroup {

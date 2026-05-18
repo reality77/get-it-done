@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { TrackedItemRef, ChecklistItemId, SwipeActionDef } from '../../types'
+import type { TrackedItemRef, ChecklistItemId, TaskPriority, TaskEffort, SwipeActionDef } from '../../types'
 import { makeSnoozeSomedayDeleteActions, refToId } from '../../composables/useTaskActions'
 import DayPlanBar from '../molecules/DayPlanBar.vue'
 import TaskCard from '../molecules/TaskCard.vue'
+import MobilePlanningSheet from '../molecules/MobilePlanningSheet.vue'
 
 const props = defineProps<{
   items: TrackedItemRef[]
@@ -19,6 +20,10 @@ const emit = defineEmits<{
   (e: 'someday', id: ChecklistItemId): void
   (e: 'delete', id: ChecklistItemId): void
   (e: 'update-text', id: ChecklistItemId, text: string): void
+  (e: 'update-priority', id: ChecklistItemId, priority: TaskPriority): void
+  (e: 'update-effort', id: ChecklistItemId, effort: TaskEffort): void
+  (e: 'update-deadline', id: ChecklistItemId, deadline: string | null): void
+  (e: 'update-reminders', id: ChecklistItemId, reminders: string[]): void
 }>()
 
 function dayActions(taskRef: TrackedItemRef) {
@@ -107,10 +112,25 @@ function dismissCelebration(): void {
         :swipe-right="activeSwipeRight(taskRef)"
         :swipe-left="activeSwipeLeft(taskRef)"
         :actions="dayActions(taskRef)"
-        :collapse-mobile-actions="true"
         @toggle-done="(id) => $emit('toggle-done', id)"
         @update-text="(id, text) => $emit('update-text', id, text)"
-      />
+      >
+        <template #mobile-sheet="{ close }">
+          <MobilePlanningSheet
+            :item="taskRef.item"
+            :item-id="{ checklistId: taskRef.checklistId, itemId: taskRef.item.id }"
+            :close="close"
+            @snooze="(id, date) => $emit('snooze', id, date)"
+            @someday="(id) => $emit('someday', id)"
+            @delete="(id) => $emit('delete', id)"
+            @update-text="(id, text) => $emit('update-text', id, text)"
+            @update-priority="(id, p) => $emit('update-priority', id, p)"
+            @update-effort="(id, e) => $emit('update-effort', id, e)"
+            @update-deadline="(id, d) => $emit('update-deadline', id, d)"
+            @update-reminders="(id, r) => $emit('update-reminders', id, r)"
+          />
+        </template>
+      </TaskCard>
     </div>
 
     <!-- Completed items — shown at the bottom -->
@@ -128,10 +148,25 @@ function dismissCelebration(): void {
           :compact="true"
           :swipe-right="completedSwipeRight(taskRef)"
           :actions="dayActions(taskRef)"
-          :collapse-mobile-actions="true"
           @toggle-done="(id) => $emit('toggle-done', id)"
           @update-text="(id, text) => $emit('update-text', id, text)"
-        />
+        >
+          <template #mobile-sheet="{ close }">
+            <MobilePlanningSheet
+              :item="taskRef.item"
+              :item-id="{ checklistId: taskRef.checklistId, itemId: taskRef.item.id }"
+              :close="close"
+              @snooze="(id, date) => $emit('snooze', id, date)"
+              @someday="(id) => $emit('someday', id)"
+              @delete="(id) => $emit('delete', id)"
+              @update-text="(id, text) => $emit('update-text', id, text)"
+              @update-priority="(id, p) => $emit('update-priority', id, p)"
+              @update-effort="(id, e) => $emit('update-effort', id, e)"
+              @update-deadline="(id, d) => $emit('update-deadline', id, d)"
+              @update-reminders="(id, r) => $emit('update-reminders', id, r)"
+            />
+          </template>
+        </TaskCard>
       </div>
     </div>
 

@@ -227,6 +227,8 @@ const syncStatusTitles: Record<string, string> = {
       @update-priority="(id, p) => checklistStore.setItemPriority(id, p)"
       @update-effort="(id, e) => checklistStore.setItemEffort(id, e)"
       @update-text="(id, text) => checklistStore.updateItemText(id, text)"
+      @update-deadline="(id, d) => checklistStore.setItemDeadline(id, d)"
+      @update-reminders="(id, r) => checklistStore.setItemReminders(id, r)"
       @toggle-done="(id) => checklistStore.toggleItem(id)"
       @suggest-day="handleSuggestDay"
       @toggle-day="(id) => checklistStore.toggleItemDayPlan(id)"

@@ -275,6 +275,24 @@ export const useChecklistStore = defineStore('checklists', () => {
     void sync.upsertChecklist(checklist)
   }
 
+  function setItemDeadline({ checklistId, itemId }: ChecklistItemId, deadline: string | null): void {
+    const checklist = getChecklist(checklistId)
+    if (!checklist) return
+    const item = findItemDeep(checklist.items, itemId)
+    if (!item) return
+    item.deadline = deadline
+    void sync.upsertChecklist(checklist)
+  }
+
+  function setItemReminders({ checklistId, itemId }: ChecklistItemId, reminders: string[]): void {
+    const checklist = getChecklist(checklistId)
+    if (!checklist) return
+    const item = findItemDeep(checklist.items, itemId)
+    if (!item) return
+    item.reminders = reminders.length > 0 ? reminders : undefined
+    void sync.upsertChecklist(checklist)
+  }
+
   // ── Group CRUD ──────────────────────────────────────────────────────────────
 
   function addGroup(checklistId: string, title: string, parentGroupId?: string): ChecklistItemGroup {
@@ -357,6 +375,8 @@ export const useChecklistStore = defineStore('checklists', () => {
     addItem,
     updateItemText,
     removeItem,
+    setItemDeadline,
+    setItemReminders,
     addGroup,
     updateGroupTitle,
     toggleGroupCollapsed,
