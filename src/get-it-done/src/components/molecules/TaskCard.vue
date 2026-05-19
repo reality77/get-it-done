@@ -119,7 +119,7 @@ const hasActions = () => !!(props.actions?.length)
         >
           {{ item.text }}
         </span>
-        <span v-if="showChecklistTitle !== undefined ? showChecklistTitle : !compact" class="text-[10px] text-zinc-600 block truncate">{{ checklistTitle }}</span>
+        <span v-if="showChecklistTitle !== undefined ? showChecklistTitle : !compact" class="text-xs text-zinc-500 block truncate">{{ checklistTitle }}</span>
       </div>
 
       <!-- Badges -->

@@ -234,12 +234,14 @@ function weekActions(taskRef: TrackedItemRef) {
             itemsByPriority[section.priority],
           )"
           :key="clTitle"
+          class="rounded-lg border border-zinc-700/50 bg-zinc-800/20"
         >
-          <!-- Checklist sub-header -->
-          <div class="flex items-center gap-2 mb-1.5 mt-1 pl-1 border-l-2 border-zinc-600">
-            <span class="text-xs font-semibold text-zinc-300 truncate">{{ clTitle }}</span>
+          <!-- Checklist group header -->
+          <div class="px-3 py-1.5 border-b border-zinc-700/40 bg-zinc-800/40 rounded-t-lg">
+            <span class="text-xs font-semibold text-zinc-200 truncate">{{ clTitle }}</span>
           </div>
-          <div class="space-y-0.5">
+          <!-- Task cards -->
+          <div class="p-1.5 space-y-0.5">
             <div
               v-for="ref in refs"
               :key="ref.item.id"
