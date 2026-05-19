@@ -221,7 +221,7 @@ function weekActions(taskRef: TrackedItemRef) {
       </div>
 
       <!-- Items grouped by checklist -->
-      <div v-if="!collapsed[section.priority]" class="space-y-3 pl-4">
+      <div v-if="!collapsed[section.priority]" class="space-y-3">
         <div
           v-if="itemsByPriority[section.priority].length === 0"
           class="text-xs text-zinc-600 py-2"
@@ -245,40 +245,15 @@ function weekActions(taskRef: TrackedItemRef) {
             <div
               v-for="ref in refs"
               :key="ref.item.id"
-              class="relative transition-opacity duration-150"
-              :class="dragging?.itemId === ref.item.id || touchDragging?.itemId === ref.item.id ? 'opacity-40' : ''"
+              class="relative transition border-l-2"
+              :class="[
+                dragging?.itemId === ref.item.id || touchDragging?.itemId === ref.item.id ? 'opacity-40' : '',
+                mode === 'planning' && ref.item.selectedForToday ? 'border-violet-500' : 'border-transparent',
+              ]"
               draggable="true"
               @dragstart="onDragStart($event, ref)"
               @dragend="onDragEnd"
             >
-
-              <!-- Day plan toggle checkbox (planning mode only) -->
-              <button
-                v-if="mode === 'planning'"
-                class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-5 w-3.5 h-3.5 rounded border transition-colors cursor-pointer"
-                :class="
-                  ref.item.selectedForToday
-                    ? 'bg-violet-600 border-violet-600'
-                    : 'border-zinc-700 hover:border-zinc-500'
-                "
-                :title="
-                  ref.item.selectedForToday
-                    ? 'Remove from today'
-                    : 'Add to today'
-                "
-                @click="
-                  $emit('toggle-day', {
-                    checklistId: ref.checklistId,
-                    itemId: ref.item.id,
-                  })
-                "
-              >
-                <span
-                  v-if="ref.item.selectedForToday"
-                  class="text-white text-[10px] leading-none flex items-center justify-center w-full h-full"
-                  >✓</span
-                >
-              </button>
 
               <TaskCard
                 :item="ref.item"
