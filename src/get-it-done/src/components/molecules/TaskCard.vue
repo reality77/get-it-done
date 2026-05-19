@@ -15,6 +15,8 @@ const props = defineProps<{
   checklistId: string
   checklistTitle: string
   compact?: boolean
+  /** Override checklist title visibility; defaults to true when non-compact, false when compact */
+  showChecklistTitle?: boolean
   /** Show the completion checkbox (default: true) */
   showCheckbox?: boolean
   /** Swipe-left action — triggers when the user swipes left */
@@ -117,7 +119,7 @@ const hasActions = () => !!(props.actions?.length)
         >
           {{ item.text }}
         </span>
-        <span v-if="!compact" class="text-[10px] text-zinc-600 block truncate">{{ checklistTitle }}</span>
+        <span v-if="showChecklistTitle !== undefined ? showChecklistTitle : !compact" class="text-[10px] text-zinc-600 block truncate">{{ checklistTitle }}</span>
       </div>
 
       <!-- Badges -->
