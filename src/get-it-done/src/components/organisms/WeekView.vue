@@ -236,7 +236,9 @@ function weekActions(taskRef: TrackedItemRef) {
           :key="clTitle"
         >
           <!-- Checklist sub-header -->
-          <p class="text-xs text-zinc-500 mb-1 font-medium">{{ clTitle }}</p>
+          <div class="flex items-center gap-2 mb-1.5 mt-1 pl-1 border-l-2 border-zinc-600">
+            <span class="text-xs font-semibold text-zinc-300 truncate">{{ clTitle }}</span>
+          </div>
           <div class="space-y-0.5">
             <div
               v-for="ref in refs"
@@ -280,6 +282,7 @@ function weekActions(taskRef: TrackedItemRef) {
                 :item="ref.item"
                 :checklist-id="ref.checklistId"
                 :checklist-title="ref.checklistTitle"
+                :show-checklist-title="false"
                 :show-checkbox="mode === 'completion'"
                 :swipe-left="mode === 'planning' ? weekSwipeLeft(ref) : undefined"
                 :swipe-right="mode === 'planning' ? weekSwipeRight(ref) : undefined"
