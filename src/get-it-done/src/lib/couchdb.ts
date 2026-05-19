@@ -69,10 +69,6 @@ export async function couchGetSession(): Promise<SessionStatus> {
     const res = await fetch(`${COUCH_URL}/_session`, { credentials: 'include' })
     if (res.status === 401 || res.status === 403) return { status: 'expired' }
     if (!res.ok) return { status: 'offline' }
-    if (!res.ok) return { status: 'offline' }
-    if (!res.ok) return { status: 'offline' }
-    if (!res.ok) return { status: 'offline' }
-    if (!res.ok) return { status: 'offline' }
     const data = await res.json() as { userCtx?: { name: string | null } }
     const name = data.userCtx?.name
     return name ? { status: 'authenticated', name } : { status: 'expired' }
