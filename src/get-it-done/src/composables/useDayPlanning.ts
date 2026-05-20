@@ -15,9 +15,9 @@ import {
   todayDateString,
 } from './useTreeHelpers'
 import {
-  DAY_PLAN_MAX_ITEMS,
   DAY_PLAN_PRIORITY_SCORES,
-  DAY_PLAN_EFFORT_SCORES,
+  DAY_PLAN_EFFORT_UNITS,
+  DAY_PLAN_EFFORT_BUDGET,
   STALE_SNOOZE_DAYS,
   WEEKLY_REVIEW_INTERVAL_DAYS,
 } from '../config/constants'
@@ -217,27 +217,39 @@ export function useDayPlanning(
     planMetaStore.persistPlanMeta()
   }
 
+  function deadlineBonus(deadline: string | null | undefined, today: string): number {
+    if (!deadline) return 0
+    const d = deadline.substring(0, 10)
+    if (d < today) return 100
+    if (d === today) return 50
+    const daysAway = Math.ceil((new Date(d).getTime() - new Date(today).getTime()) / 86_400_000)
+    if (daysAway === 1) return 20
+    if (daysAway <= 7) return 10
+    if (daysAway <= 14) return 3
+    return 0
+  }
+
   function suggestDayPlan(): Array<ChecklistItemId> {
-    type ScoredRef = { ref: TrackedItemRef; score: number; jitter: number }
-    const scored: ScoredRef[] = activeTrackedItems.value.map(r => ({
+    const today = todayDateString()
+    const scored = activeTrackedItems.value.map(r => ({
       ref: r,
-      score: DAY_PLAN_PRIORITY_SCORES[r.item.priority ?? 'important'] + DAY_PLAN_EFFORT_SCORES[r.item.effort ?? 'medium'],
-      jitter: Math.random(),
+      units: DAY_PLAN_EFFORT_UNITS[r.item.effort ?? 'medium'],
+      score: DAY_PLAN_PRIORITY_SCORES[r.item.priority ?? 'important']
+           + deadlineBonus(r.item.deadline, today)
+           + Math.random(),
     }))
 
-    scored.sort((a, b) => b.score - a.score || b.jitter - a.jitter)
+    scored.sort((a, b) => b.score - a.score)
 
     const result: Array<ChecklistItemId> = []
-    const remaining = scored.map(s => s.ref)
-    let lastEffort: TaskEffort | null = null
+    let budgetLeft = DAY_PLAN_EFFORT_BUDGET
 
-    while (result.length < DAY_PLAN_MAX_ITEMS && remaining.length > 0) {
-      let idx = remaining.findIndex(r => (r.item.effort ?? 'medium') !== lastEffort)
-      if (idx === -1) idx = 0
-      const picked = remaining.splice(idx, 1)[0]
-      if (!picked) break
-      lastEffort = picked.item.effort ?? 'medium'
-      result.push({ checklistId: picked.checklistId, itemId: picked.item.id })
+    for (const s of scored) {
+      if (budgetLeft <= 0) break
+      if (s.units <= budgetLeft || result.length === 0) {
+        result.push({ checklistId: s.ref.checklistId, itemId: s.ref.item.id })
+        budgetLeft -= s.units
+      }
     }
 
     return result
