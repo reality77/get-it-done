@@ -25,10 +25,10 @@ const openSnoozeLabel = ref<string | null>(null)
       <div class="absolute inset-0 bg-black/60" @click="emit('close')" />
 
       <div class="relative w-full bg-zinc-900 border-t border-zinc-700 rounded-t-2xl p-4 space-y-4 max-h-[85vh] overflow-y-auto">
-        <p class="text-sm font-medium text-zinc-200 truncate border-b border-zinc-800 pb-3">{{ item.text }}</p>
 
-        <!-- Default slot for custom content; fallback renders the actions list -->
+        <!-- Default slot; fallback renders title + actions list -->
         <slot :close="() => emit('close')">
+          <p class="text-sm font-medium text-zinc-200 truncate border-b border-zinc-800 pb-3">{{ item.text }}</p>
           <div v-if="actions?.length" class="space-y-2">
             <template v-for="action in actions" :key="action.label">
               <!-- Snooze button with inline date picker -->
