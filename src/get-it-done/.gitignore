@@ -15,6 +15,12 @@ dist-ssr
 .env.local
 .env.*.local
 
+# vue-tsc emit artifacts (JS files emitted next to TS/Vue sources)
+*.vue.js
+*.vue.d.ts
+src/**/*.js
+src/**/*.d.ts
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
