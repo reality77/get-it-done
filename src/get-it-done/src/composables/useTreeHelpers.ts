@@ -109,6 +109,8 @@ export function migrateNodes(raw: unknown[]): ChecklistNode[] {
     if (node.snoozeUntil !== undefined) item.snoozeUntil = node.snoozeUntil as string | null
     if (node.snoozedAt !== undefined) item.snoozedAt = node.snoozedAt as string | null
     if (node.completedAt !== undefined) item.completedAt = node.completedAt as string | null
+    if (node.deadline !== undefined) item.deadline = node.deadline as string | null
+    if (node.reminders !== undefined) item.reminders = node.reminders as string[]
     return item
   })
 }
