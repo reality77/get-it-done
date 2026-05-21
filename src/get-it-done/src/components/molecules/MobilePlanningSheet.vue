@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import type { ChecklistItem, ChecklistItemId, TaskPriority, TaskEffort } from '../../types'
-import { getSnoozeOptions } from '../../stores/checklists'
+import { getSnoozeOptions, useChecklistStore } from '../../stores/checklists'
 
 const props = defineProps<{
   item: ChecklistItem
@@ -9,17 +9,7 @@ const props = defineProps<{
   close: () => void
 }>()
 
-const emit = defineEmits<{
-  (e: 'activate', id: ChecklistItemId): void
-  (e: 'snooze', id: ChecklistItemId, date: string): void
-  (e: 'someday', id: ChecklistItemId): void
-  (e: 'delete', id: ChecklistItemId): void
-  (e: 'update-text', id: ChecklistItemId, text: string): void
-  (e: 'update-priority', id: ChecklistItemId, priority: TaskPriority): void
-  (e: 'update-effort', id: ChecklistItemId, effort: TaskEffort): void
-  (e: 'update-deadline', id: ChecklistItemId, deadline: string | null): void
-  (e: 'update-reminders', id: ChecklistItemId, reminders: string[]): void
-}>()
+const store = useChecklistStore()
 
 // ── Accordion ─────────────────────────────────────────────────────────────────
 
@@ -35,8 +25,6 @@ function toggleSection(name: SectionName): void {
 const pendingText = ref(props.item.text)
 const isEditingTitle = ref(false)
 const titleSnapshot = ref(props.item.text)
-
-watch(() => props.item.text, (t) => { pendingText.value = t }, { immediate: true })
 
 function startTitleEdit(): void {
   titleSnapshot.value = pendingText.value
@@ -101,12 +89,6 @@ const pendingDeadlineDate = ref(deadlineDatePart(props.item.deadline))
 const pendingDeadlineTime = ref(deadlineTimePart(props.item.deadline))
 const deadlineHasTime = ref(Boolean(props.item.deadline && props.item.deadline.length > 10))
 
-watch(() => props.item.deadline, (d) => {
-  pendingDeadlineDate.value = deadlineDatePart(d)
-  pendingDeadlineTime.value = deadlineTimePart(d)
-  deadlineHasTime.value = Boolean(d && d.length > 10)
-}, { immediate: true })
-
 function buildDeadline(): string | null {
   if (!pendingDeadlineDate.value) return null
   if (deadlineHasTime.value && pendingDeadlineTime.value) {
@@ -124,10 +106,6 @@ function clearDeadline(): void {
 // ── Reminders ─────────────────────────────────────────────────────────────────
 
 const pendingReminders = ref<string[]>([...(props.item.reminders ?? [])])
-
-watch(() => props.item.reminders, (r) => {
-  pendingReminders.value = [...(r ?? [])]
-}, { immediate: true })
 
 interface ReminderPreset { key: string; label: string; compute: () => string }
 
@@ -258,36 +236,36 @@ const priorityColor = computed(() => {
 
 function confirm(): void {
   if (pendingSnoozeDate.value) {
-    emit('snooze', props.itemId, pendingSnoozeDate.value)
+    store.snoozeItem(props.itemId, pendingSnoozeDate.value)
   } else if (pendingSomeday.value) {
-    emit('someday', props.itemId)
+    store.sendItemToSomeday(props.itemId)
   }
   if (pendingPriority.value !== undefined && pendingPriority.value !== props.item.priority) {
-    emit('update-priority', props.itemId, pendingPriority.value)
+    store.setItemPriority(props.itemId, pendingPriority.value)
   }
   if (pendingEffort.value !== undefined && pendingEffort.value !== props.item.effort) {
-    emit('update-effort', props.itemId, pendingEffort.value)
+    store.setItemEffort(props.itemId, pendingEffort.value)
   }
   const trimmed = pendingText.value.trim()
   if (trimmed && trimmed !== props.item.text) {
-    emit('update-text', props.itemId, trimmed)
+    store.updateItemText(props.itemId, trimmed)
   }
   const newDeadline = buildDeadline()
   if (newDeadline !== (props.item.deadline ?? null)) {
-    emit('update-deadline', props.itemId, newDeadline)
+    store.setItemDeadline(props.itemId, newDeadline)
   }
   const currentReminders = props.item.reminders ?? []
   const changed =
     pendingReminders.value.length !== currentReminders.length ||
     pendingReminders.value.some(r => !currentReminders.includes(r))
   if (changed) {
-    emit('update-reminders', props.itemId, [...pendingReminders.value])
+    store.setItemReminders(props.itemId, [...pendingReminders.value])
   }
   props.close()
 }
 
 function deleteItem(): void {
-  emit('delete', props.itemId)
+  store.removeItem(props.itemId)
   props.close()
 }
 </script>
@@ -409,7 +387,7 @@ function deleteItem(): void {
       <button
         v-if="itemStatus() !== 'active'"
         class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-violet-600 bg-violet-600/20 text-violet-300 hover:bg-violet-600/30 transition-colors text-sm font-medium"
-        @click="emit('activate', itemId); close()"
+        @click="store.activateItem(itemId); close()"
       >↩ Activate</button>
       <template v-else>
         <button

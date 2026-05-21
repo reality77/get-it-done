@@ -3,11 +3,10 @@ import { ref } from "vue";
 import type {
   TrackedItemRef,
   TaskPriority,
-  TaskEffort,
-  ChecklistItemId,
   SwipeActionDef,
 } from "../../types";
 import { makeSnoozeSomedayDeleteActions, refToId } from "../../composables/useTaskActions";
+import { useChecklistStore } from "../../stores/checklists";
 import TaskCard from "../molecules/TaskCard.vue";
 import MobilePlanningSheet from "../molecules/MobilePlanningSheet.vue";
 
@@ -22,22 +21,11 @@ const props = defineProps<{
   dismissedKeys: Set<string>;
 }>()
 
+const store = useChecklistStore()
+
 function isDismissed(ref: TrackedItemRef): boolean {
   return mode.value === 'planning' && props.dismissedKeys.has(`${ref.checklistId}:${ref.item.id}`)
 };
-
-const emit = defineEmits<{
-  (e: "snooze", id: ChecklistItemId, date: string): void;
-  (e: "someday", id: ChecklistItemId): void;
-  (e: "delete", id: ChecklistItemId): void;
-  (e: "update-priority", id: ChecklistItemId, priority: TaskPriority): void;
-  (e: "update-effort", id: ChecklistItemId, effort: TaskEffort): void;
-  (e: "update-text", id: ChecklistItemId, text: string): void;
-  (e: "update-deadline", id: ChecklistItemId, deadline: string | null): void;
-  (e: "update-reminders", id: ChecklistItemId, reminders: string[]): void;
-  (e: "toggle-day", id: ChecklistItemId): void;
-  (e: "toggle-done", id: ChecklistItemId): void;
-}>();
 
 const collapsed = ref<Record<TaskPriority, boolean>>({
   urgent: false,
@@ -112,7 +100,7 @@ function onDragLeave(priority: TaskPriority): void {
 function onDrop(priority: TaskPriority): void {
   if (!dragging.value) return;
   if (priority !== dragging.value.fromPriority) {
-    emit("update-priority", {
+    store.setItemPriority({
       checklistId: dragging.value.checklistId,
       itemId: dragging.value.itemId,
     }, priority);
@@ -135,7 +123,7 @@ function weekSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
     onTrigger: () => {
       const d = new Date()
       d.setDate(d.getDate() + (1 + 7 - d.getDay()) % 7 || 7)
-      emit('snooze', refToId(taskRef), d.toISOString().slice(0, 10))
+      store.snoozeItem(refToId(taskRef), d.toISOString().slice(0, 10))
     },
   }
 }
@@ -144,7 +132,7 @@ function weekSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: 'Add to today',
     bgClass: 'bg-green-600',
-    onTrigger: () => emit('toggle-day', refToId(taskRef)),
+    onTrigger: () => store.toggleItemDayPlan(refToId(taskRef)),
   }
 }
 
@@ -152,9 +140,9 @@ function weekActions(taskRef: TrackedItemRef) {
   if (mode.value !== 'planning') return undefined
   return makeSnoozeSomedayDeleteActions(
     taskRef,
-    (id, date) => emit('snooze', id, date),
-    (id) => emit('someday', id),
-    (id) => emit('delete', id),
+    (id, date) => store.snoozeItem(id, date),
+    (id) => store.sendItemToSomeday(id),
+    (id) => store.removeItem(id),
   )
 }
 
@@ -272,22 +260,12 @@ function weekActions(taskRef: TrackedItemRef) {
                 :swipe-left="mode === 'planning' ? weekSwipeLeft(ref) : undefined"
                 :swipe-right="mode === 'planning' ? weekSwipeRight(ref) : undefined"
                 :actions="weekActions(ref)"
-                @toggle-done="(id) => $emit('toggle-done', id)"
-                @update-text="(id, text) => $emit('update-text', id, text)"
               >
                 <template v-if="mode === 'planning'" #mobile-sheet="{ close }">
                   <MobilePlanningSheet
                     :item="ref.item"
                     :item-id="{ checklistId: ref.checklistId, itemId: ref.item.id }"
                     :close="close"
-                    @snooze="(id, date) => $emit('snooze', id, date)"
-                    @someday="(id) => $emit('someday', id)"
-                    @delete="(id) => $emit('delete', id)"
-                    @update-text="(id, text) => $emit('update-text', id, text)"
-                    @update-priority="(id, p) => $emit('update-priority', id, p)"
-                    @update-effort="(id, e) => $emit('update-effort', id, e)"
-                    @update-deadline="(id, d) => $emit('update-deadline', id, d)"
-                    @update-reminders="(id, r) => $emit('update-reminders', id, r)"
                   />
                 </template>
               </TaskCard>

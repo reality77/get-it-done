@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, useSlots } from 'vue'
-import type { ChecklistItem, ChecklistItemId, SwipeActionDef, ButtonActionDef } from '../../types'
+import type { ChecklistItem, SwipeActionDef, ButtonActionDef } from '../../types'
 import { useSwipeAction } from '../../composables/useSwipeAction'
 import { useEditableField } from '../../composables/useEditableField'
 import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
+import { useChecklistStore } from '../../stores/checklists'
 import PriorityBadge from './PriorityBadge.vue'
 import EffortBadge from './EffortBadge.vue'
 import AppCheckbox from '../atoms/AppCheckbox.vue'
@@ -29,19 +30,15 @@ const props = defineProps<{
   collapseMobileActions?: boolean
 }>()
 
-const emit = defineEmits<{
-  (e: 'toggle-done', id: ChecklistItemId): void
-  (e: 'update-text', id: ChecklistItemId, text: string): void
-}>()
-
 const slots = useSlots()
+const store = useChecklistStore()
 
 // ── Text editing ──────────────────────────────────────────────────────────────
 const { isEditing, editText: editTitle, startEdit, confirmEdit, cancelEdit } = useEditableField(
   () => props.item.text,
   (text) => {
     if (text !== props.item.text) {
-      emit('update-text', { checklistId: props.checklistId, itemId: props.item.id }, text)
+      store.updateItemText({ checklistId: props.checklistId, itemId: props.item.id }, text)
     }
   },
 )
@@ -99,7 +96,7 @@ const hasActions = () => !!(props.actions?.length)
       <AppCheckbox
         v-if="showCheckbox !== false"
         :model-value="item.done"
-        @update:model-value="emit('toggle-done', { checklistId, itemId: item.id })"
+        @update:model-value="store.toggleItem({ checklistId, itemId: item.id })"
       />
 
       <!-- Title -->

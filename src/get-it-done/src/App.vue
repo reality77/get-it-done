@@ -61,9 +61,7 @@ const {
   snoozedItems,
   somedayItems,
   staleSnoozedItems,
-  activeTrackedItems,
   itemsByPriority,
-  isDayPlanFresh,
   dismissedKeys,
 } = storeToRefs(checklistStore)
 
@@ -146,11 +144,6 @@ function handleRunTemplate(checklistId: string): void {
   activeTab.value = 'active'
 }
 
-function handleSuggestDay(): void {
-  const suggested = checklistStore.suggestDayPlan()
-  checklistStore.setDayPlan(suggested)
-}
-
 function handleCompleteReview(): void {
   checklistStore.completeWeeklyReview()
   reviewDismissed.value = true
@@ -217,27 +210,12 @@ const syncStatusTitles: Record<string, string> = {
       :someday-items="somedayItems"
       :stale-snoozed-ids="staleSnoozedItems.map(r => r.item.id)"
       :day-items="dayPlanItems"
-      :all-active-items="activeTrackedItems"
       :items-by-priority="itemsByPriority"
       :dismissed-keys="dismissedKeys"
-      :is-day-plan-fresh="isDayPlanFresh"
       :current-view="currentTaskView"
       @change-view="currentTaskView = $event"
-      @activate="(id) => checklistStore.activateItem(id)"
-      @snooze="(id, date) => checklistStore.snoozeItem(id, date)"
-      @someday="(id) => checklistStore.sendItemToSomeday(id)"
-      @delete="(id) => checklistStore.removeItem(id)"
-      @update-priority="(id, p) => checklistStore.setItemPriority(id, p)"
-      @update-effort="(id, e) => checklistStore.setItemEffort(id, e)"
-      @update-text="(id, text) => checklistStore.updateItemText(id, text)"
-      @update-deadline="(id, d) => checklistStore.setItemDeadline(id, d)"
-      @update-reminders="(id, r) => checklistStore.setItemReminders(id, r)"
-      @toggle-done="(id) => checklistStore.toggleItem(id)"
-      @suggest-day="handleSuggestDay"
-      @toggle-day="(id) => checklistStore.toggleItemDayPlan(id)"
       @complete-review="handleCompleteReview"
       @dismiss-review="reviewDismissed = true"
-      @clear="checklistStore.clearDayPlan()"
     />
 
     <ActiveView
