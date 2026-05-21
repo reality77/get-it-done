@@ -72,7 +72,7 @@ const { isSwiping, style: rowStyle, leftProgress: deleteProgress } = useSwipeAct
       <span
         v-else
         class="flex-1 cursor-text min-w-0 break-words"
-        :class="item.done ? 'line-through text-zinc-600' : 'text-zinc-300'"
+        :class="item.done ? 'line-through text-zinc-500' : 'text-zinc-300'"
         @click="startEdit"
       >
         {{ item.text }}
@@ -98,7 +98,7 @@ const { isSwiping, style: rowStyle, leftProgress: deleteProgress } = useSwipeAct
       </template>
 
       <button
-        class="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-all text-xs shrink-0 cursor-pointer hidden sm:block"
+        class="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-all text-xs shrink-0 cursor-pointer hidden sm:block"
         @click="$emit('remove')"
       >
         ✕

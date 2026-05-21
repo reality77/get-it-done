@@ -82,7 +82,7 @@ function dismissCelebration(): void {
 
     <div v-if="items.length === 0 && completedItems.length === 0" class="text-center py-12">
       <p class="text-zinc-500 text-sm mb-2">No tasks planned for today</p>
-      <p class="text-zinc-600 text-xs">
+      <p class="text-zinc-500 text-xs">
         Click <strong class="text-zinc-500">Suggest</strong> to auto-pick tasks,
         or go to the <strong class="text-zinc-500">Week</strong> view to select manually.
       </p>
@@ -113,10 +113,10 @@ function dismissCelebration(): void {
 
     <!-- Completed items — shown at the bottom -->
     <div v-if="completedItems.length > 0" class="mt-6">
-      <p class="text-xs font-medium text-zinc-600 uppercase tracking-wider mb-1 px-2">
+      <p class="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1 px-2">
         Completed
       </p>
-      <div class="space-y-1 opacity-60">
+      <div class="space-y-1 opacity-75">
         <TaskCard
           v-for="taskRef in completedItems"
           :key="taskRef.item.id"
@@ -165,7 +165,7 @@ function dismissCelebration(): void {
           <p class="text-6xl mb-4 celebrate-bounce">🏆</p>
           <h2 class="text-2xl font-bold text-zinc-100 mb-2">All done!</h2>
           <p class="text-zinc-400 text-sm">You crushed today's plan.</p>
-          <p class="text-zinc-600 text-xs mt-6">Tap to dismiss</p>
+          <p class="text-zinc-500 text-xs mt-6">Tap to dismiss</p>
         </div>
       </div>
     </Transition>

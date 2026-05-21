@@ -8,6 +8,7 @@ import { useChecklistStore } from '../../stores/checklists'
 import PriorityBadge from './PriorityBadge.vue'
 import EffortBadge from './EffortBadge.vue'
 import AppCheckbox from '../atoms/AppCheckbox.vue'
+import DeadlineBar from '../atoms/DeadlineBar.vue'
 import TaskCardActions from './TaskCardActions.vue'
 import TaskCardMobileSheet from './TaskCardMobileSheet.vue'
 
@@ -86,6 +87,12 @@ const hasActions = () => !!(props.actions?.length)
       <span class="text-white text-xs font-medium">{{ swipeLeft.hint }}</span>
     </div>
 
+    <!-- Deadline proximity bar -->
+    <DeadlineBar
+      v-if="item.deadline && !item.done"
+      :deadline="item.deadline"
+    />
+
     <!-- Row content -->
     <div
       class="flex items-center gap-2 group rounded-lg hover:bg-zinc-800/50 transition-colors bg-zinc-900"
@@ -111,7 +118,7 @@ const hasActions = () => !!(props.actions?.length)
       <div v-else class="flex-1 min-w-0">
         <span
           class="text-sm wrap-break-word block cursor-text"
-          :class="item.done ? 'line-through text-zinc-600' : 'text-zinc-200'"
+          :class="item.done ? 'line-through text-zinc-500' : 'text-zinc-200'"
           @dblclick="startEdit()"
         >
           {{ item.text }}

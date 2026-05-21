@@ -241,7 +241,7 @@ function weekActions(taskRef: TrackedItemRef) {
               class="relative transition border-l-2"
               :class="[
                 dragging?.itemId === ref.item.id || touchDragging?.itemId === ref.item.id ? 'opacity-40'
-                  : isDismissed(ref) ? 'opacity-50' : '',
+                  : isDismissed(ref) ? 'opacity-65' : '',
                 mode === 'planning' && ref.item.selectedForToday ? 'border-violet-500'
                   : isDismissed(ref) ? 'border-zinc-600' : 'border-transparent',
               ]"
