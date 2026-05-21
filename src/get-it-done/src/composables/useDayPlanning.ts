@@ -144,7 +144,13 @@ export function useDayPlanning(
 
   // ── Day plan actions ────────────────────────────────────────────────────────
 
+  // Tracks items the user manually removed from the day plan so Suggest skips
+  // them on the next run. Keyed by "checklistId:itemId", value is expiry ms.
+  const suggestDismissedUntil = new Map<string, number>()
+  const DISMISS_DURATION_MS = 12 * 3600_000
+
   function clearDayPlan(): void {
+    suggestDismissedUntil.clear()
     for (const r of trackedItems.value) {
       if (r.item.selectedForToday) {
         r.item.selectedForToday = false
@@ -157,6 +163,12 @@ export function useDayPlanning(
     if (!cl) return
     const item = findItemDeep(cl.items, ref.itemId)
     if (!item || (item.status ?? 'active') !== 'active') return
+    const key = `${ref.checklistId}:${ref.itemId}`
+    if (item.selectedForToday) {
+      suggestDismissedUntil.set(key, Date.now() + DISMISS_DURATION_MS)
+    } else {
+      suggestDismissedUntil.delete(key)
+    }
     item.selectedForToday = !item.selectedForToday
     if (!planMeta.dayPlanDate) planMeta.dayPlanDate = todayDateString()
     planMetaStore.persistPlanMeta()
@@ -235,20 +247,47 @@ export function useDayPlanning(
 
   function suggestDayPlan(): Array<ChecklistItemId> {
     const today = todayDateString()
-    const scored = activeTrackedItems.value.map(r => ({
+    const now = Date.now()
+    // Deadline threshold: overdue, due today, or due tomorrow are mandatory
+    const tomorrow = new Date(new Date(today).getTime() + 86_400_000).toISOString().substring(0, 10)
+
+    const mandatory: TrackedItemRef[] = []
+    const optional: TrackedItemRef[] = []
+
+    for (const r of activeTrackedItems.value) {
+      const dl = r.item.deadline?.substring(0, 10)
+      if (dl && dl <= tomorrow) {
+        // Always include regardless of dismissal — deadline is imminent
+        mandatory.push(r)
+      } else {
+        const key = `${r.checklistId}:${r.item.id}`
+        const expiry = suggestDismissedUntil.get(key)
+        if (!expiry || now >= expiry) optional.push(r)
+      }
+    }
+
+    // Score and sort optional items
+    const scoredOptional = optional.map(r => ({
       ref: r,
       units: DAY_PLAN_EFFORT_UNITS[r.item.effort ?? 'medium'],
       score: DAY_PLAN_PRIORITY_SCORES[r.item.priority ?? 'important']
            + deadlineBonus(r.item.deadline, today, r.item.effort ?? 'medium')
            + Math.random(),
     }))
+    scoredOptional.sort((a, b) => b.score - a.score)
 
-    scored.sort((a, b) => b.score - a.score)
-
-    const result: Array<ChecklistItemId> = []
+    // Mandatory items are always included; they may push over the budget
+    const result: Array<ChecklistItemId> = mandatory.map(r => ({
+      checklistId: r.checklistId,
+      itemId: r.item.id,
+    }))
     let budgetLeft = DAY_PLAN_EFFORT_BUDGET
+    for (const r of mandatory) {
+      budgetLeft -= DAY_PLAN_EFFORT_UNITS[r.item.effort ?? 'medium']
+    }
 
-    for (const s of scored) {
+    // Fill remaining budget with highest-scored optional items
+    for (const s of scoredOptional) {
       if (budgetLeft <= 0) break
       if (s.units <= budgetLeft || result.length === 0) {
         result.push({ checklistId: s.ref.checklistId, itemId: s.ref.item.id })
