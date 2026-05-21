@@ -299,9 +299,13 @@ export function useDayPlanning(
     scoredOptional.sort((a, b) => b.score - a.score)
 
     const additions: Array<ChecklistItemId> = []
+    const planIsEmpty = kept.length === 0 && mandatoryIds.length === 0 && additions.length === 0
     for (const s of scoredOptional) {
       if (budgetLeft <= 0) break
-      if (s.units <= budgetLeft || (kept.length === 0 && mandatoryIds.length === 0 && additions.length === 0)) {
+      // An L task may exceed the budget only when it would be the sole item
+      // and has the highest score (guaranteed by the descending sort above).
+      const isTopLargeAlone = s.ref.item.effort === 'large' && planIsEmpty && additions.length === 0
+      if (s.units <= budgetLeft || isTopLargeAlone) {
         additions.push({ checklistId: s.ref.checklistId, itemId: s.ref.item.id })
         budgetLeft -= s.units
       }
