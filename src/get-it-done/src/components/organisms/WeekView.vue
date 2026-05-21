@@ -19,7 +19,12 @@ const props = defineProps<{
     important: TrackedItemRef[];
     secondary: TrackedItemRef[];
   };
-}>();
+  dismissedKeys: Set<string>;
+}>()
+
+function isDismissed(ref: TrackedItemRef): boolean {
+  return mode.value === 'planning' && props.dismissedKeys.has(`${ref.checklistId}:${ref.item.id}`)
+};
 
 const emit = defineEmits<{
   (e: "snooze", id: ChecklistItemId, date: string): void;
@@ -247,9 +252,12 @@ function weekActions(taskRef: TrackedItemRef) {
               :key="ref.item.id"
               class="relative transition border-l-2"
               :class="[
-                dragging?.itemId === ref.item.id || touchDragging?.itemId === ref.item.id ? 'opacity-40' : '',
-                mode === 'planning' && ref.item.selectedForToday ? 'border-violet-500' : 'border-transparent',
+                dragging?.itemId === ref.item.id || touchDragging?.itemId === ref.item.id ? 'opacity-40'
+                  : isDismissed(ref) ? 'opacity-50' : '',
+                mode === 'planning' && ref.item.selectedForToday ? 'border-violet-500'
+                  : isDismissed(ref) ? 'border-zinc-600' : 'border-transparent',
               ]"
+              :title="isDismissed(ref) ? 'Excluded from today\'s suggestion' : undefined"
               draggable="true"
               @dragstart="onDragStart($event, ref)"
               @dragend="onDragEnd"

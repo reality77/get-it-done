@@ -1,4 +1,4 @@
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
 import type { Ref } from 'vue'
 import type {
   Checklist,
@@ -15,12 +15,48 @@ import {
   todayDateString,
 } from './useTreeHelpers'
 import {
-  DAY_PLAN_MAX_ITEMS,
   DAY_PLAN_PRIORITY_SCORES,
-  DAY_PLAN_EFFORT_SCORES,
+  DAY_PLAN_EFFORT_UNITS,
+  DAY_PLAN_EFFORT_BUDGET,
+  DAY_PLAN_DEADLINE_BONUSES,
+  DAY_PLAN_DISMISS_DURATION_MS,
   STALE_SNOOZE_DAYS,
   WEEKLY_REVIEW_INTERVAL_DAYS,
 } from '../config/constants'
+
+// ── Module-level pure helpers ────────────────────────────────────────────────
+
+function itemKey(checklistId: string, itemId: string): string {
+  return `${checklistId}:${itemId}`
+}
+
+function deadlineBonus(deadline: string | null | undefined, today: string, effort: TaskEffort): number {
+  if (!deadline) return 0
+  const d = deadline.substring(0, 10)
+  const b = DAY_PLAN_DEADLINE_BONUSES[effort]
+  if (d < today) return b.overdue
+  if (d === today) return b.today
+  const daysAway = Math.ceil((new Date(d).getTime() - new Date(today).getTime()) / 86_400_000)
+  if (daysAway === 1)  return b.tomorrow
+  if (daysAway <= 7)   return b.week
+  if (daysAway <= 14)  return b.twoWeeks
+  if (daysAway <= 30)  return b.month
+  if (daysAway <= 60)  return b.twoMonths
+  return 0
+}
+
+function scoreItem(r: TrackedItemRef, today: string): number {
+  const effort = r.item.effort ?? 'medium'
+  return DAY_PLAN_PRIORITY_SCORES[r.item.priority ?? 'important']
+       + deadlineBonus(r.item.deadline, today, effort)
+       + Math.random()
+}
+
+function effortUnits(r: TrackedItemRef): number {
+  return DAY_PLAN_EFFORT_UNITS[r.item.effort ?? 'medium']
+}
+
+// ── Composable ───────────────────────────────────────────────────────────────
 
 export function useDayPlanning(
   checklists: Ref<Checklist[]>,
@@ -35,7 +71,6 @@ export function useDayPlanning(
     return checklists.value.find(c => c.id === id)
   }
 
-  /** Shared 4-line boilerplate: find checklist + item, mutate, persist */
   function withItem(ref: ChecklistItemId, fn: (item: ChecklistItem) => void): void {
     const cl = getChecklist(ref.checklistId)
     if (!cl) return
@@ -143,11 +178,20 @@ export function useDayPlanning(
 
   // ── Day plan actions ────────────────────────────────────────────────────────
 
+  // Items the user manually removed — excluded from Suggest for 12 h.
+  // Keyed by itemKey(); value is the expiry timestamp.
+  // Reactive so dismissedKeys computed re-evaluates on each change.
+  const dismissedUntil = reactive<Record<string, number>>({})
+
+  const dismissedKeys = computed((): Set<string> => {
+    const now = Date.now()
+    return new Set(Object.keys(dismissedUntil).filter(k => dismissedUntil[k]! > now))
+  })
+
   function clearDayPlan(): void {
+    for (const k in dismissedUntil) delete dismissedUntil[k]
     for (const r of trackedItems.value) {
-      if (r.item.selectedForToday) {
-        r.item.selectedForToday = false
-      }
+      if (r.item.selectedForToday) r.item.selectedForToday = false
     }
   }
 
@@ -156,6 +200,12 @@ export function useDayPlanning(
     if (!cl) return
     const item = findItemDeep(cl.items, ref.itemId)
     if (!item || (item.status ?? 'active') !== 'active') return
+    const key = itemKey(ref.checklistId, ref.itemId)
+    if (item.selectedForToday) {
+      dismissedUntil[key] = Date.now() + DAY_PLAN_DISMISS_DURATION_MS
+    } else {
+      delete dismissedUntil[key]
+    }
     item.selectedForToday = !item.selectedForToday
     if (!planMeta.dayPlanDate) planMeta.dayPlanDate = todayDateString()
     planMetaStore.persistPlanMeta()
@@ -163,13 +213,13 @@ export function useDayPlanning(
   }
 
   function setDayPlan(itemKeys: Array<ChecklistItemId>): void {
-    const keySet = new Set(itemKeys.map(k => `${k.checklistId}:${k.itemId}`))
+    const keySet = new Set(itemKeys.map(k => itemKey(k.checklistId, k.itemId)))
     for (const cl of checklists.value) {
       if (!cl.tracked || cl.archived || cl.kind === 'template') continue
       let changed = false
       walkNodes(cl.items, n => {
         if (n.type === 'item') {
-          const selected = keySet.has(`${cl.id}:${n.id}`)
+          const selected = keySet.has(itemKey(cl.id, n.id))
           if (n.selectedForToday !== selected) {
             n.selectedForToday = selected
             changed = true
@@ -217,30 +267,64 @@ export function useDayPlanning(
     planMetaStore.persistPlanMeta()
   }
 
+  // ── Suggest algorithm ───────────────────────────────────────────────────────
+
   function suggestDayPlan(): Array<ChecklistItemId> {
-    type ScoredRef = { ref: TrackedItemRef; score: number; jitter: number }
-    const scored: ScoredRef[] = activeTrackedItems.value.map(r => ({
-      ref: r,
-      score: DAY_PLAN_PRIORITY_SCORES[r.item.priority ?? 'important'] + DAY_PLAN_EFFORT_SCORES[r.item.effort ?? 'medium'],
-      jitter: Math.random(),
-    }))
+    const today = todayDateString()
+    const now = Date.now()
+    const tomorrow = new Date(new Date(today).getTime() + 86_400_000).toISOString().substring(0, 10)
 
-    scored.sort((a, b) => b.score - a.score || b.jitter - a.jitter)
+    // Phase 1 — keep existing selections, charge their effort against the budget
+    const kept: Array<ChecklistItemId> = []
+    const keptKeys = new Set<string>()
+    let budgetLeft = DAY_PLAN_EFFORT_BUDGET
 
-    const result: Array<ChecklistItemId> = []
-    const remaining = scored.map(s => s.ref)
-    let lastEffort: TaskEffort | null = null
-
-    while (result.length < DAY_PLAN_MAX_ITEMS && remaining.length > 0) {
-      let idx = remaining.findIndex(r => (r.item.effort ?? 'medium') !== lastEffort)
-      if (idx === -1) idx = 0
-      const picked = remaining.splice(idx, 1)[0]
-      if (!picked) break
-      lastEffort = picked.item.effort ?? 'medium'
-      result.push({ checklistId: picked.checklistId, itemId: picked.item.id })
+    for (const r of activeTrackedItems.value) {
+      if (!r.item.selectedForToday) continue
+      const key = itemKey(r.checklistId, r.item.id)
+      kept.push({ checklistId: r.checklistId, itemId: r.item.id })
+      keptKeys.add(key)
+      budgetLeft -= effortUnits(r)
     }
 
-    return result
+    // Phase 2 — partition unselected items: mandatory (deadline ≤ tomorrow)
+    // are always added; optional are filtered by the dismissal map
+    const mandatory: Array<ChecklistItemId> = []
+    const optional: TrackedItemRef[] = []
+
+    for (const r of activeTrackedItems.value) {
+      const key = itemKey(r.checklistId, r.item.id)
+      if (keptKeys.has(key)) continue
+
+      const dl = r.item.deadline?.substring(0, 10)
+      if (dl && dl <= tomorrow) {
+        mandatory.push({ checklistId: r.checklistId, itemId: r.item.id })
+        budgetLeft -= effortUnits(r)
+      } else {
+        const expiry = dismissedUntil[key]
+        if (!expiry || now >= expiry) optional.push(r)
+      }
+    }
+
+    // Phase 3 — fill remaining budget with highest-scored optional items.
+    // Exception: one L task may be the sole pick when it outscores everything.
+    const planIsEmpty = kept.length === 0 && mandatory.length === 0
+    const additions: Array<ChecklistItemId> = []
+
+    const sorted = optional
+      .map(r => ({ ref: r, units: effortUnits(r), score: scoreItem(r, today) }))
+      .sort((a, b) => b.score - a.score)
+
+    for (const s of sorted) {
+      if (budgetLeft <= 0) break
+      const isTopLargeAlone = s.ref.item.effort === 'large' && planIsEmpty && additions.length === 0
+      if (s.units <= budgetLeft || isTopLargeAlone) {
+        additions.push({ checklistId: s.ref.checklistId, itemId: s.ref.item.id })
+        budgetLeft -= s.units
+      }
+    }
+
+    return [...kept, ...mandatory, ...additions]
   }
 
   // ── Item task-tracking mutations ────────────────────────────────────────────
@@ -291,6 +375,7 @@ export function useDayPlanning(
     itemsByPriority,
     weeklyReviewDue,
     isDayPlanFresh,
+    dismissedKeys,
     clearDayPlan,
     toggleItemDayPlan,
     setDayPlan,

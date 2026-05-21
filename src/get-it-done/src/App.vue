@@ -63,6 +63,7 @@ const {
   activeTrackedItems,
   itemsByPriority,
   isDayPlanFresh,
+  dismissedKeys,
 } = storeToRefs(checklistStore)
 
 const {
@@ -217,6 +218,7 @@ const syncStatusTitles: Record<string, string> = {
       :day-items="dayPlanItems"
       :all-active-items="activeTrackedItems"
       :items-by-priority="itemsByPriority"
+      :dismissed-keys="dismissedKeys"
       :is-day-plan-fresh="isDayPlanFresh"
       :current-view="currentTaskView"
       @change-view="currentTaskView = $event"
