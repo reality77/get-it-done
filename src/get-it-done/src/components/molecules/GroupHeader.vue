@@ -24,7 +24,7 @@ const onKeydown = makeKeydownHandler(confirmEdit, cancelEdit)
 <template>
   <div class="flex items-center gap-1.5 py-1 group/header">
     <button
-      class="text-zinc-600 hover:text-zinc-300 transition-colors text-xs w-3 shrink-0 text-left"
+      class="text-zinc-400 hover:text-zinc-300 transition-colors text-xs w-3 shrink-0 text-left"
       @click="emit('toggle-collapsed')"
     >
       {{ collapsed ? '▸' : '▾' }}
@@ -47,7 +47,7 @@ const onKeydown = makeKeydownHandler(confirmEdit, cancelEdit)
     </span>
 
     <button
-      class="opacity-0 group-hover/header:opacity-100 text-zinc-600 hover:text-red-400 transition-all text-xs shrink-0 cursor-pointer"
+      class="opacity-0 group-hover/header:opacity-100 text-zinc-500 hover:text-red-400 transition-all text-xs shrink-0 cursor-pointer"
       @click="emit('remove')"
     >
       ✕

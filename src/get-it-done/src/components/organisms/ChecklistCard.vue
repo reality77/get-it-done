@@ -156,7 +156,7 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
     <!-- Header -->
     <div ref="cardHeaderEl" class="flex items-center gap-2 min-w-0">
       <button
-        class="text-zinc-600 hover:text-zinc-300 transition-colors text-lg w-4 shrink-0 text-left"
+        class="text-zinc-400 hover:text-zinc-300 transition-colors text-lg w-4 shrink-0 text-left"
         @click="isExpanded = !isExpanded"
       >
         {{ isExpanded ? '▾' : '▸' }}
@@ -245,7 +245,7 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
           ref="addItemInputEl"
           v-model="newItemText"
           placeholder="New item…"
-          class="bg-transparent border-b border-zinc-700 focus:border-violet-500 outline-none text-zinc-100 py-0.5 placeholder:text-zinc-600 transition-colors flex-1"
+          class="bg-transparent border-b border-zinc-700 focus:border-violet-500 outline-none text-zinc-100 py-0.5 placeholder:text-zinc-500 transition-colors flex-1"
           @keydown="onAddItemKeydown"
           @blur="cancelAddItem"
         />
@@ -257,7 +257,7 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
           ref="addGroupInputEl"
           v-model="newGroupTitle"
           placeholder="Group name…"
-          class="bg-transparent border-b border-zinc-700 focus:border-violet-500 outline-none text-zinc-200 py-0.5 placeholder:text-zinc-600 transition-colors flex-1 font-medium"
+          class="bg-transparent border-b border-zinc-700 focus:border-violet-500 outline-none text-zinc-200 py-0.5 placeholder:text-zinc-500 transition-colors flex-1 font-medium"
           @keydown="onAddGroupKeydown"
           @blur="cancelAddGroup"
         />
@@ -266,13 +266,13 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
       <!-- Footer buttons -->
       <div v-if="!isAddingItem && !isAddingGroup" class="flex items-center gap-4 mt-2">
         <button
-          class="text-xs text-zinc-700 hover:text-zinc-400 transition-colors"
+          class="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
           @click="startAddItem"
         >
           + Add item
         </button>
         <button
-          class="text-xs text-zinc-700 hover:text-zinc-400 transition-colors"
+          class="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
           @click="startAddGroup"
         >
           + Add group
