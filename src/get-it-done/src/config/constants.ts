@@ -24,6 +24,9 @@ export const DAY_PLAN_EFFORT_UNITS: Record<TaskEffort, number> = {
 // Total daily effort budget in S-units (3S = 1M)
 export const DAY_PLAN_EFFORT_BUDGET = 4
 
+// How long a manually dismissed item is excluded from Suggest
+export const DAY_PLAN_DISMISS_DURATION_MS = 12 * 3600_000
+
 // Deadline proximity bonuses per effort level.
 // Larger tasks get bigger bonuses further out — an L task due next week
 // is more disruptive to skip than an S task due next week.
