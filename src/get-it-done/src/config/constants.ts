@@ -22,7 +22,7 @@ export const DAY_PLAN_EFFORT_UNITS: Record<TaskEffort, number> = {
 }
 
 // Total daily effort budget in S-units (3S = 1M)
-export const DAY_PLAN_EFFORT_BUDGET = 3
+export const DAY_PLAN_EFFORT_BUDGET = 4
 
 // Deadline proximity bonuses per effort level.
 // Larger tasks get bigger bonuses further out — an L task due next week
