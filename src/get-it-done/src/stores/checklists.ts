@@ -363,6 +363,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     itemsByPriority: dayPlanning.itemsByPriority,
     weeklyReviewDue: dayPlanning.weeklyReviewDue,
     isDayPlanFresh: dayPlanning.isDayPlanFresh,
+    dismissedKeys: dayPlanning.dismissedKeys,
     // Checklist CRUD
     createChecklist,
     updateChecklist,

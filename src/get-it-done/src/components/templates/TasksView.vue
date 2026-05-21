@@ -18,6 +18,7 @@ defineProps<{
     important: TrackedItemRef[]
     secondary: TrackedItemRef[]
   }
+  dismissedKeys: Set<string>
   currentView: TaskView
 }>()
 
@@ -112,6 +113,7 @@ const emit = defineEmits<{
     <WeekView
       v-else-if="currentView === 'week'"
       :items-by-priority="itemsByPriority"
+      :dismissed-keys="dismissedKeys"
       @snooze="(id, date) => $emit('snooze', id, date)"
       @someday="(id) => $emit('someday', id)"
       @delete="(id) => $emit('delete', id)"

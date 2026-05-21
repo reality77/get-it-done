@@ -1,4 +1,4 @@
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
 import type { Ref } from 'vue'
 import type {
   Checklist,
@@ -180,10 +180,16 @@ export function useDayPlanning(
 
   // Items the user manually removed — excluded from Suggest for 12 h.
   // Keyed by itemKey(); value is the expiry timestamp.
-  const dismissedUntil = new Map<string, number>()
+  // Reactive so dismissedKeys computed re-evaluates on each change.
+  const dismissedUntil = reactive<Record<string, number>>({})
+
+  const dismissedKeys = computed((): Set<string> => {
+    const now = Date.now()
+    return new Set(Object.keys(dismissedUntil).filter(k => dismissedUntil[k]! > now))
+  })
 
   function clearDayPlan(): void {
-    dismissedUntil.clear()
+    for (const k in dismissedUntil) delete dismissedUntil[k]
     for (const r of trackedItems.value) {
       if (r.item.selectedForToday) r.item.selectedForToday = false
     }
@@ -196,9 +202,9 @@ export function useDayPlanning(
     if (!item || (item.status ?? 'active') !== 'active') return
     const key = itemKey(ref.checklistId, ref.itemId)
     if (item.selectedForToday) {
-      dismissedUntil.set(key, Date.now() + DAY_PLAN_DISMISS_DURATION_MS)
+      dismissedUntil[key] = Date.now() + DAY_PLAN_DISMISS_DURATION_MS
     } else {
-      dismissedUntil.delete(key)
+      delete dismissedUntil[key]
     }
     item.selectedForToday = !item.selectedForToday
     if (!planMeta.dayPlanDate) planMeta.dayPlanDate = todayDateString()
@@ -295,7 +301,7 @@ export function useDayPlanning(
         mandatory.push({ checklistId: r.checklistId, itemId: r.item.id })
         budgetLeft -= effortUnits(r)
       } else {
-        const expiry = dismissedUntil.get(key)
+        const expiry = dismissedUntil[key]
         if (!expiry || now >= expiry) optional.push(r)
       }
     }
@@ -369,6 +375,7 @@ export function useDayPlanning(
     itemsByPriority,
     weeklyReviewDue,
     isDayPlanFresh,
+    dismissedKeys,
     clearDayPlan,
     toggleItemDayPlan,
     setDayPlan,
