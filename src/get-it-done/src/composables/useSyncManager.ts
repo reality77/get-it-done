@@ -11,6 +11,7 @@ export type SyncStatus = 'synced' | 'syncing' | 'offline' | 'pending' | 'unautho
 
 export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<string, string>) {
   const syncStatus = ref<SyncStatus>('offline')
+  const writeError = ref<string | null>(null)
 
   let syncHandler: PouchDB.Replication.Sync<CouchDoc> | null = null
   let changesHandler: PouchDB.Core.Changes<CouchDoc> | null = null
@@ -22,21 +23,45 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
 
   // ── PouchDB helpers ─────────────────────────────────────────────────────────
 
+  // Restores the in-memory checklist from the last successfully persisted state.
+  // Called when a write fails to prevent the UI showing changes that were never saved.
+  async function rollbackToPersistedState(id: string): Promise<void> {
+    try {
+      const persisted = await localDB.get<CouchDoc>(id)
+      revCache.set(id, persisted._rev)
+      const restored = { ...docToChecklist(persisted), items: migrateNodes(persisted.items as unknown[]) }
+      const idx = checklists.value.findIndex(x => x.id === id)
+      if (idx >= 0) checklists.value[idx] = restored
+    } catch { /* document not yet in localDB — nothing to restore */ }
+  }
+
   async function upsertChecklist(c: Checklist): Promise<void> {
     const doc = checklistToDoc(c)
     const rev = revCache.get(c.id)
     try {
       const result = await localDB.put(rev ? { ...doc, _rev: rev } : doc)
       revCache.set(c.id, result.rev)
+      return
     } catch (e) {
       if ((e as PouchDB.Core.Error).status === 409) {
         // Conflict: fetch fresh _rev and retry once
-        const existing = await localDB.get(c.id)
-        revCache.set(c.id, existing._rev)
-        const result = await localDB.put({ ...doc, _rev: existing._rev })
-        revCache.set(c.id, result.rev)
+        try {
+          const existing = await localDB.get(c.id)
+          revCache.set(c.id, existing._rev)
+          const result = await localDB.put({ ...doc, _rev: existing._rev })
+          revCache.set(c.id, result.rev)
+          return
+        } catch { /* fall through to error handler */ }
       }
     }
+    // Write failed (non-409 error, or second consecutive conflict).
+    // Roll back the in-memory object so the UI doesn't show unsaved state.
+    await rollbackToPersistedState(c.id)
+    writeError.value = 'Could not save your last change — it has been rolled back.'
+  }
+
+  function clearWriteError(): void {
+    writeError.value = null
   }
 
   async function removeFromLocal(id: string): Promise<void> {
@@ -181,6 +206,8 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
 
   return {
     syncStatus,
+    writeError,
+    clearWriteError,
     upsertChecklist,
     removeFromLocal,
     loadLocal,

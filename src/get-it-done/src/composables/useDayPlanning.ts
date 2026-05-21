@@ -104,16 +104,12 @@ export function useDayPlanning(
 
   // ── Day plan computed ───────────────────────────────────────────────────────
 
-  const dayPlanItems = computed(() => {
+  // Items completed today that belong to archived tracked checklists.
+  // Kept separate from trackedItems (which excludes archived) so dayPlanItems
+  // can show today's completions even after a checklist auto-archives.
+  const archivedTodayItems = computed(() => {
     const today = todayDateString()
     const result: TrackedItemRef[] = []
-
-    for (const r of trackedItems.value) {
-      if ((r.item.status ?? 'active') !== 'active') continue
-      if (r.item.selectedForToday && !r.item.done) result.push(r)
-      else if (r.item.done && r.item.completedAt?.startsWith(today)) result.push(r)
-    }
-
     for (const cl of checklists.value) {
       if (!cl.tracked || !cl.archived || cl.kind === 'template') continue
       const title = cl.runLabel ?? cl.title
@@ -123,8 +119,17 @@ export function useDayPlanning(
         }
       })
     }
-
     return result
+  })
+
+  const dayPlanItems = computed(() => {
+    const today = todayDateString()
+    const fromActive = trackedItems.value.filter(r => {
+      if ((r.item.status ?? 'active') !== 'active') return false
+      if (r.item.selectedForToday && !r.item.done) return true
+      return r.item.done && (r.item.completedAt?.startsWith(today) ?? false)
+    })
+    return [...fromActive, ...archivedTodayItems.value]
   })
 
   // ── Snooze / status computed ────────────────────────────────────────────────

@@ -346,6 +346,8 @@ export const useChecklistStore = defineStore('checklists', () => {
   return {
     checklists,
     syncStatus: sync.syncStatus,
+    writeError: sync.writeError,
+    clearWriteError: sync.clearWriteError,
     planMeta: planMetaStore.planMeta,
     // Computed views
     activeChecklists,
