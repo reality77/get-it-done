@@ -21,17 +21,11 @@ function backlogActions(taskRef: TrackedItemRef) {
   })
 }
 
-function nextMonday(): string {
-  const d = new Date()
-  d.setDate(d.getDate() + (1 + 7 - d.getDay()) % 7 || 7)
-  return d.toISOString().slice(0, 10)
-}
-
 function swipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: 'Add to week',
     bgClass: 'bg-green-700',
-    onTrigger: () => store.snoozeItem(refToId(taskRef), nextMonday()),
+    onTrigger: () => store.activateItem(refToId(taskRef)),
   }
 }
 
@@ -47,7 +41,7 @@ function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: 'Add to week',
     bgClass: 'bg-green-700',
-    onTrigger: () => store.snoozeItem(refToId(taskRef), nextMonday()),
+    onTrigger: () => store.activateItem(refToId(taskRef)),
   }
 }
 
