@@ -18,6 +18,7 @@ import {
   DAY_PLAN_PRIORITY_SCORES,
   DAY_PLAN_EFFORT_UNITS,
   DAY_PLAN_EFFORT_BUDGET,
+  DAY_PLAN_DEADLINE_BONUSES,
   STALE_SNOOZE_DAYS,
   WEEKLY_REVIEW_INTERVAL_DAYS,
 } from '../config/constants'
@@ -217,15 +218,18 @@ export function useDayPlanning(
     planMetaStore.persistPlanMeta()
   }
 
-  function deadlineBonus(deadline: string | null | undefined, today: string): number {
+  function deadlineBonus(deadline: string | null | undefined, today: string, effort: TaskEffort): number {
     if (!deadline) return 0
     const d = deadline.substring(0, 10)
-    if (d < today) return 100
-    if (d === today) return 50
+    const b = DAY_PLAN_DEADLINE_BONUSES[effort]
+    if (d < today) return b.overdue
+    if (d === today) return b.today
     const daysAway = Math.ceil((new Date(d).getTime() - new Date(today).getTime()) / 86_400_000)
-    if (daysAway === 1) return 20
-    if (daysAway <= 7) return 10
-    if (daysAway <= 14) return 3
+    if (daysAway === 1)  return b.tomorrow
+    if (daysAway <= 7)   return b.week
+    if (daysAway <= 14)  return b.twoWeeks
+    if (daysAway <= 30)  return b.month
+    if (daysAway <= 60)  return b.twoMonths
     return 0
   }
 
@@ -235,7 +239,7 @@ export function useDayPlanning(
       ref: r,
       units: DAY_PLAN_EFFORT_UNITS[r.item.effort ?? 'medium'],
       score: DAY_PLAN_PRIORITY_SCORES[r.item.priority ?? 'important']
-           + deadlineBonus(r.item.deadline, today)
+           + deadlineBonus(r.item.deadline, today, r.item.effort ?? 'medium')
            + Math.random(),
     }))
 
