@@ -280,21 +280,20 @@ change externally while the sheet is open, document why and add a comment.
 
 ---
 
-#### M3 — `dismissedUntil` is in-memory only; key format is implicit
+#### M3 — `dismissedUntil` is in-memory only *(will not be implemented)*
 
 **Where:** `useDayPlanning.ts:29–31, 184`
 
 Dismissed day-plan items (manually removed from today's plan) are stored in a
-reactive `Record<string,number>` keyed by `` `${checklistId}:${itemId}` ``. The
-key format is defined once in `itemKey()` but nothing enforces it — if the
-checklist or item ID format changes, the map silently fails to match.
-
-The dismissal is also lost on page reload. A user who removes an item from
-today's plan then reloads will see it reappear in the suggestion on the next
+reactive `Record<string,number>` keyed by `` `${checklistId}:${itemId}` ``.
+The dismissal is lost on page reload — a user who removes an item from today's
+plan and then reloads will see it reappear in the suggestion on the next
 "Suggest" click.
 
-**Recommendation:** Either persist `dismissedUntil` to `planMeta` (which is
-already in localStorage) or document explicitly that dismissals are session-only.
+**Decision:** Session-only dismissal is intentional product behaviour. The 12-hour
+window exists to de-noise the Suggest algorithm within a single work session;
+after a page reload the user is in a new context and Suggest should consider
+the full active backlog again. No change planned.
 
 ---
 
@@ -412,7 +411,7 @@ max 3 levels) enforced in `addGroup` would prevent accidental misuse.
 | **1** | Add error handling + user feedback for failed `upsertChecklist` calls | `useSyncManager.ts`, `stores/checklists.ts` |
 | **2** | Wrap the conflict-retry block in its own try/catch; log or surface failures | `useSyncManager.ts:31–39` |
 | **3** | Auto-persist `planMeta` with a deep watcher; remove manual `persistPlanMeta()` calls | `stores/planMeta.ts`, `useDayPlanning.ts` |
-| **4** | Persist or document `dismissedUntil` (session-only vs. day-persistent) | `useDayPlanning.ts:184` |
+| ~~4~~ | ~~Persist `dismissedUntil` (session-only vs. day-persistent)~~ | *will not implement — session-only is intentional* |
 | **5** | Extract `archivedTodayItems` computed; compose `dayPlanItems` from named parts | `useDayPlanning.ts:107–128` |
 | **6** | Move task mutations into leaf components; remove event forwarding chain | `TaskCard.vue`, `DayView.vue`, `TasksView.vue`, `App.vue` |
 | **7** | Remove `migrateNodes()` call once migration is verified complete in production | `useSyncManager.ts:65, 85` |

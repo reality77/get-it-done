@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { TrackedItemRef, ChecklistItemId, TaskPriority, TaskEffort, SwipeActionDef } from '../../types'
+import type { TrackedItemRef, SwipeActionDef } from '../../types'
 import { makeStatusActions, refToId } from '../../composables/useTaskActions'
+import { useChecklistStore } from '../../stores/checklists'
 import TaskCard from '../molecules/TaskCard.vue'
 import MobilePlanningSheet from '../molecules/MobilePlanningSheet.vue'
 
@@ -9,24 +10,14 @@ defineProps<{
   somedayItems: TrackedItemRef[]
 }>()
 
-const emit = defineEmits<{
-  (e: 'activate', id: ChecklistItemId): void
-  (e: 'snooze', id: ChecklistItemId, date: string): void
-  (e: 'someday', id: ChecklistItemId): void
-  (e: 'delete', id: ChecklistItemId): void
-  (e: 'update-text', id: ChecklistItemId, text: string): void
-  (e: 'update-priority', id: ChecklistItemId, priority: TaskPriority): void
-  (e: 'update-effort', id: ChecklistItemId, effort: TaskEffort): void
-  (e: 'update-deadline', id: ChecklistItemId, deadline: string | null): void
-  (e: 'update-reminders', id: ChecklistItemId, reminders: string[]): void
-}>()
+const store = useChecklistStore()
 
 function backlogActions(taskRef: TrackedItemRef) {
   return makeStatusActions(taskRef, {
-    onActivate: (id) => emit('activate', id),
-    onSnooze: (id, date) => emit('snooze', id, date),
-    onSomeday: (id) => emit('someday', id),
-    onDelete: (id) => emit('delete', id),
+    onActivate: (id) => store.activateItem(id),
+    onSnooze: (id, date) => store.snoozeItem(id, date),
+    onSomeday: (id) => store.sendItemToSomeday(id),
+    onDelete: (id) => store.removeItem(id),
   })
 }
 
@@ -40,7 +31,7 @@ function swipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: 'Add to week',
     bgClass: 'bg-green-700',
-    onTrigger: () => emit('snooze', refToId(taskRef), nextMonday()),
+    onTrigger: () => store.snoozeItem(refToId(taskRef), nextMonday()),
   }
 }
 
@@ -48,7 +39,7 @@ function somedaySwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: '↩ Activate',
     bgClass: 'bg-violet-700',
-    onTrigger: () => emit('activate', refToId(taskRef)),
+    onTrigger: () => store.activateItem(refToId(taskRef)),
   }
 }
 
@@ -56,7 +47,7 @@ function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: 'Add to week',
     bgClass: 'bg-green-700',
-    onTrigger: () => emit('snooze', refToId(taskRef), nextMonday()),
+    onTrigger: () => store.snoozeItem(refToId(taskRef), nextMonday()),
   }
 }
 
@@ -82,22 +73,12 @@ function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
           :show-checkbox="false"
           :swipe-left="swipeLeft(ref)"
           :actions="backlogActions(ref)"
-          @update-text="(id, text) => $emit('update-text', id, text)"
         >
           <template #mobile-sheet="{ close }">
             <MobilePlanningSheet
               :item="ref.item"
               :item-id="{ checklistId: ref.checklistId, itemId: ref.item.id }"
               :close="close"
-              @activate="(id) => $emit('activate', id)"
-              @snooze="(id, date) => $emit('snooze', id, date)"
-              @someday="(id) => $emit('someday', id)"
-              @delete="(id) => $emit('delete', id)"
-              @update-text="(id, text) => $emit('update-text', id, text)"
-              @update-priority="(id, p) => $emit('update-priority', id, p)"
-              @update-effort="(id, e) => $emit('update-effort', id, e)"
-              @update-deadline="(id, d) => $emit('update-deadline', id, d)"
-              @update-reminders="(id, r) => $emit('update-reminders', id, r)"
             />
           </template>
         </TaskCard>
@@ -122,22 +103,12 @@ function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
           :swipe-right="somedaySwipeRight(ref)"
           :swipe-left="somedaySwipeLeft(ref)"
           :actions="backlogActions(ref)"
-          @update-text="(id, text) => $emit('update-text', id, text)"
         >
           <template #mobile-sheet="{ close }">
             <MobilePlanningSheet
               :item="ref.item"
               :item-id="{ checklistId: ref.checklistId, itemId: ref.item.id }"
               :close="close"
-              @activate="(id) => $emit('activate', id)"
-              @snooze="(id, date) => $emit('snooze', id, date)"
-              @someday="(id) => $emit('someday', id)"
-              @delete="(id) => $emit('delete', id)"
-              @update-text="(id, text) => $emit('update-text', id, text)"
-              @update-priority="(id, p) => $emit('update-priority', id, p)"
-              @update-effort="(id, e) => $emit('update-effort', id, e)"
-              @update-deadline="(id, d) => $emit('update-deadline', id, d)"
-              @update-reminders="(id, r) => $emit('update-reminders', id, r)"
             />
           </template>
         </TaskCard>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { TrackedItemRef, ChecklistItemId } from '../../types'
+import type { TrackedItemRef } from '../../types'
 import { makeStatusActions } from '../../composables/useTaskActions'
+import { useChecklistStore } from '../../stores/checklists'
 import TaskCard from '../molecules/TaskCard.vue'
 import AppButton from '../atoms/AppButton.vue'
 
@@ -11,18 +12,17 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'activate', id: ChecklistItemId): void
-  (e: 'snooze', id: ChecklistItemId, date: string): void
-  (e: 'delete', id: ChecklistItemId): void
   (e: 'complete-review'): void
   (e: 'dismiss'): void
 }>()
 
+const store = useChecklistStore()
+
 function reviewActions(taskRef: TrackedItemRef) {
   return makeStatusActions(taskRef, {
-    onActivate: (id) => emit('activate', id),
-    onSnooze: (id, date) => emit('snooze', id, date),
-    onDelete: (id) => emit('delete', id),
+    onActivate: (id) => store.activateItem(id),
+    onSnooze: (id, date) => store.snoozeItem(id, date),
+    onDelete: (id) => store.removeItem(id),
   })
 }
 
@@ -58,8 +58,6 @@ function staleDays(ref: TrackedItemRef): number {
             :checklist-title="ref.checklistTitle"
             :compact="true"
             :actions="reviewActions(ref)"
-            @update-text="() => {}"
-            @toggle-done="() => {}"
           />
         </div>
       </div>

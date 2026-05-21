@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TrackedItemRef, TaskPriority, TaskEffort, TaskView, ChecklistItemId } from '../../types'
+import type { TrackedItemRef, TaskView } from '../../types'
 import WeeklyReviewPanel from '../organisms/WeeklyReviewPanel.vue'
 import DayView from '../organisms/DayView.vue'
 import WeekView from '../organisms/WeekView.vue'
@@ -12,7 +12,6 @@ defineProps<{
   somedayItems: TrackedItemRef[]
   staleSnoozedIds: string[]
   dayItems: TrackedItemRef[]
-  allActiveItems: TrackedItemRef[]
   itemsByPriority: {
     urgent: TrackedItemRef[]
     important: TrackedItemRef[]
@@ -24,21 +23,8 @@ defineProps<{
 
 const emit = defineEmits<{
   (e: 'change-view', view: TaskView): void
-  (e: 'activate', id: ChecklistItemId): void
-  (e: 'snooze', id: ChecklistItemId, date: string): void
-  (e: 'someday', id: ChecklistItemId): void
-  (e: 'delete', id: ChecklistItemId): void
-  (e: 'update-priority', id: ChecklistItemId, priority: TaskPriority): void
-  (e: 'update-effort', id: ChecklistItemId, effort: TaskEffort): void
-  (e: 'update-text', id: ChecklistItemId, text: string): void
-  (e: 'update-deadline', id: ChecklistItemId, deadline: string | null): void
-  (e: 'update-reminders', id: ChecklistItemId, reminders: string[]): void
-  (e: 'toggle-done', id: ChecklistItemId): void
-  (e: 'suggest-day'): void
-  (e: 'toggle-day', id: ChecklistItemId): void
   (e: 'complete-review'): void
   (e: 'dismiss-review'): void
-  (e: 'clear'): void
 }>()
 </script>
 
@@ -50,9 +36,6 @@ const emit = defineEmits<{
       :snoozed-items="snoozedItems"
       :someday-items="somedayItems"
       :stale-snoozed-ids="staleSnoozedIds"
-      @activate="(id) => $emit('activate', id)"
-      @snooze="(id, date) => $emit('snooze', id, date)"
-      @delete="(id) => $emit('delete', id)"
       @complete-review="$emit('complete-review')"
       @dismiss="$emit('dismiss-review')"
     />
@@ -94,19 +77,6 @@ const emit = defineEmits<{
     <DayView
       v-if="currentView === 'day'"
       :items="dayItems"
-      :all-active-items="allActiveItems"
-      @suggest="$emit('suggest-day')"
-      @toggle-done="(id) => $emit('toggle-done', id)"
-      @toggle-day="(id) => $emit('toggle-day', id)"
-      @snooze="(id, date) => $emit('snooze', id, date)"
-      @someday="(id) => $emit('someday', id)"
-      @delete="(id) => $emit('delete', id)"
-      @update-text="(id, text) => $emit('update-text', id, text)"
-      @update-priority="(id, p) => $emit('update-priority', id, p)"
-      @update-effort="(id, e) => $emit('update-effort', id, e)"
-      @update-deadline="(id, d) => $emit('update-deadline', id, d)"
-      @update-reminders="(id, r) => $emit('update-reminders', id, r)"
-      @clear="$emit('clear')"
     />
 
     <!-- Week view -->
@@ -114,16 +84,6 @@ const emit = defineEmits<{
       v-else-if="currentView === 'week'"
       :items-by-priority="itemsByPriority"
       :dismissed-keys="dismissedKeys"
-      @snooze="(id, date) => $emit('snooze', id, date)"
-      @someday="(id) => $emit('someday', id)"
-      @delete="(id) => $emit('delete', id)"
-      @update-priority="(id, p) => $emit('update-priority', id, p)"
-      @update-effort="(id, e) => $emit('update-effort', id, e)"
-      @update-text="(id, text) => $emit('update-text', id, text)"
-      @update-deadline="(id, d) => $emit('update-deadline', id, d)"
-      @update-reminders="(id, r) => $emit('update-reminders', id, r)"
-      @toggle-day="(id) => $emit('toggle-day', id)"
-      @toggle-done="(id) => $emit('toggle-done', id)"
     />
 
     <!-- Backlog view -->
@@ -131,15 +91,6 @@ const emit = defineEmits<{
       v-else-if="currentView === 'backlog'"
       :snoozed-items="snoozedItems"
       :someday-items="somedayItems"
-      @activate="(id) => $emit('activate', id)"
-      @snooze="(id, date) => $emit('snooze', id, date)"
-      @someday="(id) => $emit('someday', id)"
-      @delete="(id) => $emit('delete', id)"
-      @update-text="(id, text) => $emit('update-text', id, text)"
-      @update-priority="(id, p) => $emit('update-priority', id, p)"
-      @update-effort="(id, e) => $emit('update-effort', id, e)"
-      @update-deadline="(id, d) => $emit('update-deadline', id, d)"
-      @update-reminders="(id, r) => $emit('update-reminders', id, r)"
     />
   </div>
 </template>

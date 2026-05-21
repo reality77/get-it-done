@@ -399,6 +399,11 @@ export const useChecklistStore = defineStore('checklists', () => {
     completeWeeklyReview: dayPlanning.completeWeeklyReview,
     suggestDayPlan: dayPlanning.suggestDayPlan,
     clearDayPlan: dayPlanning.clearDayPlan,
+    // Convenience: run suggestion algorithm and apply the result in one call
+    applyDayPlanSuggestion(): void {
+      const suggested = dayPlanning.suggestDayPlan()
+      dayPlanning.setDayPlan(suggested)
+    },
     // Sync
     loadLocal: sync.loadLocal,
     initSync: sync.initSync,
