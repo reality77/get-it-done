@@ -55,6 +55,7 @@ const {
   templates,
   archivedChecklists,
   syncStatus,
+  writeError,
   weeklyReviewDue,
   dayPlanItems,
   snoozedItems,
@@ -275,4 +276,17 @@ const syncStatusTitles: Record<string, string> = {
 
   <PasswordPrompt v-if="loginPrompted" @cancel="loginPrompted = false" />
   <NotificationSettings v-if="notificationsOpen" @close="notificationsOpen = false" />
+
+  <div
+    v-if="writeError"
+    class="fixed bottom-20 md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-red-950 border border-red-700 text-red-200 px-4 py-3 rounded-lg flex items-start gap-3 z-50 shadow-lg"
+    role="alert"
+  >
+    <span class="text-sm flex-1">{{ writeError }}</span>
+    <button
+      class="text-red-400 hover:text-red-200 transition-colors shrink-0 text-lg leading-none"
+      aria-label="Dismiss"
+      @click="checklistStore.clearWriteError()"
+    >×</button>
+  </div>
 </template>
