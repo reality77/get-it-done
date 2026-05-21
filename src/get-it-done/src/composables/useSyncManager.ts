@@ -24,15 +24,19 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
   // ── PouchDB helpers ─────────────────────────────────────────────────────────
 
   // Restores the in-memory checklist from the last successfully persisted state.
-  // Called when a write fails to prevent the UI showing changes that were never saved.
-  async function rollbackToPersistedState(id: string): Promise<void> {
+  // Returns true if a persisted version existed and was restored, false if the
+  // document had never been written (e.g. a brand-new checklist whose first save failed).
+  async function rollbackToPersistedState(id: string): Promise<boolean> {
     try {
       const persisted = await localDB.get<CouchDoc>(id)
       revCache.set(id, persisted._rev)
       const restored = { ...docToChecklist(persisted), items: migrateNodes(persisted.items as unknown[]) }
       const idx = checklists.value.findIndex(x => x.id === id)
       if (idx >= 0) checklists.value[idx] = restored
-    } catch { /* document not yet in localDB — nothing to restore */ }
+      return true
+    } catch {
+      return false
+    }
   }
 
   async function upsertChecklist(c: Checklist): Promise<void> {
@@ -41,6 +45,7 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
     try {
       const result = await localDB.put(rev ? { ...doc, _rev: rev } : doc)
       revCache.set(c.id, result.rev)
+      writeError.value = null  // clear any stale error banner on success
       return
     } catch (e) {
       if ((e as PouchDB.Core.Error).status === 409) {
@@ -50,14 +55,16 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
           revCache.set(c.id, existing._rev)
           const result = await localDB.put({ ...doc, _rev: existing._rev })
           revCache.set(c.id, result.rev)
+          writeError.value = null  // clear any stale error banner on retry success
           return
         } catch { /* fall through to error handler */ }
       }
     }
     // Write failed (non-409 error, or second consecutive conflict).
-    // Roll back the in-memory object so the UI doesn't show unsaved state.
-    await rollbackToPersistedState(c.id)
-    writeError.value = 'Could not save your last change — it has been rolled back.'
+    const rolledBack = await rollbackToPersistedState(c.id)
+    writeError.value = rolledBack
+      ? 'Could not save your last change — it has been rolled back.'
+      : 'Could not save a new item to local storage. It may not survive a page reload.'
   }
 
   function clearWriteError(): void {
