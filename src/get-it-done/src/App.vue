@@ -1,19 +1,20 @@
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import type { ChecklistKind, TaskView } from './types'
+import type { ChecklistKind } from './types'
 import { useChecklistStore } from './stores/checklists'
 import { useAuthStore } from './stores/auth'
 import TabBar from './components/organisms/TabBar.vue'
 import ActiveView from './components/templates/ActiveView.vue'
-import TemplatesView from './components/templates/TemplatesView.vue'
-import ArchiveView from './components/templates/ArchiveView.vue'
-import TasksView from './components/templates/TasksView.vue'
+import DayView from './components/organisms/DayView.vue'
+import WeekView from './components/organisms/WeekView.vue'
+import BacklogView from './components/organisms/BacklogView.vue'
+import WeeklyReviewPanel from './components/organisms/WeeklyReviewPanel.vue'
 import PasswordPrompt from './components/organisms/PasswordPrompt.vue'
 import BottomNavBar from './components/organisms/BottomNavBar.vue'
 import NotificationSettings from './components/organisms/NotificationSettings.vue'
 import { storeToRefs } from 'pinia'
 
-const activeTab = ref<'active' | 'templates' | 'archive' | 'tasks'>('tasks')
+const activeTab = ref<'today' | 'week' | 'backlog' | 'checklists'>('today')
 const notificationsOpen = ref(false)
 
 const newlyCreatedId = ref<string | null>(null)
@@ -52,8 +53,6 @@ function stopKeepAlive(): void {
 }
 const {
   activeChecklists,
-  templates,
-  archivedChecklists,
   syncStatus,
   writeError,
   weeklyReviewDue,
@@ -69,13 +68,8 @@ const {
   createChecklist,
   deleteChecklist,
   archiveChecklist,
-  unarchiveChecklist,
-  runTemplate,
 } = checklistStore
 
-// ── Task manager state ────────────────────────────────────────────────────────
-
-const currentTaskView = ref<TaskView>('day')
 const reviewDismissed = ref(false)
 
 watch(weeklyReviewDue, (due) => {
@@ -128,20 +122,10 @@ watch(() => authStore.isAuthenticated, async (authed, wasAuthed) => {
 })
 
 async function handleCreateChecklist(title: string, kind: ChecklistKind): Promise<void> {
-    const created = createChecklist(
-      kind,
-      title,
-      []
-    )
+    const created = createChecklist(kind, title, [])
     newlyCreatedId.value = created.id
-    if (kind === 'template') activeTab.value = 'templates'
     await nextTick()
     newlyCreatedId.value = null
-}
-
-function handleRunTemplate(checklistId: string): void {
-  runTemplate(checklistId)
-  activeTab.value = 'active'
 }
 
 function handleCompleteReview(): void {
@@ -196,58 +180,49 @@ const syncStatusTitles: Record<string, string> = {
 
   <TabBar
     :activeTab="activeTab"
-    :archiveCount="archivedChecklists.length"
     :weekly-review-due="weeklyReviewDue"
     @change="activeTab = $event"
   />
 
   <main class="pb-20 md:pb-0">
-    <TasksView
-      v-if="activeTab === 'tasks'"
-      :weekly-review-due="weeklyReviewDue"
-      :review-dismissed="reviewDismissed"
+    <WeeklyReviewPanel
+      v-if="activeTab !== 'checklists' && weeklyReviewDue && !reviewDismissed"
       :snoozed-items="snoozedItems"
       :someday-items="somedayItems"
       :stale-snoozed-ids="staleSnoozedItems.map(r => r.item.id)"
-      :day-items="dayPlanItems"
+      @complete-review="handleCompleteReview"
+      @dismiss="reviewDismissed = true"
+    />
+
+    <DayView
+      v-if="activeTab === 'today'"
+      :items="dayPlanItems"
+    />
+
+    <WeekView
+      v-else-if="activeTab === 'week'"
       :items-by-priority="itemsByPriority"
       :dismissed-keys="dismissedKeys"
-      :current-view="currentTaskView"
-      @change-view="currentTaskView = $event"
-      @complete-review="handleCompleteReview"
-      @dismiss-review="reviewDismissed = true"
+    />
+
+    <BacklogView
+      v-else-if="activeTab === 'backlog'"
+      :snoozed-items="snoozedItems"
+      :someday-items="somedayItems"
     />
 
     <ActiveView
-      v-else-if="activeTab === 'active'"
+      v-else-if="activeTab === 'checklists'"
       :checklists="activeChecklists"
       :focus-checklist-id="newlyCreatedId"
       @delete="deleteChecklist"
       @archive="archiveChecklist"
       @create="(name) => handleCreateChecklist(name, 'one-time')"
     />
-
-    <TemplatesView
-      v-else-if="activeTab === 'templates'"
-      :templates="templates"
-      :focus-checklist-id="newlyCreatedId"
-      @delete="deleteChecklist"
-      @run="handleRunTemplate"
-      @create="(name) => handleCreateChecklist(name, 'template')"
-    />
-
-    <ArchiveView
-      v-else-if="activeTab === 'archive'"
-      :checklists="archivedChecklists"
-      @unarchive="unarchiveChecklist"
-      @delete="deleteChecklist"
-    />
-
   </main>
 
   <BottomNavBar
     :activeTab="activeTab"
-    :archiveCount="archivedChecklists.length"
     :weekly-review-due="weeklyReviewDue"
     @change="activeTab = $event"
   />
