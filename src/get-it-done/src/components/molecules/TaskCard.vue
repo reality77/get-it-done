@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, useSlots } from 'vue'
+import { computed, ref, useSlots } from 'vue'
 import type { ChecklistItem, SwipeActionDef, ButtonActionDef } from '../../types'
 import { useSwipeAction } from '../../composables/useSwipeAction'
 import { useEditableField } from '../../composables/useEditableField'
@@ -11,6 +11,7 @@ import AppCheckbox from '../atoms/AppCheckbox.vue'
 import DeadlineBar from '../atoms/DeadlineBar.vue'
 import TaskCardActions from './TaskCardActions.vue'
 import TaskCardMobileSheet from './TaskCardMobileSheet.vue'
+import VCard from '../atoms/VCard.vue'
 
 const props = defineProps<{
   item: ChecklistItem
@@ -61,6 +62,9 @@ const { style: rowStyle, rightProgress, leftProgress } = useSwipeAction(rowEl, {
 
 const hasMobileSheet = () => !!slots['mobile-sheet'] || !!(props.collapseMobileActions && props.actions?.length)
 const hasActions = () => !!(props.actions?.length)
+
+const deadline = computed(() => props.item.deadline ? new Date(props.item.deadline) : null)
+
 </script>
 
 <template>
@@ -80,25 +84,22 @@ const hasActions = () => !!(props.actions?.length)
     <!-- Right hint (revealed on swipe left) -->
     <div
       v-if="swipeLeft"
-      class="absolute inset-0 flex items-center justify-end px-3 pointer-events-none"
+      class="absolute inset-0 flex items-center justify-end pointer-events-none"
       :class="swipeLeft.bgClass"
       :style="{ opacity: leftProgress * 0.9 }"
     >
       <span class="text-white text-xs font-medium">{{ swipeLeft.hint }}</span>
     </div>
 
-    <!-- Deadline proximity bar -->
-    <DeadlineBar
-      v-if="item.deadline && !item.done"
-      :deadline="item.deadline"
-    />
-
     <!-- Row content -->
-    <div
-      class="flex items-center gap-2 group rounded-lg hover:bg-bg-2/50 transition-colors bg-bg-1"
-      :class="compact ? 'py-1.5 px-2' : 'py-2 px-3'"
+    <VCard
+      class="relative flex group rounded-lg hover:bg-bg-2/50 transition-colors bg-bg-1"
       :style="rowStyle"
     >
+      <div class="flex flex-col w-full">
+        <div class="flex flex-row items-center gap-2"
+        :class="compact ? 'py-1.5 px-2' : 'py-4 px-4'">
+
       <!-- Completion checkbox -->
       <AppCheckbox
         v-if="showCheckbox !== false"
@@ -127,17 +128,30 @@ const hasActions = () => !!(props.actions?.length)
       </div>
 
       <!-- Badges -->
-      <PriorityBadge v-if="compact && item.priority" :priority="item.priority" />
-      <EffortBadge v-if="item.effort" :effort="item.effort" />
+    <PriorityBadge v-if="item.priority" :priority="item.priority" :compact="true"></PriorityBadge>
+    <EffortBadge v-if="item.effort" :effort="item.effort" />
 
-      <!-- Actions -->
-      <TaskCardActions
-        v-if="hasActions() || hasMobileSheet()"
-        :actions="actions ?? []"
-        :has-mobile-sheet="hasMobileSheet()"
-        @open-mobile-menu="mobileMenuOpen = true"
-      />
+    <!-- Actions -->
+    <TaskCardActions
+      v-if="hasActions() || hasMobileSheet()"
+      :actions="actions ?? []"
+      :has-mobile-sheet="hasMobileSheet()"
+      @open-mobile-menu="mobileMenuOpen = true"
+    />
+
+      </div>
+      <div v-if="deadline && item.deadline && !item.done" elevated class="opacity-50 px-3 py-1 bg-bg-2 flex flex-row items-center rounded-md overflow-hidden">
+          <!-- Deadline proximity bar -->
+          <DeadlineBar :deadline="item.deadline" />
+          <div class="flex-1 flex justify-end px-2">
+            <span class="block w-full text-right whitespace-nowrap">
+              <span v-if="deadline.getFullYear() > new Date().getFullYear()">{{ deadline.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) }}</span>
+              <span v-else :class="deadline.getTime() < new Date().getTime() ? 'text-danger' : ''">{{ deadline.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }}</span>
+            </span>
+          </div>
+      </div>
     </div>
+    </VCard>
   </div>
 
   <!-- Mobile bottom sheet -->

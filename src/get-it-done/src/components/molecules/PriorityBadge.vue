@@ -2,8 +2,9 @@
 import type { TaskPriority } from '../../types'
 import VBadge from '../atoms/VBadge.vue'
 
-defineProps<{
+const props = defineProps<{
   priority: TaskPriority
+  compact?: boolean
 }>()
 
 const variantMap: Record<TaskPriority, 'danger' | 'warning' | 'neutral'> = {
@@ -20,8 +21,11 @@ const iconMap: Record<TaskPriority, string> = {
 </script>
 
 <template>
-  <VBadge :variant="variantMap[priority]">
-    <span class="sm:hidden">{{ iconMap[priority] }}</span>
-    <span class="hidden sm:inline">{{ priority }}</span>
+  <VBadge :variant="variantMap[props.priority]">
+    <span v-if="!props.compact">{{ props.priority }}</span>
+    <template v-else>
+      <span class="sm:hidden">{{ iconMap[props.priority] }}</span>
+      <span class="hidden sm:inline">{{ props.priority }}</span>
+    </template>
   </VBadge>
 </template>

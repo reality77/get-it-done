@@ -88,14 +88,14 @@ function dismissCelebration(): void {
       </p>
     </div>
 
-    <div v-if="activeItems.length > 0" class="space-y-1">
+    <div v-if="activeItems.length > 0" class="space-y-3">
       <TaskCard
         v-for="taskRef in activeItems"
         :key="taskRef.item.id"
         :item="taskRef.item"
         :checklist-id="taskRef.checklistId"
         :checklist-title="taskRef.checklistTitle"
-        :compact="true"
+        :compact="false"
         :show-checklist-title="true"
         :swipe-right="activeSwipeRight(taskRef)"
         :swipe-left="activeSwipeLeft(taskRef)"
