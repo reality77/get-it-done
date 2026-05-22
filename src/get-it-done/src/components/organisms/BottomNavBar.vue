@@ -11,13 +11,13 @@ defineEmits<{
 
 <template>
   <nav
-    class="md:hidden fixed bottom-0 left-0 right-0 z-50 flex border-t border-zinc-800 bg-zinc-950/95 backdrop-blur-sm"
+    class="md:hidden fixed bottom-0 left-0 right-0 z-50 flex border-t border-hairline bg-bg-0/95 backdrop-blur-sm"
     style="padding-bottom: max(env(safe-area-inset-bottom), 0.5rem)"
   >
     <!-- Today -->
     <button
       class="flex flex-1 flex-col items-center gap-1 pt-3 pb-1 transition-colors cursor-pointer"
-      :class="activeTab === 'today' ? 'text-violet-400' : 'text-zinc-500 hover:text-zinc-300'"
+      :class="activeTab === 'today' ? 'text-primary' : 'text-fg-4 hover:text-fg-2'"
       @click="$emit('change', 'today')"
     >
       <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -37,7 +37,7 @@ defineEmits<{
     <!-- Week -->
     <button
       class="flex flex-1 flex-col items-center gap-1 pt-3 pb-1 transition-colors cursor-pointer"
-      :class="activeTab === 'week' ? 'text-violet-400' : 'text-zinc-500 hover:text-zinc-300'"
+      :class="activeTab === 'week' ? 'text-primary' : 'text-fg-4 hover:text-fg-2'"
       @click="$emit('change', 'week')"
     >
       <div class="relative">
@@ -50,7 +50,7 @@ defineEmits<{
         </svg>
         <span
           v-if="weeklyReviewDue"
-          class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-violet-400"
+          class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary"
         />
       </div>
       <span class="text-[10px] font-medium leading-none">Week</span>
@@ -59,7 +59,7 @@ defineEmits<{
     <!-- Backlog -->
     <button
       class="flex flex-1 flex-col items-center gap-1 pt-3 pb-1 transition-colors cursor-pointer"
-      :class="activeTab === 'backlog' ? 'text-violet-400' : 'text-zinc-500 hover:text-zinc-300'"
+      :class="activeTab === 'backlog' ? 'text-primary' : 'text-fg-4 hover:text-fg-2'"
       @click="$emit('change', 'backlog')"
     >
       <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -73,7 +73,7 @@ defineEmits<{
     <!-- Checklists -->
     <button
       class="flex flex-1 flex-col items-center gap-1 pt-3 pb-1 transition-colors cursor-pointer"
-      :class="activeTab === 'checklists' ? 'text-violet-400' : 'text-zinc-500 hover:text-zinc-300'"
+      :class="activeTab === 'checklists' ? 'text-primary' : 'text-fg-4 hover:text-fg-2'"
       @click="$emit('change', 'checklists')"
     >
       <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

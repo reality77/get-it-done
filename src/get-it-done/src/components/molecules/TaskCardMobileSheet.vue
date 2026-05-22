@@ -24,20 +24,20 @@ const openSnoozeLabel = ref<string | null>(null)
     >
       <div class="absolute inset-0 bg-black/60" @click="emit('close')" />
 
-      <div class="relative w-full bg-zinc-900 border-t border-zinc-700 rounded-t-2xl p-4 space-y-4 max-h-[85vh] overflow-y-auto">
+      <div class="relative w-full bg-bg-1 border-t border-border rounded-t-2xl p-4 space-y-4 max-h-[85vh] overflow-y-auto">
 
         <!-- Default slot; fallback renders title + actions list -->
         <slot :close="() => emit('close')">
-          <p class="text-sm font-medium text-zinc-200 truncate border-b border-zinc-800 pb-3">{{ item.text }}</p>
+          <p class="text-sm font-medium text-fg truncate border-b border-hairline pb-3">{{ item.text }}</p>
           <div v-if="actions?.length" class="space-y-2">
             <template v-for="action in actions" :key="action.label">
               <!-- Snooze button with inline date picker -->
               <div v-if="action.snooze">
                 <button
-                  class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border transition-colors border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                  class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border transition-colors border-border bg-bg-2 text-fg-2 hover:bg-bg-3"
                   @click="openSnoozeLabel = openSnoozeLabel === action.label ? null : action.label"
                 >
-                  {{ action.label }}<span v-if="action.title" class="ml-1 text-zinc-500 text-xs">&nbsp;{{ action.title }}</span>
+                  {{ action.label }}<span v-if="action.title" class="ml-1 text-fg-4 text-xs">&nbsp;{{ action.title }}</span>
                 </button>
                 <SnoozeMenu
                   v-if="openSnoozeLabel === action.label"
@@ -51,17 +51,17 @@ const openSnoozeLabel = ref<string | null>(null)
                 v-else
                 class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border transition-colors"
                 :class="action.variant === 'danger'
-                  ? 'border-red-800/60 bg-red-900/20 text-red-400 hover:bg-red-900/30'
-                  : 'border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700'"
+                  ? 'border-danger/40 bg-danger/15 text-danger hover:bg-danger/20'
+                  : 'border-border bg-bg-2 text-fg-2 hover:bg-bg-3'"
                 @click="action.onClick?.(); emit('close')"
               >
-                {{ action.label }}<span v-if="action.title" class="ml-1 text-zinc-500 text-xs">&nbsp;{{ action.title }}</span>
+                {{ action.label }}<span v-if="action.title" class="ml-1 text-fg-4 text-xs">&nbsp;{{ action.title }}</span>
               </button>
             </template>
           </div>
           <!-- Cancel -->
           <button
-            class="flex items-center justify-center w-full py-3 text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors border border-zinc-700 rounded-xl"
+            class="flex items-center justify-center w-full py-3 text-sm font-medium text-fg-3 hover:text-fg transition-colors border border-border rounded-xl"
             @click="emit('close')"
           >
             Cancel

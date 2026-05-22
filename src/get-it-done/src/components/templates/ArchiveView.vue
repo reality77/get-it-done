@@ -14,7 +14,7 @@ defineEmits<{
 
 <template>
   <div>
-    <p v-if="checklists.length === 0" class="text-center text-zinc-600 py-12">
+    <p v-if="checklists.length === 0" class="text-center text-fg-4 py-12">
       Nothing archived yet.
     </p>
 

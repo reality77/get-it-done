@@ -95,7 +95,7 @@ const hasActions = () => !!(props.actions?.length)
 
     <!-- Row content -->
     <div
-      class="flex items-center gap-2 group rounded-lg hover:bg-zinc-800/50 transition-colors bg-zinc-900"
+      class="flex items-center gap-2 group rounded-lg hover:bg-bg-2/50 transition-colors bg-bg-1"
       :class="compact ? 'py-1.5 px-2' : 'py-2 px-3'"
       :style="rowStyle"
     >
@@ -111,19 +111,19 @@ const hasActions = () => !!(props.actions?.length)
         v-if="isEditing"
         v-focus
         v-model="editTitle"
-        class="flex-1 bg-transparent border-b border-zinc-700 focus:border-violet-500 outline-none text-zinc-100 text-sm py-0.5 transition-colors"
+        class="flex-1 bg-transparent border-b border-border focus:border-primary outline-none text-fg text-sm py-0.5 transition-colors"
         @keydown="onKeydown"
         @blur="confirmEdit"
       />
       <div v-else class="flex-1 min-w-0">
         <span
           class="text-sm wrap-break-word block cursor-text"
-          :class="item.done ? 'line-through text-zinc-500' : 'text-zinc-200'"
+          :class="item.done ? 'line-through text-fg-4' : 'text-fg'"
           @dblclick="startEdit()"
         >
           {{ item.text }}
         </span>
-        <span v-if="showChecklistTitle !== undefined ? showChecklistTitle : !compact" class="text-xs text-zinc-500 block truncate">{{ checklistTitle }}</span>
+        <span v-if="showChecklistTitle !== undefined ? showChecklistTitle : !compact" class="text-xs text-fg-4 block truncate">{{ checklistTitle }}</span>
       </div>
 
       <!-- Badges -->

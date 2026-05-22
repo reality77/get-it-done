@@ -104,7 +104,7 @@ function forwardRemoveGroup(cid: string, gid: string): void { emit('remove-group
     />
 
     <!-- Children -->
-    <div v-if="!group.collapsed" class="pl-4 border-l border-zinc-800 ml-1.5">
+    <div v-if="!group.collapsed" class="pl-4 border-l border-hairline ml-1.5">
       <template v-for="node in group.children" :key="node.id">
         <ItemRow
           v-if="node.type === 'item'"
@@ -139,7 +139,7 @@ function forwardRemoveGroup(cid: string, gid: string): void { emit('remove-group
           ref="addItemInputEl"
           v-model="newItemText"
           placeholder="New item…"
-          class="bg-transparent border-b border-zinc-700 focus:border-violet-500 outline-none text-zinc-100 py-0.5 placeholder:text-zinc-600 transition-colors flex-1 text-sm"
+          class="bg-transparent border-b border-border focus:border-primary outline-none text-fg py-0.5 placeholder:text-fg-4 transition-colors flex-1 text-sm"
           @keydown="onAddItemKeydown"
           @blur="cancelAddItem"
         />
@@ -151,7 +151,7 @@ function forwardRemoveGroup(cid: string, gid: string): void { emit('remove-group
           ref="addGroupInputEl"
           v-model="newGroupTitle"
           placeholder="Group name…"
-          class="bg-transparent border-b border-zinc-700 focus:border-violet-500 outline-none text-zinc-200 py-0.5 placeholder:text-zinc-600 transition-colors flex-1 text-sm font-medium"
+          class="bg-transparent border-b border-border focus:border-primary outline-none text-fg py-0.5 placeholder:text-fg-4 transition-colors flex-1 text-sm font-medium"
           @keydown="onAddGroupKeydown"
           @blur="cancelAddGroup"
         />
@@ -160,13 +160,13 @@ function forwardRemoveGroup(cid: string, gid: string): void { emit('remove-group
       <!-- Add buttons -->
       <div v-if="!isAddingItem && !isAddingGroup" class="flex items-center gap-3 mt-1">
         <button
-          class="text-xs text-zinc-700 hover:text-zinc-400 transition-colors"
+          class="text-xs text-fg-4 hover:text-fg-3 transition-colors"
           @click="startAddItem"
         >
           + item
         </button>
         <button
-          class="text-xs text-zinc-700 hover:text-zinc-400 transition-colors"
+          class="text-xs text-fg-4 hover:text-fg-3 transition-colors"
           @click="startAddGroup"
         >
           + group

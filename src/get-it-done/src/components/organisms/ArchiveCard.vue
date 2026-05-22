@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import type { Checklist, ChecklistItem, ChecklistNode } from '../../types'
 import KindBadge from '../molecules/KindBadge.vue'
-import AppButton from '../atoms/AppButton.vue'
+import VButton from '../atoms/VButton.vue'
 
 const props = defineProps<{
   checklist: Checklist
@@ -33,29 +33,29 @@ function formatDate(iso: string | null): string {
 </script>
 
 <template>
-  <div class="bg-zinc-900/50 border border-zinc-800/60 rounded-xl p-4">
+  <div class="bg-bg-1/50 border border-hairline/60 rounded-xl p-4">
     <!-- Header -->
     <div class="flex items-center gap-2 min-w-0">
       <button
-        class="text-zinc-700 hover:text-zinc-400 transition-colors w-4 shrink-0 text-left"
+        class="text-fg-4 hover:text-fg-3 transition-colors w-4 shrink-0 text-left"
         @click="isExpanded = !isExpanded"
       >
         {{ isExpanded ? '▾' : '▸' }}
       </button>
 
-      <span class="text-zinc-500 truncate flex-1">
+      <span class="text-fg-4 truncate flex-1">
         {{ checklist.runLabel ?? checklist.title }}
       </span>
 
       <KindBadge :kind="checklist.kind" />
 
-      <span v-if="checklist.archivedAt" class="text-zinc-700 shrink-0">
+      <span v-if="checklist.archivedAt" class="text-fg-4 shrink-0">
         {{ formatDate(checklist.archivedAt) }}
       </span>
 
       <div class="flex items-center gap-1 shrink-0">
-        <AppButton variant="ghost" @click="$emit('unarchive', checklist.id)">Restore</AppButton>
-        <AppButton variant="danger" @click="$emit('delete', checklist.id)">Delete</AppButton>
+        <VButton variant="ghost" @click="$emit('unarchive', checklist.id)">Restore</VButton>
+        <VButton variant="danger" @click="$emit('delete', checklist.id)">Delete</VButton>
       </div>
     </div>
 
@@ -70,10 +70,10 @@ function formatDate(iso: string | null): string {
           type="checkbox"
           :checked="item.done"
           disabled
-          class="accent-violet-500 w-4 h-4 shrink-0 opacity-40 cursor-not-allowed"
+          class="accent-primary w-4 h-4 shrink-0 opacity-40 cursor-not-allowed"
         />
         <span
-          class="text-zinc-600"
+          class="text-fg-4"
           :class="item.done ? 'line-through' : ''"
         >
           {{ item.text }}

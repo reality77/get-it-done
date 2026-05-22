@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import type { ChecklistKind } from '../../types'
-import AppBadge from '../atoms/AppBadge.vue'
+import VBadge from '../atoms/VBadge.vue'
 
 defineProps<{
   kind: ChecklistKind
 }>()
 
-const colorMap: Record<ChecklistKind, string> = {
-  'one-time': 'bg-zinc-800 text-zinc-400',
-  'template':  'bg-violet-900/40 text-violet-300',
-  'run':       'bg-blue-900/40 text-blue-300',
+const variantMap: Record<ChecklistKind, 'neutral' | 'primary' | 'info'> = {
+  'one-time': 'neutral',
+  'template': 'primary',
+  'run':      'info',
 }
 </script>
 
 <template>
-  <AppBadge pill :class="colorMap[kind]">{{ kind }}</AppBadge>
+  <VBadge :variant="variantMap[kind]">{{ kind }}</VBadge>
 </template>

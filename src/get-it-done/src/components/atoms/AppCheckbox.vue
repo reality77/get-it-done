@@ -18,7 +18,7 @@ defineEmits<{
       type="checkbox"
       :checked="modelValue"
       :disabled="disabled"
-      class="accent-violet-500 w-4 h-4 pointer-events-none"
+      class="accent-primary w-4 h-4 pointer-events-none"
       :class="disabled ? 'opacity-50' : ''"
       @change="$emit('update:modelValue', ($event.target as HTMLInputElement).checked)"
     />

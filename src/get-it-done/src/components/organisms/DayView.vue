@@ -25,7 +25,7 @@ function dayActions(taskRef: TrackedItemRef) {
 function activeSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: '✓ Complete',
-    bgClass: 'bg-green-700',
+    bgClass: 'bg-success',
     onTrigger: () => store.toggleItem(refToId(taskRef)),
   }
 }
@@ -33,7 +33,7 @@ function activeSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
 function activeSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: '✕ Remove from day',
-    bgClass: 'bg-zinc-700',
+    bgClass: 'bg-bg-3',
     onTrigger: () => store.toggleItemDayPlan(refToId(taskRef)),
   }
 }
@@ -41,7 +41,7 @@ function activeSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
 function completedSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: '↩ Uncomplete',
-    bgClass: 'bg-amber-700',
+    bgClass: 'bg-warning',
     onTrigger: () => store.toggleItem(refToId(taskRef)),
   }
 }
@@ -81,10 +81,10 @@ function dismissCelebration(): void {
     />
 
     <div v-if="items.length === 0 && completedItems.length === 0" class="text-center py-12">
-      <p class="text-zinc-500 text-sm mb-2">No tasks planned for today</p>
-      <p class="text-zinc-500 text-xs">
-        Click <strong class="text-zinc-500">Suggest</strong> to auto-pick tasks,
-        or go to the <strong class="text-zinc-500">Week</strong> view to select manually.
+      <p class="text-fg-4 text-sm mb-2">No tasks planned for today</p>
+      <p class="text-fg-4 text-xs">
+        Click <strong class="text-fg-4">Suggest</strong> to auto-pick tasks,
+        or go to the <strong class="text-fg-4">Week</strong> view to select manually.
       </p>
     </div>
 
@@ -113,7 +113,7 @@ function dismissCelebration(): void {
 
     <!-- Completed items — shown at the bottom -->
     <div v-if="completedItems.length > 0" class="mt-6">
-      <p class="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1 px-2">
+      <p class="text-xs font-medium text-fg-4 uppercase tracking-wider mb-1 px-2">
         Completed
       </p>
       <div class="space-y-1 opacity-75">
@@ -143,7 +143,7 @@ function dismissCelebration(): void {
     <Transition name="celebrate">
       <div
         v-if="showCelebration"
-        class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950/90 backdrop-blur-sm cursor-pointer"
+        class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-bg-0/90 backdrop-blur-sm cursor-pointer"
         @click="dismissCelebration"
       >
         <!-- Confetti particles -->
@@ -163,9 +163,9 @@ function dismissCelebration(): void {
         <!-- Message -->
         <div class="relative text-center px-8 select-none">
           <p class="text-6xl mb-4 celebrate-bounce">🏆</p>
-          <h2 class="text-2xl font-bold text-zinc-100 mb-2">All done!</h2>
-          <p class="text-zinc-400 text-sm">You crushed today's plan.</p>
-          <p class="text-zinc-500 text-xs mt-6">Tap to dismiss</p>
+          <h2 class="text-2xl font-bold text-fg mb-2">All done!</h2>
+          <p class="text-fg-3 text-sm">You crushed today's plan.</p>
+          <p class="text-fg-4 text-xs mt-6">Tap to dismiss</p>
         </div>
       </div>
     </Transition>

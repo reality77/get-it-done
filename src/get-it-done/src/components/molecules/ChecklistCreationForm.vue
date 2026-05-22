@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import AppInput from '../atoms/AppInput.vue'
-import AppButton from '../atoms/AppButton.vue'
+import VField from '../atoms/VField.vue'
+import VButton from '../atoms/VButton.vue'
 
 defineProps<{
   placeholder?: string
@@ -24,8 +24,8 @@ function confirm(): void {
 <template>
   <div class="flex mb-4">
     <form @submit.prevent="confirm" class="flex items-center gap-2 justify-end w-full">
-      <AppInput v-model="newName" :placeholder="placeholder ?? 'New checklist'" @blur="confirm" />
-      <AppButton v-if="newName" variant="primary" type="submit">Create</AppButton>
+      <VField v-model="newName" :placeholder="placeholder ?? 'New checklist'" @blur="confirm" />
+      <VButton v-if="newName" variant="primary" type="submit">Create</VButton>
     </form>
   </div>
 </template>

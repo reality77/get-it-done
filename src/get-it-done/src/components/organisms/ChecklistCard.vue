@@ -6,7 +6,7 @@ import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
 import { useChecklistStore } from '../../stores/checklists'
 import { countItems, countDone } from '../../composables/useTreeHelpers'
 import KindBadge from '../molecules/KindBadge.vue'
-import AppButton from '../atoms/AppButton.vue'
+import VButton from '../atoms/VButton.vue'
 import ItemRow from '../molecules/ItemRow.vue'
 import ItemGroup from '../molecules/ItemGroup.vue'
 import TrackButton from '../molecules/TrackButton.vue'
@@ -137,17 +137,17 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
     <!-- Yellow archive hint revealed as card slides left -->
     <div
       v-if="checklist.kind !== 'template'"
-      class="absolute inset-0 bg-yellow-400 flex items-center justify-end px-4 pointer-events-none"
+      class="absolute inset-0 bg-warning flex items-center justify-end px-4 pointer-events-none"
       :style="{ opacity: archiveProgress * 0.9 }"
     >
-      <span class="text-yellow-950 text-sm font-medium">🗄 Archive</span>
+      <span class="text-bg-0 text-sm font-medium">🗄 Archive</span>
     </div>
 
   <!-- Sliding card content -->
   <div
     class="border rounded-xl p-4 transition-colors"
     :class="[
-      isComplete ? 'bg-yellow-950 border-yellow-400' : 'bg-zinc-900 border-zinc-800',
+      isComplete ? 'bg-warning/20 border-warning' : 'bg-bg-1 border-hairline',
       animateComplete ? 'card-complete' : '',
       !isCardSwiping ? 'transition-transform duration-200' : '',
     ]"
@@ -156,20 +156,20 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
     <!-- Header -->
     <div ref="cardHeaderEl" class="flex items-center gap-2 min-w-0">
       <button
-        class="text-zinc-400 hover:text-zinc-300 transition-colors text-lg w-4 shrink-0 text-left"
+        class="text-fg-3 hover:text-fg-2 transition-colors text-lg w-4 shrink-0 text-left"
         @click="isExpanded = !isExpanded"
       >
         {{ isExpanded ? '▾' : '▸' }}
       </button>
 
-      <span class="font-medium text-lg text-zinc-100 truncate flex-1">{{ displayTitle }}</span>
+      <span class="font-medium text-lg text-fg truncate flex-1">{{ displayTitle }}</span>
 
       <span class="hidden sm:contents"><KindBadge :kind="checklist.kind" /></span>
 
       <Transition name="check">
         <span
           v-if="isComplete"
-          class="text-green-400 shrink-0 text-base"
+          class="text-success shrink-0 text-base"
           title="All done!"
         >✓</span>
       </Transition>
@@ -178,14 +178,14 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
       <div class="flex items-center gap-3 shrink-0">
         <!-- Track as tasks toggle -->
         <TrackButton :checklist="checklist" />
-        <AppButton
+        <VButton
           v-if="checklist.kind === 'template'"
           variant="primary"
           @click="$emit('run', checklist.id)"
         >
           ▷
-        </AppButton>
-        <AppButton
+        </VButton>
+        <VButton
           v-if="checklist.kind !== 'template'"
           variant="ghost"
           class="font-bold hidden sm:inline-flex"
@@ -193,19 +193,19 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
           @click="$emit('archive', checklist.id)"
         >
           🗄
-        </AppButton>
-        <AppButton v-if="props.checklist.archived === true"
-          variant="danger" @click="$emit('delete', checklist.id)">Delete</AppButton>
+        </VButton>
+        <VButton v-if="props.checklist.archived === true"
+          variant="danger" @click="$emit('delete', checklist.id)">Delete</VButton>
       </div>
     </div>
 
     <!-- Progress bar -->
     <div
       v-if="!isComplete && checklist.kind !== 'template' && totalCount > 0"
-      class="mt-2 h-1 bg-zinc-800 rounded-full overflow-hidden"
+      class="mt-2 h-1 bg-bg-2 rounded-full overflow-hidden"
     >
       <div
-        class="h-full bg-violet-500 rounded-full transition-all duration-300"
+        class="h-full bg-primary rounded-full transition-all duration-300"
         :style="{ width: `${progressPct}%` }"
       />
     </div>
@@ -245,7 +245,7 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
           ref="addItemInputEl"
           v-model="newItemText"
           placeholder="New item…"
-          class="bg-transparent border-b border-zinc-700 focus:border-violet-500 outline-none text-zinc-100 py-0.5 placeholder:text-zinc-500 transition-colors flex-1"
+          class="bg-transparent border-b border-border focus:border-primary outline-none text-fg py-0.5 placeholder:text-fg-4 transition-colors flex-1"
           @keydown="onAddItemKeydown"
           @blur="cancelAddItem"
         />
@@ -257,7 +257,7 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
           ref="addGroupInputEl"
           v-model="newGroupTitle"
           placeholder="Group name…"
-          class="bg-transparent border-b border-zinc-700 focus:border-violet-500 outline-none text-zinc-200 py-0.5 placeholder:text-zinc-500 transition-colors flex-1 font-medium"
+          class="bg-transparent border-b border-border focus:border-primary outline-none text-fg py-0.5 placeholder:text-fg-4 transition-colors flex-1 font-medium"
           @keydown="onAddGroupKeydown"
           @blur="cancelAddGroup"
         />
@@ -266,13 +266,13 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
       <!-- Footer buttons -->
       <div v-if="!isAddingItem && !isAddingGroup" class="flex items-center gap-4 mt-2">
         <button
-          class="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+          class="text-xs text-fg-4 hover:text-fg-2 transition-colors"
           @click="startAddItem"
         >
           + Add item
         </button>
         <button
-          class="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+          class="text-xs text-fg-4 hover:text-fg-2 transition-colors"
           @click="startAddGroup"
         >
           + Add group

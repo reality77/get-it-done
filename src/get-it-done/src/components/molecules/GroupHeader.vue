@@ -24,7 +24,7 @@ const onKeydown = makeKeydownHandler(confirmEdit, cancelEdit)
 <template>
   <div class="flex items-center gap-1.5 py-1 group/header">
     <button
-      class="text-zinc-400 hover:text-zinc-300 transition-colors text-xs w-3 shrink-0 text-left"
+      class="text-fg-3 hover:text-fg-2 transition-colors text-xs w-3 shrink-0 text-left"
       @click="emit('toggle-collapsed')"
     >
       {{ collapsed ? '▸' : '▾' }}
@@ -34,20 +34,20 @@ const onKeydown = makeKeydownHandler(confirmEdit, cancelEdit)
       v-if="isEditing"
       v-focus
       v-model="editText"
-      class="bg-transparent border-b border-zinc-700 focus:border-violet-500 outline-none text-zinc-200 text-sm py-0 flex-1 font-medium"
+      class="bg-transparent border-b border-border focus:border-primary outline-none text-fg text-sm py-0 flex-1 font-medium"
       @keydown="onKeydown"
       @blur="confirmEdit"
     />
     <span
       v-else
-      class="text-zinc-400 text-sm font-medium cursor-text select-none flex-1 truncate"
+      class="text-fg-3 text-sm font-medium cursor-text select-none flex-1 truncate"
       @click="startEdit()"
     >
       {{ title }}
     </span>
 
     <button
-      class="opacity-0 group-hover/header:opacity-100 text-zinc-500 hover:text-red-400 transition-all text-xs shrink-0 cursor-pointer"
+      class="opacity-0 group-hover/header:opacity-100 text-fg-4 hover:text-danger transition-all text-xs shrink-0 cursor-pointer"
       @click="emit('remove')"
     >
       ✕

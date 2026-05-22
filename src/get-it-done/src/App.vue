@@ -135,10 +135,10 @@ function handleCompleteReview(): void {
 
 const syncStatusClasses: Record<string, string> = {
   synced:       'bg-green-500',
-  syncing:      'bg-violet-400 animate-pulse',
-  offline:      'bg-zinc-600',
-  pending:      'bg-orange-400',
-  unauthorized: 'bg-red-500',
+  syncing:      'bg-primary animate-pulse',
+  offline:      'bg-bg-3',
+  pending:      'bg-secondary',
+  unauthorized: 'bg-danger',
 }
 
 const syncStatusTitles: Record<string, string> = {
@@ -152,10 +152,10 @@ const syncStatusTitles: Record<string, string> = {
 
 <template>
   <header class="mb-8 flex items-center justify-between">
-    <h1 class="text-2xl font-semibold tracking-tight text-zinc-100">get-it-done</h1>
+    <h1 class="text-2xl font-semibold tracking-tight text-fg">get-it-done</h1>
     <div class="flex items-center gap-3">
       <button
-        class="text-zinc-500 hover:text-zinc-200 transition-colors"
+        class="text-fg-4 hover:text-fg transition-colors"
         title="Notification settings"
         @click="notificationsOpen = true"
       >
@@ -171,7 +171,7 @@ const syncStatusTitles: Record<string, string> = {
         :title="syncStatusTitles[syncStatus]"
       />
       <button v-else
-        class="text-zinc-400 hover:text-zinc-200 transition-colors"
+        class="text-fg-3 hover:text-fg transition-colors"
         @click="loginPrompted = true">
         Log in
       </button>
@@ -232,12 +232,12 @@ const syncStatusTitles: Record<string, string> = {
 
   <div
     v-if="writeError"
-    class="fixed bottom-20 md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-red-950 border border-red-700 text-red-200 px-4 py-3 rounded-lg flex items-start gap-3 z-50 shadow-lg"
+    class="fixed bottom-20 md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-danger/20 border border-red-700 text-red-200 px-4 py-3 rounded-lg flex items-start gap-3 z-50 shadow-lg"
     role="alert"
   >
     <span class="text-sm flex-1">{{ writeError }}</span>
     <button
-      class="text-red-400 hover:text-red-200 transition-colors shrink-0 text-lg leading-none"
+      class="text-danger hover:text-red-200 transition-colors shrink-0 text-lg leading-none"
       aria-label="Dismiss"
       @click="checklistStore.clearWriteError()"
     >×</button>

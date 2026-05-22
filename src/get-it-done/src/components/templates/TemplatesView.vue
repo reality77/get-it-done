@@ -20,7 +20,7 @@ defineEmits<{
   <div>
     <ChecklistCreationForm placeholder="New checklist template" @create="(name) => $emit('create', name)" />
 
-    <p v-if="templates.length === 0" class="text-center text-zinc-600 py-12">
+    <p v-if="templates.length === 0" class="text-center text-fg-4 py-12">
       No templates yet. Create one to reuse a checklist multiple times.
     </p>
 

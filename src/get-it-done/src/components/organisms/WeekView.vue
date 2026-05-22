@@ -37,9 +37,9 @@ const mode = ref<WeekMode>("planning");
 
 const sections: { priority: TaskPriority; label: string; dotColor: string; borderColor: string }[] =
   [
-    { priority: "urgent",    label: "Urgent",    dotColor: "bg-red-500",    borderColor: "border-red-500/50" },
-    { priority: "important", label: "Important", dotColor: "bg-yellow-500", borderColor: "border-yellow-500/50" },
-    { priority: "secondary", label: "Secondary", dotColor: "bg-zinc-500",   borderColor: "border-zinc-500/50" },
+    { priority: "urgent",    label: "Urgent",    dotColor: "bg-danger",    borderColor: "border-danger/50" },
+    { priority: "important", label: "Important", dotColor: "bg-warning", borderColor: "border-warning/50" },
+    { priority: "secondary", label: "Secondary", dotColor: "bg-fg-4",   borderColor: "border-border-strong/50" },
   ];
 
 /** Group items within a priority section by their checklist title */
@@ -119,7 +119,7 @@ const touchTargetPriority = ref<TaskPriority | null>(null);
 function weekSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: '💤 Next week',
-    bgClass: 'bg-amber-700',
+    bgClass: 'bg-warning',
     onTrigger: () => {
       const d = new Date()
       d.setDate(d.getDate() + (1 + 7 - d.getDay()) % 7 || 7)
@@ -131,7 +131,7 @@ function weekSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
 function weekSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: 'Add to today',
-    bgClass: 'bg-green-600',
+    bgClass: 'bg-success',
     onTrigger: () => store.toggleItemDayPlan(refToId(taskRef)),
   }
 }
@@ -151,13 +151,13 @@ function weekActions(taskRef: TrackedItemRef) {
 <template>
   <div class="space-y-6">
     <!-- Mode toggle -->
-    <div class="flex items-center gap-1 bg-zinc-800/60 rounded-lg p-1 w-fit">
+    <div class="flex items-center gap-1 bg-bg-2/60 rounded-lg p-1 w-fit">
       <button
         class="px-3 py-1 text-xs font-medium rounded-md transition-colors"
         :class="
           mode === 'planning'
-            ? 'bg-violet-600 text-white'
-            : 'text-zinc-400 hover:text-zinc-200'
+            ? 'bg-primary text-white'
+            : 'text-fg-3 hover:text-fg'
         "
         @click="mode = 'planning'"
       >
@@ -167,8 +167,8 @@ function weekActions(taskRef: TrackedItemRef) {
         class="px-3 py-1 text-xs font-medium rounded-md transition-colors"
         :class="
           mode === 'completion'
-            ? 'bg-violet-600 text-white'
-            : 'text-zinc-400 hover:text-zinc-200'
+            ? 'bg-primary text-white'
+            : 'text-fg-3 hover:text-fg'
         "
         @click="mode = 'completion'"
       >
@@ -183,7 +183,7 @@ function weekActions(taskRef: TrackedItemRef) {
       class="rounded-xl transition-colors duration-150"
       :class="(dragOverPriority === section.priority && dragging?.fromPriority !== section.priority) ||
               (touchTargetPriority === section.priority && touchDragging?.fromPriority !== section.priority)
-        ? ['border-2', section.borderColor, 'bg-zinc-800/40']
+        ? ['border-2', section.borderColor, 'bg-bg-2/40']
         : 'border-2 border-transparent'"
       @dragover.prevent
       @dragenter="onDragEnter(section.priority)"
@@ -194,11 +194,11 @@ function weekActions(taskRef: TrackedItemRef) {
       <div class="flex items-center gap-2 mb-2">
         <span class="w-2 h-2 rounded-full shrink-0" :class="section.dotColor" />
         <button
-          class="flex-1 text-left text-sm font-semibold text-zinc-300 hover:text-zinc-100 transition-colors cursor-pointer"
+          class="flex-1 text-left text-sm font-semibold text-fg-2 hover:text-fg transition-colors cursor-pointer"
           @click="collapsed[section.priority] = !collapsed[section.priority]"
         >
           {{ section.label }}
-          <span class="text-zinc-600 font-normal ml-1">
+          <span class="text-fg-4 font-normal ml-1">
             ({{ itemsByPriority[section.priority].length }})
           </span>
         </button>
@@ -208,7 +208,7 @@ function weekActions(taskRef: TrackedItemRef) {
       <div
         v-if="(dragOverPriority === section.priority && dragging?.fromPriority !== section.priority) ||
               (touchTargetPriority === section.priority && touchDragging?.fromPriority !== section.priority)"
-        class="text-xs font-medium text-zinc-400 pl-4 pb-2 pointer-events-none select-none"
+        class="text-xs font-medium text-fg-3 pl-4 pb-2 pointer-events-none select-none"
       >
         ↓ Drop here to mark as {{ section.label }}
       </div>
@@ -217,7 +217,7 @@ function weekActions(taskRef: TrackedItemRef) {
       <div v-if="!collapsed[section.priority]" class="space-y-3">
         <div
           v-if="itemsByPriority[section.priority].length === 0"
-          class="text-xs text-zinc-600 py-2"
+          class="text-xs text-fg-4 py-2"
         >
           No {{ section.label.toLowerCase() }} items
         </div>
@@ -227,11 +227,11 @@ function weekActions(taskRef: TrackedItemRef) {
             itemsByPriority[section.priority],
           )"
           :key="clTitle"
-          class="rounded-lg border border-zinc-700/50 bg-zinc-800/20"
+          class="rounded-lg border border-border/50 bg-bg-2/20"
         >
           <!-- Checklist group header -->
-          <div class="px-3 py-1.5 border-b border-zinc-700/40 bg-zinc-800/40 rounded-t-lg">
-            <span class="text-xs font-semibold text-zinc-200 truncate">{{ clTitle }}</span>
+          <div class="px-3 py-1.5 border-b border-border/40 bg-bg-2/40 rounded-t-lg">
+            <span class="text-xs font-semibold text-fg truncate">{{ clTitle }}</span>
           </div>
           <!-- Task cards -->
           <div class="p-1.5 space-y-0.5">
@@ -242,8 +242,8 @@ function weekActions(taskRef: TrackedItemRef) {
               :class="[
                 dragging?.itemId === ref.item.id || touchDragging?.itemId === ref.item.id ? 'opacity-40'
                   : isDismissed(ref) ? 'opacity-65' : '',
-                mode === 'planning' && ref.item.selectedForToday ? 'border-violet-500'
-                  : isDismissed(ref) ? 'border-zinc-600' : 'border-transparent',
+                mode === 'planning' && ref.item.selectedForToday ? 'border-primary'
+                  : isDismissed(ref) ? 'border-border' : 'border-transparent',
               ]"
               :title="isDismissed(ref) ? 'Excluded from today\'s suggestion' : undefined"
               draggable="true"

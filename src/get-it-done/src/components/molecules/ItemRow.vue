@@ -46,7 +46,7 @@ const { isSwiping, style: rowStyle, leftProgress: deleteProgress } = useSwipeAct
   <div ref="rowEl" class="relative overflow-hidden rounded">
     <!-- Red delete hint revealed as item slides left -->
     <div
-      class="absolute inset-0 bg-red-400 flex items-center justify-end px-3 pointer-events-none"
+      class="absolute inset-0 bg-danger flex items-center justify-end px-3 pointer-events-none"
       :style="{ opacity: deleteProgress * 0.85 }"
     >
       <span class="text-white text-xs font-medium">Delete</span>
@@ -64,7 +64,7 @@ const { isSwiping, style: rowStyle, leftProgress: deleteProgress } = useSwipeAct
         v-if="isEditing"
         v-focus
         v-model="editText"
-        class="bg-transparent border-b border-zinc-700 focus:border-violet-500 outline-none text-zinc-100 text-sm py-0.5 transition-colors flex-1"
+        class="bg-transparent border-b border-border focus:border-primary outline-none text-fg text-sm py-0.5 transition-colors flex-1"
         @keydown="onKeydown"
         @blur="confirmEdit"
       />
@@ -72,7 +72,7 @@ const { isSwiping, style: rowStyle, leftProgress: deleteProgress } = useSwipeAct
       <span
         v-else
         class="flex-1 cursor-text min-w-0 break-words"
-        :class="item.done ? 'line-through text-zinc-500' : 'text-zinc-300'"
+        :class="item.done ? 'line-through text-fg-4' : 'text-fg-2'"
         @click="startEdit"
       >
         {{ item.text }}
@@ -82,23 +82,23 @@ const { isSwiping, style: rowStyle, leftProgress: deleteProgress } = useSwipeAct
       <template v-if="tracked && !item.done">
         <span
           v-if="item.status === 'snoozed'"
-          class="text-[10px] px-1 py-0.5 rounded bg-yellow-950 text-yellow-400 shrink-0"
+          class="text-[10px] px-1 py-0.5 rounded bg-warning/20 text-warning shrink-0"
           title="Snoozed"
         >💤</span>
         <span
           v-if="item.status === 'someday'"
-          class="text-[10px] px-1 py-0.5 rounded bg-zinc-800 text-zinc-400 shrink-0"
+          class="text-[10px] px-1 py-0.5 rounded bg-bg-2 text-fg-3 shrink-0"
           title="Someday"
         >☁</span>
         <span
           v-if="item.selectedForToday"
-          class="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0"
+          class="w-1.5 h-1.5 rounded-full bg-primary shrink-0"
           title="Selected for today"
         />
       </template>
 
       <button
-        class="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-all text-xs shrink-0 cursor-pointer hidden sm:block"
+        class="opacity-0 group-hover:opacity-100 text-fg-4 hover:text-danger transition-all text-xs shrink-0 cursor-pointer hidden sm:block"
         @click="$emit('remove')"
       >
         ✕

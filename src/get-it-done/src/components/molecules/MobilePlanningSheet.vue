@@ -62,9 +62,9 @@ const pendingPriority = ref<TaskPriority | undefined>(props.item.priority)
 const pendingEffort = ref<TaskEffort | undefined>(props.item.effort)
 
 const PRIORITIES: { value: TaskPriority; label: string; color: string }[] = [
-  { value: 'urgent',    label: 'Urgent',    color: 'bg-red-500/20 text-red-400 border-red-500/40' },
-  { value: 'important', label: 'Important', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40' },
-  { value: 'secondary', label: 'Secondary', color: 'bg-zinc-700/60 text-zinc-400 border-zinc-600' },
+  { value: 'urgent',    label: 'Urgent',    color: 'bg-danger/20 text-danger border-danger/40' },
+  { value: 'important', label: 'Important', color: 'bg-warning/20 text-warning border-warning/40' },
+  { value: 'secondary', label: 'Secondary', color: 'bg-bg-3/60 text-fg-3 border-border' },
 ]
 
 const EFFORTS: { value: TaskEffort; label: string }[] = [
@@ -226,10 +226,10 @@ const effortSummary = computed(() => {
 })
 
 const priorityColor = computed(() => {
-  if (pendingPriority.value === 'urgent')    return 'bg-red-500/20 text-red-400 border-red-500/40'
-  if (pendingPriority.value === 'important') return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40'
-  if (pendingPriority.value === 'secondary') return 'bg-zinc-700/60 text-zinc-400 border-zinc-600'
-  return 'text-zinc-600 border-transparent'
+  if (pendingPriority.value === 'urgent')    return 'bg-danger/20 text-danger border-danger/40'
+  if (pendingPriority.value === 'important') return 'bg-warning/20 text-warning border-warning/40'
+  if (pendingPriority.value === 'secondary') return 'bg-bg-3/60 text-fg-3 border-border'
+  return 'text-fg-4 border-transparent'
 })
 
 // ── Confirm / Delete ──────────────────────────────────────────────────────────
@@ -272,12 +272,12 @@ function deleteItem(): void {
 
 <template>
   <!-- Editable title -->
-  <div class="border-b border-zinc-800 pb-3 mb-1">
+  <div class="border-b border-hairline pb-3 mb-1">
     <input
       v-if="isEditingTitle"
       v-focus
       v-model="pendingText"
-      class="w-full bg-transparent text-sm font-medium text-zinc-200 outline-none border-b border-violet-500 pb-0.5 transition-colors"
+      class="w-full bg-transparent text-sm font-medium text-fg outline-none border-b border-primary pb-0.5 transition-colors"
       @keydown.enter.prevent="stopTitleEdit"
       @keydown.escape.prevent="cancelTitleEdit"
       @blur="stopTitleEdit"
@@ -287,8 +287,8 @@ function deleteItem(): void {
       class="w-full text-left flex items-center justify-between gap-2 group"
       @click="startTitleEdit"
     >
-      <span class="text-sm font-medium text-zinc-200 truncate">{{ pendingText }}</span>
-      <span class="shrink-0 text-zinc-600 group-hover:text-zinc-400 text-xs transition-colors">✏</span>
+      <span class="text-sm font-medium text-fg truncate">{{ pendingText }}</span>
+      <span class="shrink-0 text-fg-4 group-hover:text-fg-3 text-xs transition-colors">✏</span>
     </button>
   </div>
 
@@ -298,36 +298,36 @@ function deleteItem(): void {
     <!-- Deadline -->
     <div>
       <button
-        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-zinc-800/80 transition-colors"
-        :class="activeSection === 'deadline' ? 'bg-zinc-800/80' : ''"
+        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bg-2/80 transition-colors"
+        :class="activeSection === 'deadline' ? 'bg-bg-2/80' : ''"
         @click="toggleSection('deadline')"
       >
-        <span class="text-sm text-zinc-300">📅 Deadline</span>
-        <span class="text-sm" :class="pendingDeadlineDate ? 'text-violet-300' : 'text-zinc-600'">{{ deadlineSummary }}</span>
+        <span class="text-sm text-fg-2">📅 Deadline</span>
+        <span class="text-sm" :class="pendingDeadlineDate ? 'text-primary' : 'text-fg-4'">{{ deadlineSummary }}</span>
       </button>
       <div v-if="activeSection === 'deadline'" class="px-3 pb-3 pt-1 space-y-2">
         <div class="flex gap-2 items-center">
           <input
             type="date"
             v-model="pendingDeadlineDate"
-            class="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm text-zinc-300 focus:border-violet-500 focus:outline-none transition-colors"
+            class="flex-1 bg-bg-2 border border-border rounded-xl px-3 py-2.5 text-sm text-fg-2 focus:border-primary focus:outline-none transition-colors"
           />
           <button
             v-if="pendingDeadlineDate"
-            class="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+            class="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-fg-4 hover:text-fg-2 hover:bg-bg-2 transition-colors"
             @click="clearDeadline"
           >✕</button>
         </div>
         <div v-if="pendingDeadlineDate" class="flex items-center gap-3">
-          <label class="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer select-none">
-            <input type="checkbox" v-model="deadlineHasTime" class="accent-violet-500 rounded" />
+          <label class="flex items-center gap-1.5 text-xs text-fg-3 cursor-pointer select-none">
+            <input type="checkbox" v-model="deadlineHasTime" class="accent-primary rounded" />
             Add time
           </label>
           <input
             v-if="deadlineHasTime"
             type="time"
             v-model="pendingDeadlineTime"
-            class="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-300 focus:border-violet-500 focus:outline-none transition-colors"
+            class="bg-bg-2 border border-border rounded-xl px-3 py-2 text-sm text-fg-2 focus:border-primary focus:outline-none transition-colors"
           />
         </div>
       </div>
@@ -336,12 +336,12 @@ function deleteItem(): void {
     <!-- Reminders -->
     <div>
       <button
-        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-zinc-800/80 transition-colors"
-        :class="activeSection === 'reminders' ? 'bg-zinc-800/80' : ''"
+        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bg-2/80 transition-colors"
+        :class="activeSection === 'reminders' ? 'bg-bg-2/80' : ''"
         @click="toggleSection('reminders')"
       >
-        <span class="text-sm text-zinc-300">🔔 Reminders</span>
-        <span class="text-sm" :class="pendingReminders.length > 0 ? 'text-violet-300' : 'text-zinc-600'">{{ remindersSummary }}</span>
+        <span class="text-sm text-fg-2">🔔 Reminders</span>
+        <span class="text-sm" :class="pendingReminders.length > 0 ? 'text-primary' : 'text-fg-4'">{{ remindersSummary }}</span>
       </button>
       <div v-if="activeSection === 'reminders'" class="px-3 pb-3 pt-1 space-y-2">
         <div v-if="pendingReminders.length > 0" class="flex flex-wrap gap-1.5">
@@ -350,8 +350,8 @@ function deleteItem(): void {
             :key="r"
             class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg border"
             :class="isReminderPast(r)
-              ? 'bg-zinc-900 border-zinc-700 text-zinc-500'
-              : 'bg-violet-900/30 border-violet-700 text-violet-300'"
+              ? 'bg-bg-1 border-border text-fg-4'
+              : 'bg-primary/15 border-primary/50 text-primary'"
           >
             {{ formatReminder(r) }}
             <button class="ml-0.5 hover:text-white transition-colors" @click="removeReminder(r)">✕</button>
@@ -363,8 +363,8 @@ function deleteItem(): void {
             :key="preset.key"
             class="px-3 py-2 text-sm rounded-xl border transition-colors text-left"
             :class="isPresetSelected(preset)
-              ? 'bg-violet-600/30 border-violet-500 text-violet-200'
-              : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700'"
+              ? 'bg-primary/30 border-primary text-primary'
+              : 'bg-bg-2 border-border text-fg-2 hover:bg-bg-3'"
             @click="toggleReminder(preset)"
           >{{ preset.label }}</button>
         </div>
@@ -374,8 +374,8 @@ function deleteItem(): void {
             :key="preset.key"
             class="px-3 py-2 text-sm rounded-xl border transition-colors text-left"
             :class="isPresetSelected(preset)
-              ? 'bg-violet-600/30 border-violet-500 text-violet-200'
-              : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700'"
+              ? 'bg-primary/30 border-primary text-primary'
+              : 'bg-bg-2 border-border text-fg-2 hover:bg-bg-3'"
             @click="toggleReminder(preset)"
           >{{ preset.label }}</button>
         </div>
@@ -386,17 +386,17 @@ function deleteItem(): void {
     <div>
       <button
         v-if="itemStatus() !== 'active'"
-        class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-violet-600 bg-violet-600/20 text-violet-300 hover:bg-violet-600/30 transition-colors text-sm font-medium"
+        class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-primary bg-primary/20 text-primary hover:bg-primary/30 transition-colors text-sm font-medium"
         @click="store.activateItem(itemId); close()"
       >↩ Activate</button>
       <template v-else>
         <button
-          class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-zinc-800/80 transition-colors"
-          :class="activeSection === 'snooze' ? 'bg-zinc-800/80' : ''"
+          class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bg-2/80 transition-colors"
+          :class="activeSection === 'snooze' ? 'bg-bg-2/80' : ''"
           @click="toggleSection('snooze')"
         >
-          <span class="text-sm text-zinc-300">💤 Snooze</span>
-          <span class="text-sm" :class="(pendingSnoozeDate || pendingSomeday) ? 'text-amber-300' : 'text-zinc-600'">{{ snoozeSummary }}</span>
+          <span class="text-sm text-fg-2">💤 Snooze</span>
+          <span class="text-sm" :class="(pendingSnoozeDate || pendingSomeday) ? 'text-warning' : 'text-fg-4'">{{ snoozeSummary }}</span>
         </button>
         <div v-if="activeSection === 'snooze'" class="px-3 pb-3 pt-1 space-y-2">
           <div class="grid grid-cols-2 gap-2">
@@ -405,8 +405,8 @@ function deleteItem(): void {
               :key="opt.date"
               class="px-3 py-2.5 text-sm rounded-xl border transition-colors text-left"
               :class="pendingSnoozeDate === opt.date
-                ? 'bg-amber-600/30 border-amber-500 text-amber-200'
-                : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700'"
+                ? 'bg-warning/25 border-warning text-warning'
+                : 'bg-bg-2 border-border text-fg-2 hover:bg-bg-3'"
               @click="selectSnooze(opt.date)"
             >{{ opt.label }}</button>
           </div>
@@ -414,7 +414,7 @@ function deleteItem(): void {
             class="w-full px-3 py-2.5 text-sm rounded-xl border transition-colors text-left"
             :class="pendingSomeday
               ? 'bg-sky-600/30 border-sky-500 text-sky-200'
-              : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700'"
+              : 'bg-bg-2 border-border text-fg-2 hover:bg-bg-3'"
             @click="toggleSomeday"
           >☁ Someday</button>
         </div>
@@ -424,11 +424,11 @@ function deleteItem(): void {
     <!-- Priority -->
     <div v-if="pendingPriority !== undefined">
       <button
-        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-zinc-800/80 transition-colors"
-        :class="activeSection === 'priority' ? 'bg-zinc-800/80' : ''"
+        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bg-2/80 transition-colors"
+        :class="activeSection === 'priority' ? 'bg-bg-2/80' : ''"
         @click="toggleSection('priority')"
       >
-        <span class="text-sm text-zinc-300">Priority</span>
+        <span class="text-sm text-fg-2">Priority</span>
         <span class="text-xs font-medium px-2 py-0.5 rounded-lg border" :class="priorityColor">{{ prioritySummary }}</span>
       </button>
       <div v-if="activeSection === 'priority'" class="px-3 pb-3 pt-1">
@@ -437,7 +437,7 @@ function deleteItem(): void {
             v-for="p in PRIORITIES"
             :key="p.value"
             class="flex-1 py-2.5 text-xs font-medium border rounded-xl transition-colors"
-            :class="[p.color, pendingPriority === p.value ? 'ring-2 ring-violet-500' : '']"
+            :class="[p.color, pendingPriority === p.value ? 'ring-2 ring-primary' : '']"
             @click="pendingPriority = p.value"
           >{{ p.label }}</button>
         </div>
@@ -447,20 +447,20 @@ function deleteItem(): void {
     <!-- Effort -->
     <div v-if="pendingEffort !== undefined">
       <button
-        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-zinc-800/80 transition-colors"
-        :class="activeSection === 'effort' ? 'bg-zinc-800/80' : ''"
+        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bg-2/80 transition-colors"
+        :class="activeSection === 'effort' ? 'bg-bg-2/80' : ''"
         @click="toggleSection('effort')"
       >
-        <span class="text-sm text-zinc-300">Effort</span>
-        <span class="text-sm text-zinc-500">{{ effortSummary }}</span>
+        <span class="text-sm text-fg-2">Effort</span>
+        <span class="text-sm text-fg-4">{{ effortSummary }}</span>
       </button>
       <div v-if="activeSection === 'effort'" class="px-3 pb-3 pt-1">
         <div class="flex gap-2">
           <button
             v-for="e in EFFORTS"
             :key="e.value"
-            class="flex-1 py-2.5 text-xs font-medium border border-zinc-700 rounded-xl text-zinc-300 hover:bg-zinc-700 transition-colors"
-            :class="pendingEffort === e.value ? 'bg-zinc-600 ring-2 ring-violet-500' : 'bg-zinc-800'"
+            class="flex-1 py-2.5 text-xs font-medium border border-border rounded-xl text-fg-2 hover:bg-bg-3 transition-colors"
+            :class="pendingEffort === e.value ? 'bg-bg-3 ring-2 ring-primary' : 'bg-bg-2'"
             @click="pendingEffort = e.value"
           >{{ e.label }}</button>
         </div>
@@ -471,18 +471,18 @@ function deleteItem(): void {
 
   <!-- Delete -->
   <button
-    class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border border-red-800/60 bg-red-900/20 text-red-400 hover:bg-red-900/30 transition-colors"
+    class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border border-danger/40 bg-danger/15 text-danger hover:bg-danger/20 transition-colors"
     @click="deleteItem"
   >✕ Delete task</button>
 
   <!-- Cancel / OK -->
   <div class="flex gap-3 pt-1">
     <button
-      class="flex-1 py-3 text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors border border-zinc-700 rounded-xl"
+      class="flex-1 py-3 text-sm font-medium text-fg-3 hover:text-fg transition-colors border border-border rounded-xl"
       @click="close()"
     >Cancel</button>
     <button
-      class="flex-1 py-3 text-sm font-semibold bg-violet-600 hover:bg-violet-500 text-white rounded-xl transition-colors"
+      class="flex-1 py-3 text-sm font-semibold bg-primary hover:bg-primary text-white rounded-xl transition-colors"
       @click="confirm"
     >OK</button>
   </div>

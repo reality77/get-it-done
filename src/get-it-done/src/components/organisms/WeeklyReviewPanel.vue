@@ -3,7 +3,7 @@ import type { TrackedItemRef } from '../../types'
 import { makeStatusActions } from '../../composables/useTaskActions'
 import { useChecklistStore } from '../../stores/checklists'
 import TaskCard from '../molecules/TaskCard.vue'
-import AppButton from '../atoms/AppButton.vue'
+import VButton from '../atoms/VButton.vue'
 
 const props = defineProps<{
   snoozedItems: TrackedItemRef[]
@@ -34,23 +34,23 @@ function staleDays(ref: TrackedItemRef): number {
 </script>
 
 <template>
-  <div class="bg-zinc-900 border border-violet-800/40 rounded-xl p-4 mb-6">
+  <div class="bg-bg-1 border border-primary/25 rounded-xl p-4 mb-6">
     <div class="flex items-center justify-between mb-4">
       <div>
-        <h3 class="text-sm font-semibold text-zinc-100">Weekly Review</h3>
-        <p class="text-xs text-zinc-500 mt-0.5">Triage your snoozed and someday items</p>
+        <h3 class="text-sm font-semibold text-fg">Weekly Review</h3>
+        <p class="text-xs text-fg-4 mt-0.5">Triage your snoozed and someday items</p>
       </div>
-      <AppButton variant="ghost" class="text-xs" @click="$emit('dismiss')">Dismiss</AppButton>
+      <VButton variant="ghost" class="text-xs" @click="$emit('dismiss')">Dismiss</VButton>
     </div>
 
     <!-- Snoozed items -->
     <div v-if="snoozedItems.length > 0" class="mb-4">
-      <p class="text-xs text-zinc-500 mb-2 font-medium uppercase tracking-wide">Snoozed</p>
+      <p class="text-xs text-fg-4 mb-2 font-medium uppercase tracking-wide">Snoozed</p>
       <div class="space-y-1">
         <div v-for="ref in snoozedItems" :key="ref.item.id" class="relative">
           <div v-if="staleSnoozedIds.includes(ref.item.id)" class="flex items-center gap-1 mb-0.5">
-            <span class="text-yellow-500 text-xs">⚠</span>
-            <span class="text-xs text-yellow-600">Snoozed {{ staleDays(ref) }} days</span>
+            <span class="text-warning text-xs">⚠</span>
+            <span class="text-xs text-warning">Snoozed {{ staleDays(ref) }} days</span>
           </div>
           <TaskCard
             :item="ref.item"
@@ -65,7 +65,7 @@ function staleDays(ref: TrackedItemRef): number {
 
     <!-- Someday items -->
     <div v-if="somedayItems.length > 0" class="mb-4">
-      <p class="text-xs text-zinc-500 mb-2 font-medium uppercase tracking-wide">Someday</p>
+      <p class="text-xs text-fg-4 mb-2 font-medium uppercase tracking-wide">Someday</p>
       <div class="space-y-1">
         <TaskCard
           v-for="ref in somedayItems"
@@ -83,13 +83,13 @@ function staleDays(ref: TrackedItemRef): number {
 
     <div
       v-if="snoozedItems.length === 0 && somedayItems.length === 0"
-      class="text-sm text-zinc-500 mb-4"
+      class="text-sm text-fg-4 mb-4"
     >
       No snoozed or someday items to review.
     </div>
 
-    <AppButton variant="primary" @click="$emit('complete-review')">
+    <VButton variant="primary" @click="$emit('complete-review')">
       Mark review complete
-    </AppButton>
+    </VButton>
   </div>
 </template>

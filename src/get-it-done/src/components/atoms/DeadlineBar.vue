@@ -10,11 +10,11 @@ const bar = computed(() => {
   due.setHours(0, 0, 0, 0)
   const days = Math.ceil((due.getTime() - today.getTime()) / 86400000)
 
-  if (days <= 0)  return { width: 100, color: 'bg-red-600' }
-  if (days <= 3)  return { width: 90,  color: 'bg-orange-500' }
-  if (days <= 7)  return { width: 75,  color: 'bg-orange-400' }
-  if (days <= 14) return { width: 50,  color: 'bg-yellow-400' }
-  return           { width: 25,  color: 'bg-emerald-500' }
+  if (days <= 0)  return { width: 100, color: 'bg-danger' }
+  if (days <= 3)  return { width: 90,  color: 'bg-secondary' }
+  if (days <= 7)  return { width: 75,  color: 'bg-secondary' }
+  if (days <= 14) return { width: 50,  color: 'bg-warning' }
+  return           { width: 25,  color: 'bg-success' }
 })
 </script>
 

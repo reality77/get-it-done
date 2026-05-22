@@ -29,16 +29,16 @@ onUnmounted(() => {
 <template>
   <div
     ref="menuEl"
-    class="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-36"
+    class="bg-bg-1 border border-border rounded-lg shadow-xl py-1 min-w-36"
   >
     <button
       v-for="opt in options"
       :key="opt.date"
-      class="w-full text-left px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors cursor-pointer"
+      class="w-full text-left px-3 py-1.5 text-sm text-fg-2 hover:bg-bg-2 hover:text-fg transition-colors cursor-pointer"
       @click="$emit('pick', opt.date)"
     >
       {{ opt.label }}
-      <span class="text-zinc-500 text-xs ml-1">{{ opt.date }}</span>
+      <span class="text-fg-4 text-xs ml-1">{{ opt.date }}</span>
     </button>
   </div>
 </template>

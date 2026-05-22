@@ -24,7 +24,7 @@ function backlogActions(taskRef: TrackedItemRef) {
 function swipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: 'Add to week',
-    bgClass: 'bg-green-700',
+    bgClass: 'bg-success',
     onTrigger: () => store.activateItem(refToId(taskRef)),
   }
 }
@@ -32,7 +32,7 @@ function swipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
 function somedaySwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: '↩ Activate',
-    bgClass: 'bg-violet-700',
+    bgClass: 'bg-primary',
     onTrigger: () => store.activateItem(refToId(taskRef)),
   }
 }
@@ -40,7 +40,7 @@ function somedaySwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
 function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: 'Add to week',
-    bgClass: 'bg-green-700',
+    bgClass: 'bg-success',
     onTrigger: () => store.activateItem(refToId(taskRef)),
   }
 }
@@ -52,11 +52,11 @@ function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
 
     <!-- Snoozed -->
     <section>
-      <h3 class="text-sm font-semibold text-zinc-400 mb-2 flex items-center gap-2">
+      <h3 class="text-sm font-semibold text-fg-3 mb-2 flex items-center gap-2">
         <span>💤 Snoozed</span>
-        <span class="text-zinc-600 font-normal">({{ snoozedItems.length }})</span>
+        <span class="text-fg-4 font-normal">({{ snoozedItems.length }})</span>
       </h3>
-      <div v-if="snoozedItems.length === 0" class="text-xs text-zinc-600 py-2 pl-4">No snoozed tasks.</div>
+      <div v-if="snoozedItems.length === 0" class="text-xs text-fg-4 py-2 pl-4">No snoozed tasks.</div>
       <div v-else class="space-y-0.5">
         <TaskCard
           v-for="ref in snoozedItems"
@@ -81,11 +81,11 @@ function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
 
     <!-- Someday -->
     <section>
-      <h3 class="text-sm font-semibold text-zinc-400 mb-2 flex items-center gap-2">
+      <h3 class="text-sm font-semibold text-fg-3 mb-2 flex items-center gap-2">
         <span>☁ Someday</span>
-        <span class="text-zinc-600 font-normal">({{ somedayItems.length }})</span>
+        <span class="text-fg-4 font-normal">({{ somedayItems.length }})</span>
       </h3>
-      <div v-if="somedayItems.length === 0" class="text-xs text-zinc-600 py-2 pl-4">No someday tasks.</div>
+      <div v-if="somedayItems.length === 0" class="text-xs text-fg-4 py-2 pl-4">No someday tasks.</div>
       <div v-else class="space-y-0.5">
         <TaskCard
           v-for="ref in somedayItems"

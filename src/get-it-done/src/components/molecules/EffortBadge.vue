@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import type { TaskEffort } from '../../types'
-import AppBadge from '../atoms/AppBadge.vue'
+import VBadge from '../atoms/VBadge.vue'
 
 defineProps<{
   effort: TaskEffort
 }>()
 
-const colorMap: Record<TaskEffort, string> = {
-  small:  'text-emerald-400 bg-emerald-950',
-  medium: 'text-blue-400 bg-blue-950',
-  large:  'text-orange-400 bg-orange-950',
+const variantMap: Record<TaskEffort, 'success' | 'info' | 'secondary'> = {
+  small:  'success',
+  medium: 'info',
+  large:  'secondary',
 }
 
 const iconMap: Record<TaskEffort, string> = {
@@ -20,8 +20,8 @@ const iconMap: Record<TaskEffort, string> = {
 </script>
 
 <template>
-  <AppBadge :class="colorMap[effort]">
+  <VBadge :variant="variantMap[effort]">
     <span class="sm:hidden">{{ iconMap[effort] }}</span>
     <span class="hidden sm:inline">{{ effort }}</span>
-  </AppBadge>
+  </VBadge>
 </template>

@@ -10,9 +10,9 @@ defineProps<{
   <span
     class="inline-block w-2 h-2 rounded-full shrink-0"
     :class="{
-      'bg-red-500':    status === 'active',
-      'bg-yellow-500': status === 'snoozed',
-      'bg-zinc-500':   status === 'someday',
+      'bg-danger':    status === 'active',
+      'bg-warning': status === 'snoozed',
+      'bg-fg-4':   status === 'someday',
     }"
   />
 </template>
