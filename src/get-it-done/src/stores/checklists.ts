@@ -348,7 +348,11 @@ export const useChecklistStore = defineStore('checklists', () => {
   // ── Standalone tasks checklist ─────────────────────────────────────────────
 
   function ensureStandaloneChecklist(): void {
-    if (getChecklist(STANDALONE_CHECKLIST_ID)) return
+    const existing = getChecklist(STANDALONE_CHECKLIST_ID)
+    if (existing) {
+      if (!existing.tracked) enableTracking(STANDALONE_CHECKLIST_ID)
+      return
+    }
     const checklist: Checklist = {
       id: STANDALONE_CHECKLIST_ID,
       kind: 'one-time',
