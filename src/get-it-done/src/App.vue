@@ -12,6 +12,7 @@ import WeeklyReviewPanel from './components/organisms/WeeklyReviewPanel.vue'
 import PasswordPrompt from './components/organisms/PasswordPrompt.vue'
 import BottomNavBar from './components/organisms/BottomNavBar.vue'
 import NotificationSettings from './components/organisms/NotificationSettings.vue'
+import StandaloneTaskFab from './components/molecules/StandaloneTaskFab.vue'
 import { storeToRefs } from 'pinia'
 
 const activeTab = ref<'today' | 'week' | 'backlog' | 'checklists'>('today')
@@ -91,6 +92,7 @@ async function handleVisibilityChange(): Promise<void> {
 
 onMounted(async () => {
   await checklistStore.loadLocal()        // data available offline, before auth (#8)
+  checklistStore.ensureStandaloneChecklist()
   checklistStore.processDueSnoozed()      // now runs on real data (#4)
   checklistStore.refreshDayPlanIfStale()  // idem
   const result = await authStore.checkSession()
@@ -226,6 +228,8 @@ const syncStatusTitles: Record<string, string> = {
     :weekly-review-due="weeklyReviewDue"
     @change="activeTab = $event"
   />
+
+  <StandaloneTaskFab v-if="activeTab !== 'checklists'" />
 
   <PasswordPrompt v-if="loginPrompted" @cancel="loginPrompted = false" />
   <NotificationSettings v-if="notificationsOpen" @close="notificationsOpen = false" />

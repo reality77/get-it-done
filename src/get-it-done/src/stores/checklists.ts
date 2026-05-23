@@ -30,6 +30,9 @@ export type { SyncStatus } from '../composables/useSyncManager'
 export { countItems, countDone } from '../composables/useTreeHelpers'
 export { getSnoozeOptions } from '../composables/useSnoozeOptions'
 
+// Fixed ID for the standalone tasks checklist (hidden from checklist views)
+export const STANDALONE_CHECKLIST_ID = '00000000-0000-0000-0000-000000000001'
+
 // ── Store ─────────────────────────────────────────────────────────────────────
 
 export const useChecklistStore = defineStore('checklists', () => {
@@ -48,7 +51,7 @@ export const useChecklistStore = defineStore('checklists', () => {
 
   const activeChecklists = computed(() =>
     checklists.value
-      .filter(c => c.kind !== 'template' && !c.archived)
+      .filter(c => c.kind !== 'template' && !c.archived && c.id !== STANDALONE_CHECKLIST_ID)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   )
 
@@ -58,7 +61,7 @@ export const useChecklistStore = defineStore('checklists', () => {
 
   const archivedChecklists = computed(() =>
     checklists.value
-      .filter(c => c.archived)
+      .filter(c => c.archived && c.id !== STANDALONE_CHECKLIST_ID)
       .sort((a, b) => (b.archivedAt ?? '').localeCompare(a.archivedAt ?? ''))
   )
 
@@ -226,6 +229,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     }
     if (
       checklist.kind !== 'template' &&
+      checklist.id !== STANDALONE_CHECKLIST_ID &&
       countItems(checklist.items) > 0 &&
       countDone(checklist.items) === countItems(checklist.items)
     ) {
@@ -341,6 +345,28 @@ export const useChecklistStore = defineStore('checklists', () => {
     void sync.upsertChecklist(checklist)
   }
 
+  // ── Standalone tasks checklist ─────────────────────────────────────────────
+
+  function ensureStandaloneChecklist(): void {
+    if (getChecklist(STANDALONE_CHECKLIST_ID)) return
+    const checklist: Checklist = {
+      id: STANDALONE_CHECKLIST_ID,
+      kind: 'one-time',
+      title: 'Tasks',
+      items: [],
+      archived: false,
+      createdAt: new Date().toISOString(),
+      archivedAt: null,
+      templateId: null,
+      runLabel: null,
+      tracked: true,
+      defaultPriority: 'important',
+      defaultEffort: 'medium',
+    }
+    checklists.value.push(checklist)
+    void sync.upsertChecklist(checklist)
+  }
+
   // ── Public API ──────────────────────────────────────────────────────────────
 
   return {
@@ -404,6 +430,8 @@ export const useChecklistStore = defineStore('checklists', () => {
       const suggested = dayPlanning.suggestDayPlan()
       dayPlanning.setDayPlan(suggested)
     },
+    // Standalone tasks
+    ensureStandaloneChecklist,
     // Sync
     loadLocal: sync.loadLocal,
     initSync: sync.initSync,
