@@ -2,6 +2,7 @@
 import { ref, nextTick } from 'vue'
 import type { TaskPriority } from '../../types'
 import { useChecklistStore, STANDALONE_CHECKLIST_ID } from '../../stores/checklists'
+import VButton from '../atoms/VButton.vue'
 
 const store = useChecklistStore()
 
@@ -42,7 +43,7 @@ function submit(): void {
 <template>
   <!-- FAB button -->
   <button
-    class="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-40 w-14 h-14 rounded-full bg-primary hover:bg-primary/90 text-white shadow-xl flex items-center justify-center transition-transform active:scale-95"
+    class="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-40 w-14 h-14 rounded-full bg-primary hover:brightness-110 text-fg-on-primary shadow-xl flex items-center justify-center transition-[transform,filter] active:scale-95"
     aria-label="New task"
     @click="openSheet"
   >
@@ -84,15 +85,8 @@ function submit(): void {
         </div>
 
         <div class="flex gap-3">
-          <button
-            class="flex-1 py-3 text-sm font-medium text-fg-3 hover:text-fg transition-colors border border-border rounded-xl"
-            @click="close"
-          >Cancel</button>
-          <button
-            class="flex-1 py-3 text-sm font-semibold bg-primary hover:bg-primary/90 text-white rounded-xl transition-colors disabled:opacity-40"
-            :disabled="!text.trim()"
-            @click="submit"
-          >Add task</button>
+          <VButton variant="secondary" class="flex-1" @click="close">Cancel</VButton>
+          <VButton variant="primary" class="flex-1" :disabled="!text.trim()" @click="submit">Add task</VButton>
         </div>
       </div>
     </div>
