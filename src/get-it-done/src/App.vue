@@ -153,7 +153,7 @@ const syncStatusTitles: Record<string, string> = {
 </script>
 
 <template>
-  <header class="mb-8 flex items-center justify-between">
+  <header class="pt-8 mb-8 flex items-center justify-between shrink-0">
     <h1 class="text-2xl font-semibold tracking-tight text-fg">get-it-done</h1>
     <div class="flex items-center gap-3">
       <button
@@ -181,12 +181,13 @@ const syncStatusTitles: Record<string, string> = {
   </header>
 
   <TabBar
+    class="shrink-0"
     :activeTab="activeTab"
     :weekly-review-due="weeklyReviewDue"
     @change="activeTab = $event"
   />
 
-  <main class="pb-20 md:pb-0">
+  <main class="flex-1 overflow-y-auto pb-20 md:pb-0">
     <WeeklyReviewPanel
       v-if="activeTab !== 'checklists' && weeklyReviewDue && !reviewDismissed"
       :snoozed-items="snoozedItems"

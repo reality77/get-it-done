@@ -100,10 +100,10 @@
 
   #app {
     position: relative; z-index: 1;
-    @apply max-w-2xl mx-auto px-4 py-8;
-  }
-
-  @media (max-width: 767px) {
-    #app { padding-bottom: 0; }
+    @apply max-w-2xl mx-auto px-4;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 }
