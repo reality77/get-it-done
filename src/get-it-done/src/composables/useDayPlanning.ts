@@ -168,16 +168,11 @@ export function useDayPlanning(
     })
   })
 
-  const itemsByPriority = computed(() => {
-    const planned = trackedItems.value.filter(r =>
-      !r.item.done && r.item.selectedForWeek && (r.item.status ?? 'active') === 'active'
-    )
-    return {
-      urgent:    planned.filter(r => (r.item.priority ?? 'important') === 'urgent'),
-      important: planned.filter(r => (r.item.priority ?? 'important') === 'important'),
-      secondary: planned.filter(r => (r.item.priority ?? 'important') === 'secondary'),
-    }
-  })
+  const itemsByPriority = computed(() => ({
+    urgent:    activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'urgent'),
+    important: activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'important'),
+    secondary: activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'secondary'),
+  }))
 
   // ── Weekly review computed ──────────────────────────────────────────────────
 
