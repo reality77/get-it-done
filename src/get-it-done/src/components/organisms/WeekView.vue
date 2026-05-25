@@ -123,7 +123,7 @@ function weekSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
     bgClass: 'bg-warning',
     onTrigger: () => {
       const d = new Date()
-      d.setDate(d.getDate() + (1 + 7 - d.getDay()) % 7 || 7)
+      d.setDate(d.getDate() + ((1 + 7 - d.getDay()) % 7 || 7))
       store.snoozeItem(refToId(taskRef), d.toISOString().slice(0, 10))
     },
   }
