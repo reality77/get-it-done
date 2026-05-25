@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import type {
   TrackedItemRef,
   TaskPriority,
@@ -9,6 +9,7 @@ import { makeSnoozeSomedayDeleteActions, refToId } from "../../composables/useTa
 import { useChecklistStore } from "../../stores/checklists";
 import TaskCard from "../molecules/TaskCard.vue";
 import MobilePlanningSheet from "../molecules/MobilePlanningSheet.vue";
+import ChecklistCompletionModal from "../molecules/ChecklistCompletionModal.vue";
 
 type WeekMode = "planning" | "completion";
 
@@ -138,12 +139,41 @@ function weekSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
 
 function weekActions(taskRef: TrackedItemRef) {
   if (mode.value !== 'planning') return undefined
+  if (taskRef.isChecklistTask) {
+    return makeSnoozeSomedayDeleteActions(
+      taskRef,
+      (id, date) => store.snoozeItem(id, date),
+      (id) => store.sendItemToSomeday(id),
+      () => { /* checklist tasks not individually deletable */ },
+    ).filter(a => a.label !== 'Delete')
+  }
   return makeSnoozeSomedayDeleteActions(
     taskRef,
     (id, date) => store.snoozeItem(id, date),
     (id) => store.sendItemToSomeday(id),
     (id) => store.removeItem(id),
   )
+}
+
+// ── Completion modal ──────────────────────────────────────────────────────────
+const completionModalChecklistId = ref<string | null>(null)
+const completionModalChecklist = computed(() =>
+  completionModalChecklistId.value
+    ? store.getChecklist(completionModalChecklistId.value) ?? null
+    : null
+)
+
+function openCompletionModal(checklistId: string): void {
+  completionModalChecklistId.value = checklistId
+}
+
+function onModalArchive(): void {
+  if (completionModalChecklistId.value) store.archiveChecklist(completionModalChecklistId.value)
+  completionModalChecklistId.value = null
+}
+
+function onModalClose(): void {
+  completionModalChecklistId.value = null
 }
 
 </script>
@@ -260,6 +290,9 @@ function weekActions(taskRef: TrackedItemRef) {
                 :swipe-left="mode === 'planning' ? weekSwipeLeft(ref) : undefined"
                 :swipe-right="mode === 'planning' ? weekSwipeRight(ref) : undefined"
                 :actions="weekActions(ref)"
+                :is-checklist-task="ref.isChecklistTask"
+                :progress="ref.progress"
+                :on-checklist-done="ref.isChecklistTask ? () => openCompletionModal(ref.checklistId) : undefined"
               >
                 <template v-if="mode === 'planning'" #mobile-sheet="{ close }">
                   <MobilePlanningSheet
@@ -275,4 +308,12 @@ function weekActions(taskRef: TrackedItemRef) {
       </div>
     </section>
   </div>
+
+  <!-- Checklist completion modal -->
+  <ChecklistCompletionModal
+    v-if="completionModalChecklist"
+    :checklist="completionModalChecklist"
+    @archive="onModalArchive"
+    @close="onModalClose"
+  />
 </template>

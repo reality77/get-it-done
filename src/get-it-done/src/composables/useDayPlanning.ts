@@ -13,6 +13,8 @@ import {
   walkNodes,
   findItemDeep,
   todayDateString,
+  countItems,
+  countDone,
 } from './useTreeHelpers'
 import {
   DAY_PLAN_PRIORITY_SCORES,
@@ -93,11 +95,41 @@ export function useDayPlanning(
   function collectTrackedItems(): TrackedItemRef[] {
     const result: TrackedItemRef[] = []
     for (const cl of checklists.value) {
-      if (!cl.tracked || cl.archived || cl.kind === 'template') continue
+      if (cl.kind === 'template') continue
       const title = cl.runLabel ?? cl.title
-      walkNodes(cl.items, n => {
-        if (n.type === 'item') result.push({ item: n, checklistId: cl.id, checklistTitle: title })
-      })
+
+      if (cl.trackMode === 'items') {
+        if (cl.archived) continue
+        walkNodes(cl.items, n => {
+          if (n.type === 'item') result.push({ item: n, checklistId: cl.id, checklistTitle: title })
+        })
+      } else if (cl.trackMode === 'checklist') {
+        const total = countItems(cl.items)
+        const done = countDone(cl.items)
+        const syntheticItem: ChecklistItem = {
+          type: 'item',
+          id: cl.id,
+          text: title,
+          done: cl.archived,
+          priority: cl.priority,
+          effort: cl.effort,
+          status: cl.status ?? 'active',
+          selectedForToday: cl.selectedForToday ?? false,
+          selectedForWeek: cl.selectedForWeek ?? false,
+          snoozeUntil: cl.snoozeUntil ?? null,
+          snoozedAt: cl.snoozedAt ?? null,
+          completedAt: cl.archived ? (cl.archivedAt ?? null) : null,
+          deadline: cl.deadline,
+          reminders: cl.reminders,
+        }
+        result.push({
+          item: syntheticItem,
+          checklistId: cl.id,
+          checklistTitle: title,
+          isChecklistTask: true,
+          progress: { done, total },
+        })
+      }
     }
     return result
   }
@@ -119,13 +151,32 @@ export function useDayPlanning(
     const today = todayDateString()
     const result: TrackedItemRef[] = []
     for (const cl of checklists.value) {
-      if (!cl.tracked || !cl.archived || cl.kind === 'template') continue
+      if (!cl.archived || cl.kind === 'template') continue
       const title = cl.runLabel ?? cl.title
-      walkNodes(cl.items, n => {
-        if (n.type === 'item' && n.done && n.completedAt?.startsWith(today)) {
-          result.push({ item: n, checklistId: cl.id, checklistTitle: title })
-        }
-      })
+
+      if (cl.trackMode === 'items') {
+        walkNodes(cl.items, n => {
+          if (n.type === 'item' && n.done && n.completedAt?.startsWith(today)) {
+            result.push({ item: n, checklistId: cl.id, checklistTitle: title })
+          }
+        })
+      } else if (cl.trackMode === 'checklist' && cl.archivedAt?.startsWith(today) && cl.selectedForToday) {
+        const total = countItems(cl.items)
+        const done = countDone(cl.items)
+        result.push({
+          item: {
+            type: 'item', id: cl.id, text: title, done: true,
+            priority: cl.priority, effort: cl.effort, status: cl.status ?? 'active',
+            selectedForToday: true, selectedForWeek: cl.selectedForWeek ?? false,
+            snoozeUntil: null, snoozedAt: null, completedAt: cl.archivedAt ?? null,
+            deadline: cl.deadline, reminders: cl.reminders,
+          },
+          checklistId: cl.id,
+          checklistTitle: title,
+          isChecklistTask: true,
+          progress: { done, total },
+        })
+      }
     }
     return result
   })
@@ -210,23 +261,41 @@ export function useDayPlanning(
 
   function clearDayPlan(): void {
     for (const k in dismissedUntil) delete dismissedUntil[k]
-    for (const r of trackedItems.value) {
-      if (r.item.selectedForToday) r.item.selectedForToday = false
+    for (const cl of checklists.value) {
+      if (cl.trackMode === 'items') {
+        walkNodes(cl.items, n => {
+          if (n.type === 'item' && n.selectedForToday) n.selectedForToday = false
+        })
+      } else if (cl.trackMode === 'checklist' && cl.selectedForToday) {
+        cl.selectedForToday = false
+      }
     }
   }
 
   function toggleItemDayPlan(ref: ChecklistItemId): void {
     const cl = getChecklist(ref.checklistId)
     if (!cl) return
-    const item = findItemDeep(cl.items, ref.itemId)
-    if (!item || (item.status ?? 'active') !== 'active') return
     const key = itemKey(ref.checklistId, ref.itemId)
-    if (item.selectedForToday) {
-      dismissedUntil[key] = Date.now() + DAY_PLAN_DISMISS_DURATION_MS
+
+    if (cl.trackMode === 'checklist' && ref.itemId === ref.checklistId) {
+      if ((cl.status ?? 'active') !== 'active') return
+      if (cl.selectedForToday) {
+        dismissedUntil[key] = Date.now() + DAY_PLAN_DISMISS_DURATION_MS
+      } else {
+        delete dismissedUntil[key]
+      }
+      cl.selectedForToday = !cl.selectedForToday
     } else {
-      delete dismissedUntil[key]
+      const item = findItemDeep(cl.items, ref.itemId)
+      if (!item || (item.status ?? 'active') !== 'active') return
+      if (item.selectedForToday) {
+        dismissedUntil[key] = Date.now() + DAY_PLAN_DISMISS_DURATION_MS
+      } else {
+        delete dismissedUntil[key]
+      }
+      item.selectedForToday = !item.selectedForToday
     }
-    item.selectedForToday = !item.selectedForToday
+
     if (!planMeta.dayPlanDate) planMeta.dayPlanDate = todayDateString()
     planMetaStore.persistPlanMeta()
     void upsertChecklist(cl)
@@ -235,17 +304,27 @@ export function useDayPlanning(
   function setDayPlan(itemKeys: Array<ChecklistItemId>): void {
     const keySet = new Set(itemKeys.map(k => itemKey(k.checklistId, k.itemId)))
     for (const cl of checklists.value) {
-      if (!cl.tracked || cl.archived || cl.kind === 'template') continue
+      if (cl.archived || cl.kind === 'template') continue
       let changed = false
-      walkNodes(cl.items, n => {
-        if (n.type === 'item') {
-          const selected = keySet.has(itemKey(cl.id, n.id))
-          if (n.selectedForToday !== selected) {
-            n.selectedForToday = selected
-            changed = true
+
+      if (cl.trackMode === 'items') {
+        walkNodes(cl.items, n => {
+          if (n.type === 'item') {
+            const selected = keySet.has(itemKey(cl.id, n.id))
+            if (n.selectedForToday !== selected) {
+              n.selectedForToday = selected
+              changed = true
+            }
           }
+        })
+      } else if (cl.trackMode === 'checklist') {
+        const selected = keySet.has(itemKey(cl.id, cl.id))
+        if (cl.selectedForToday !== selected) {
+          cl.selectedForToday = selected
+          changed = true
         }
-      })
+      }
+
       if (changed) void upsertChecklist(cl)
     }
     planMeta.dayPlanDate = todayDateString()
@@ -255,10 +334,13 @@ export function useDayPlanning(
   function refreshDayPlanIfStale(): void {
     if (planMeta.dayPlanDate && planMeta.dayPlanDate !== todayDateString()) {
       for (const cl of checklists.value) {
-        if (!cl.tracked) continue
-        walkNodes(cl.items, n => {
-          if (n.type === 'item') n.selectedForToday = false
-        })
+        if (cl.trackMode === 'items') {
+          walkNodes(cl.items, n => {
+            if (n.type === 'item') n.selectedForToday = false
+          })
+        } else if (cl.trackMode === 'checklist') {
+          cl.selectedForToday = false
+        }
       }
       planMeta.dayPlanDate = null
       planMetaStore.persistPlanMeta()
@@ -269,14 +351,18 @@ export function useDayPlanning(
     const thisMonday = getMondayDateString()
     if (planMeta.weekPlanDate && planMeta.weekPlanDate !== thisMonday) {
       for (const cl of checklists.value) {
-        if (!cl.tracked) continue
         let changed = false
-        walkNodes(cl.items, n => {
-          if (n.type === 'item' && n.selectedForWeek) {
-            n.selectedForWeek = false
-            changed = true
-          }
-        })
+        if (cl.trackMode === 'items') {
+          walkNodes(cl.items, n => {
+            if (n.type === 'item' && n.selectedForWeek) {
+              n.selectedForWeek = false
+              changed = true
+            }
+          })
+        } else if (cl.trackMode === 'checklist' && cl.selectedForWeek) {
+          cl.selectedForWeek = false
+          changed = true
+        }
         if (changed) void upsertChecklist(cl)
       }
       planMeta.weekPlanDate = null
@@ -287,16 +373,25 @@ export function useDayPlanning(
   function processDueSnoozed(): void {
     const today = todayDateString()
     for (const cl of checklists.value) {
-      if (!cl.tracked || cl.archived) continue
+      if (cl.archived) continue
       let changed = false
-      walkNodes(cl.items, n => {
-        if (n.type === 'item' && n.status === 'snoozed' && n.snoozeUntil && n.snoozeUntil <= today) {
-          n.status = 'active'
-          n.snoozeUntil = null
-          n.snoozedAt = null
-          changed = true
-        }
-      })
+
+      if (cl.trackMode === 'items') {
+        walkNodes(cl.items, n => {
+          if (n.type === 'item' && n.status === 'snoozed' && n.snoozeUntil && n.snoozeUntil <= today) {
+            n.status = 'active'
+            n.snoozeUntil = null
+            n.snoozedAt = null
+            changed = true
+          }
+        })
+      } else if (cl.trackMode === 'checklist' && cl.status === 'snoozed' && cl.snoozeUntil && cl.snoozeUntil <= today) {
+        cl.status = 'active'
+        cl.snoozeUntil = null
+        cl.snoozedAt = null
+        changed = true
+      }
+
       if (changed) void upsertChecklist(cl)
     }
   }
@@ -384,9 +479,16 @@ export function useDayPlanning(
   function toggleItemWeekPlan(ref: ChecklistItemId): void {
     const cl = getChecklist(ref.checklistId)
     if (!cl) return
-    const item = findItemDeep(cl.items, ref.itemId)
-    if (!item || (item.status ?? 'active') !== 'active') return
-    item.selectedForWeek = !item.selectedForWeek
+
+    if (cl.trackMode === 'checklist' && ref.itemId === ref.checklistId) {
+      if ((cl.status ?? 'active') !== 'active') return
+      cl.selectedForWeek = !cl.selectedForWeek
+    } else {
+      const item = findItemDeep(cl.items, ref.itemId)
+      if (!item || (item.status ?? 'active') !== 'active') return
+      item.selectedForWeek = !item.selectedForWeek
+    }
+
     if (!planMeta.weekPlanDate) planMeta.weekPlanDate = getMondayDateString()
     planMetaStore.persistPlanMeta()
     void upsertChecklist(cl)
@@ -394,38 +496,84 @@ export function useDayPlanning(
 
   // ── Item task-tracking mutations ────────────────────────────────────────────
 
+  function withChecklist(id: string, fn: (cl: Checklist) => void): void {
+    const cl = getChecklist(id)
+    if (!cl) return
+    fn(cl)
+    void upsertChecklist(cl)
+  }
+
+  function isChecklistTaskRef(ref: ChecklistItemId): boolean {
+    const cl = getChecklist(ref.checklistId)
+    return cl?.trackMode === 'checklist' && ref.itemId === ref.checklistId
+  }
+
   function setItemPriority(ref: ChecklistItemId, priority: TaskPriority): void {
-    withItem(ref, item => { item.priority = priority })
+    if (isChecklistTaskRef(ref)) {
+      withChecklist(ref.checklistId, cl => { cl.priority = priority })
+    } else {
+      withItem(ref, item => { item.priority = priority })
+    }
   }
 
   function setItemEffort(ref: ChecklistItemId, effort: TaskEffort): void {
-    withItem(ref, item => { item.effort = effort })
+    if (isChecklistTaskRef(ref)) {
+      withChecklist(ref.checklistId, cl => { cl.effort = effort })
+    } else {
+      withItem(ref, item => { item.effort = effort })
+    }
   }
 
   function snoozeItem(ref: ChecklistItemId, until: string): void {
-    withItem(ref, item => {
-      item.status = 'snoozed'
-      item.snoozeUntil = until
-      if (!item.snoozedAt) item.snoozedAt = new Date().toISOString()
-      item.selectedForToday = false
-    })
+    if (isChecklistTaskRef(ref)) {
+      withChecklist(ref.checklistId, cl => {
+        cl.status = 'snoozed'
+        cl.snoozeUntil = until
+        if (!cl.snoozedAt) cl.snoozedAt = new Date().toISOString()
+        cl.selectedForToday = false
+      })
+    } else {
+      withItem(ref, item => {
+        item.status = 'snoozed'
+        item.snoozeUntil = until
+        if (!item.snoozedAt) item.snoozedAt = new Date().toISOString()
+        item.selectedForToday = false
+      })
+    }
   }
 
   function activateItem(ref: ChecklistItemId): void {
-    withItem(ref, item => {
-      item.status = 'active'
-      item.snoozeUntil = null
-      item.snoozedAt = null
-    })
+    if (isChecklistTaskRef(ref)) {
+      withChecklist(ref.checklistId, cl => {
+        cl.status = 'active'
+        cl.snoozeUntil = null
+        cl.snoozedAt = null
+      })
+    } else {
+      withItem(ref, item => {
+        item.status = 'active'
+        item.snoozeUntil = null
+        item.snoozedAt = null
+      })
+    }
   }
 
   function sendItemToSomeday(ref: ChecklistItemId): void {
-    withItem(ref, item => {
-      item.status = 'someday'
-      item.snoozeUntil = null
-      item.snoozedAt = null
-      item.selectedForToday = false
-    })
+    if (isChecklistTaskRef(ref)) {
+      withChecklist(ref.checklistId, cl => {
+        cl.status = 'someday'
+        cl.snoozeUntil = null
+        cl.snoozedAt = null
+        cl.selectedForToday = false
+      })
+    } else {
+      withItem(ref, item => {
+        item.status = 'someday'
+        item.snoozeUntil = null
+        item.snoozedAt = null
+        item.selectedForToday = false
+      })
+    }
   }
 
   return {

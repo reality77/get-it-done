@@ -86,7 +86,7 @@ export const useChecklistStore = defineStore('checklists', () => {
       archivedAt: null,
       templateId: null,
       runLabel: null,
-      tracked: false,
+      trackMode: 'none',
       defaultPriority: 'important',
       defaultEffort: 'medium',
     }
@@ -154,7 +154,7 @@ export const useChecklistStore = defineStore('checklists', () => {
       archivedAt: null,
       templateId,
       runLabel: `${template.title} — Run #${runCount + 1}`,
-      tracked: false,
+      trackMode: 'none',
       defaultPriority: 'important',
       defaultEffort: 'medium',
     }
@@ -165,6 +165,33 @@ export const useChecklistStore = defineStore('checklists', () => {
 
   // ── Task tracking: enable / disable ────────────────────────────────────────
 
+  function _clearItemTaskFields(cl: Checklist): void {
+    walkNodes(cl.items, n => {
+      if (n.type === 'item') {
+        delete n.priority
+        delete n.effort
+        delete n.status
+        delete n.selectedForToday
+        delete n.selectedForWeek
+        delete n.snoozeUntil
+        delete n.snoozedAt
+        delete n.completedAt
+      }
+    })
+  }
+
+  function _clearChecklistTaskFields(cl: Checklist): void {
+    delete cl.priority
+    delete cl.effort
+    delete cl.status
+    delete cl.selectedForToday
+    delete cl.selectedForWeek
+    delete cl.snoozeUntil
+    delete cl.snoozedAt
+    delete cl.deadline
+    delete cl.reminders
+  }
+
   function enableTracking(
     checklistId: string,
     defaultPriority: TaskPriority = 'important',
@@ -172,7 +199,8 @@ export const useChecklistStore = defineStore('checklists', () => {
   ): void {
     const cl = getChecklist(checklistId)
     if (!cl) return
-    cl.tracked = true
+    _clearChecklistTaskFields(cl)
+    cl.trackMode = 'items'
     cl.defaultPriority = defaultPriority
     cl.defaultEffort = defaultEffort
     walkNodes(cl.items, n => {
@@ -189,21 +217,33 @@ export const useChecklistStore = defineStore('checklists', () => {
     void sync.upsertChecklist(cl)
   }
 
+  function enableChecklistTracking(
+    checklistId: string,
+    defaultPriority: TaskPriority = 'important',
+    defaultEffort: TaskEffort = 'medium',
+  ): void {
+    const cl = getChecklist(checklistId)
+    if (!cl) return
+    _clearItemTaskFields(cl)
+    cl.trackMode = 'checklist'
+    cl.defaultPriority = defaultPriority
+    cl.defaultEffort = defaultEffort
+    cl.priority = cl.priority ?? defaultPriority
+    cl.effort = cl.effort ?? defaultEffort
+    cl.status = cl.status ?? 'active'
+    cl.selectedForToday = cl.selectedForToday ?? false
+    cl.selectedForWeek = cl.selectedForWeek ?? false
+    if (cl.snoozeUntil === undefined) cl.snoozeUntil = null
+    if (cl.snoozedAt === undefined) cl.snoozedAt = null
+    void sync.upsertChecklist(cl)
+  }
+
   function disableTracking(checklistId: string): void {
     const cl = getChecklist(checklistId)
     if (!cl) return
-    cl.tracked = false
-    walkNodes(cl.items, n => {
-      if (n.type === 'item') {
-        delete n.priority
-        delete n.effort
-        delete n.status
-        delete n.selectedForToday
-        delete n.snoozeUntil
-        delete n.snoozedAt
-        delete n.completedAt
-      }
-    })
+    cl.trackMode = 'none'
+    _clearItemTaskFields(cl)
+    _clearChecklistTaskFields(cl)
     void sync.upsertChecklist(cl)
   }
 
@@ -215,7 +255,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     const item = findItemDeep(checklist.items, itemId)
     if (!item) return
     item.done = !item.done
-    if (checklist.tracked) {
+    if (checklist.trackMode === 'items') {
       if (item.done) {
         item.completedAt = new Date().toISOString()
       } else {
@@ -243,7 +283,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     const checklist = getChecklist(checklistId)
     if (!checklist) throw new Error(`Checklist ${checklistId} not found`)
     const item: ChecklistItem = { type: 'item', id: crypto.randomUUID(), text, done: false }
-    if (checklist.tracked) {
+    if (checklist.trackMode === 'items') {
       item.priority = checklist.defaultPriority
       item.effort = checklist.defaultEffort
       item.status = 'active'
@@ -350,7 +390,7 @@ export const useChecklistStore = defineStore('checklists', () => {
   function ensureStandaloneChecklist(): void {
     const existing = getChecklist(STANDALONE_CHECKLIST_ID)
     if (existing) {
-      if (!existing.tracked) enableTracking(STANDALONE_CHECKLIST_ID)
+      if (existing.trackMode !== 'items') enableTracking(STANDALONE_CHECKLIST_ID)
       return
     }
     const checklist: Checklist = {
@@ -363,7 +403,7 @@ export const useChecklistStore = defineStore('checklists', () => {
       archivedAt: null,
       templateId: null,
       runLabel: null,
-      tracked: true,
+      trackMode: 'items',
       defaultPriority: 'important',
       defaultEffort: 'medium',
     }
@@ -417,6 +457,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     removeGroup,
     // Task-tracking actions (from useDayPlanning)
     enableTracking,
+    enableChecklistTracking,
     disableTracking,
     setItemPriority: dayPlanning.setItemPriority,
     setItemEffort: dayPlanning.setItemEffort,

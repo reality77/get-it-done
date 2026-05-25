@@ -6,6 +6,7 @@ import { useChecklistStore } from '../../stores/checklists'
 import DayPlanBar from '../molecules/DayPlanBar.vue'
 import TaskCard from '../molecules/TaskCard.vue'
 import MobilePlanningSheet from '../molecules/MobilePlanningSheet.vue'
+import ChecklistCompletionModal from '../molecules/ChecklistCompletionModal.vue'
 
 const props = defineProps<{
   items: TrackedItemRef[]
@@ -13,7 +14,39 @@ const props = defineProps<{
 
 const store = useChecklistStore()
 
+// ── Completion modal state ─────────────────────────────────────────────────────
+const completionModalChecklistId = ref<string | null>(null)
+const completionModalChecklist = computed(() =>
+  completionModalChecklistId.value
+    ? store.getChecklist(completionModalChecklistId.value) ?? null
+    : null
+)
+
+function openCompletionModal(checklistId: string): void {
+  completionModalChecklistId.value = checklistId
+}
+
+function onModalArchive(): void {
+  if (completionModalChecklistId.value) {
+    store.archiveChecklist(completionModalChecklistId.value)
+  }
+  completionModalChecklistId.value = null
+}
+
+function onModalClose(): void {
+  completionModalChecklistId.value = null
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
 function dayActions(taskRef: TrackedItemRef) {
+  if (taskRef.isChecklistTask) {
+    return makeSnoozeSomedayDeleteActions(
+      taskRef,
+      (id, date) => store.snoozeItem(id, date),
+      (id) => store.sendItemToSomeday(id),
+      () => { /* checklist tasks not individually removable */ },
+    ).filter(a => a.label !== 'Delete')
+  }
   return makeSnoozeSomedayDeleteActions(
     taskRef,
     (id, date) => store.snoozeItem(id, date),
@@ -23,6 +56,13 @@ function dayActions(taskRef: TrackedItemRef) {
 }
 
 function activeSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
+  if (taskRef.isChecklistTask) {
+    return {
+      hint: '✓ Complete',
+      bgClass: 'bg-success',
+      onTrigger: () => openCompletionModal(taskRef.checklistId),
+    }
+  }
   return {
     hint: '✓ Complete',
     bgClass: 'bg-success',
@@ -39,6 +79,13 @@ function activeSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
 }
 
 function completedSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
+  if (taskRef.isChecklistTask) {
+    return {
+      hint: '↩ Unarchive',
+      bgClass: 'bg-warning',
+      onTrigger: () => store.unarchiveChecklist(taskRef.checklistId),
+    }
+  }
   return {
     hint: '↩ Uncomplete',
     bgClass: 'bg-warning',
@@ -100,6 +147,9 @@ function dismissCelebration(): void {
         :swipe-right="activeSwipeRight(taskRef)"
         :swipe-left="activeSwipeLeft(taskRef)"
         :actions="dayActions(taskRef)"
+        :is-checklist-task="taskRef.isChecklistTask"
+        :progress="taskRef.progress"
+        :on-checklist-done="taskRef.isChecklistTask ? () => openCompletionModal(taskRef.checklistId) : undefined"
       >
         <template #mobile-sheet="{ close }">
           <MobilePlanningSheet
@@ -127,6 +177,8 @@ function dismissCelebration(): void {
           :show-checklist-title="true"
           :swipe-right="completedSwipeRight(taskRef)"
           :actions="dayActions(taskRef)"
+          :is-checklist-task="taskRef.isChecklistTask"
+          :progress="taskRef.progress"
         >
           <template #mobile-sheet="{ close }">
             <MobilePlanningSheet
@@ -138,6 +190,14 @@ function dismissCelebration(): void {
         </TaskCard>
       </div>
     </div>
+
+    <!-- Checklist completion modal -->
+    <ChecklistCompletionModal
+      v-if="completionModalChecklist"
+      :checklist="completionModalChecklist"
+      @archive="onModalArchive"
+      @close="onModalClose"
+    />
 
     <!-- Full-screen celebration overlay -->
     <Transition name="celebrate">

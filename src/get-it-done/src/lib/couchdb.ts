@@ -1,5 +1,5 @@
 import PouchDB from 'pouchdb-browser'
-import type { Checklist } from '../types'
+import type { Checklist, TrackMode } from '../types'
 
 export const COUCH_URL = (import.meta.env.VITE_COUCH_URL as string | undefined) ?? 'http://localhost:5984'
 export const DB_NAME = 'get-it-done'
@@ -15,10 +15,20 @@ export function checklistToDoc(c: Checklist): PouchDB.Core.Document<CouchDoc> {
 }
 
 export function docToChecklist(doc: PouchDB.Core.ExistingDocument<CouchDoc>): Checklist {
-  return { id: doc._id, kind: doc.kind, title: doc.title, items: doc.items,
+  const raw = doc as unknown as Record<string, unknown>
+  const trackMode = (raw['trackMode'] as TrackMode | undefined)
+    ?? (raw['tracked'] === true ? 'items' : 'none')
+  return {
+    id: doc._id, kind: doc.kind, title: doc.title, items: doc.items,
     archived: doc.archived, createdAt: doc.createdAt, archivedAt: doc.archivedAt,
-    templateId: doc.templateId, runLabel: doc.runLabel, tracked: doc.tracked,
-    defaultPriority: doc.defaultPriority, defaultEffort: doc.defaultEffort }
+    templateId: doc.templateId, runLabel: doc.runLabel,
+    trackMode,
+    defaultPriority: doc.defaultPriority, defaultEffort: doc.defaultEffort,
+    priority: doc.priority, effort: doc.effort, status: doc.status,
+    selectedForToday: doc.selectedForToday, selectedForWeek: doc.selectedForWeek,
+    snoozeUntil: doc.snoozeUntil, snoozedAt: doc.snoozedAt,
+    deadline: doc.deadline, reminders: doc.reminders,
+  }
 }
 
 // ── Local PouchDB (IndexedDB) ─────────────────────────────────────────────────
