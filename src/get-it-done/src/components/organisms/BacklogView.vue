@@ -21,19 +21,31 @@ function backlogActions(taskRef: TrackedItemRef) {
   })
 }
 
-function swipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
+function addToWeek(taskRef: TrackedItemRef): void {
+  const id = refToId(taskRef)
+  store.activateItem(id)
+  store.toggleItemWeekPlan(id)
+}
+
+function nextWeekDate(): string {
+  const d = new Date()
+  d.setDate(d.getDate() + 7)
+  return d.toISOString().slice(0, 10)
+}
+
+function snoozedSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: 'Add to week',
     bgClass: 'bg-success',
-    onTrigger: () => store.activateItem(refToId(taskRef)),
+    onTrigger: () => addToWeek(taskRef),
   }
 }
 
-function somedaySwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
+function snoozedSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
   return {
-    hint: '↩ Activate',
-    bgClass: 'bg-primary',
-    onTrigger: () => store.activateItem(refToId(taskRef)),
+    hint: 'Move to someday',
+    bgClass: 'bg-info',
+    onTrigger: () => store.sendItemToSomeday(refToId(taskRef)),
   }
 }
 
@@ -41,7 +53,15 @@ function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return {
     hint: 'Add to week',
     bgClass: 'bg-success',
-    onTrigger: () => store.activateItem(refToId(taskRef)),
+    onTrigger: () => addToWeek(taskRef),
+  }
+}
+
+function somedaySwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
+  return {
+    hint: 'Next week',
+    bgClass: 'bg-warning',
+    onTrigger: () => store.snoozeItem(refToId(taskRef), nextWeekDate()),
   }
 }
 
@@ -65,7 +85,8 @@ function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
           :checklist-id="ref.checklistId"
           :checklist-title="ref.checklistTitle"
           :show-checkbox="false"
-          :swipe-left="swipeLeft(ref)"
+          :swipe-left="snoozedSwipeLeft(ref)"
+          :swipe-right="snoozedSwipeRight(ref)"
           :actions="backlogActions(ref)"
         >
           <template #mobile-sheet="{ close }">
@@ -94,8 +115,8 @@ function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
           :checklist-id="ref.checklistId"
           :checklist-title="ref.checklistTitle"
           :show-checkbox="false"
-          :swipe-right="somedaySwipeRight(ref)"
           :swipe-left="somedaySwipeLeft(ref)"
+          :swipe-right="somedaySwipeRight(ref)"
           :actions="backlogActions(ref)"
         >
           <template #mobile-sheet="{ close }">

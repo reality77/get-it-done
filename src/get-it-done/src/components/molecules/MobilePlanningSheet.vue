@@ -215,7 +215,25 @@ const snoozeSummary = computed(() => {
     return snoozeOptions.find(o => o.date === pendingSnoozeDate.value)?.label ?? pendingSnoozeDate.value
   }
   if (pendingSomeday.value) return 'Someday'
+  const status = props.item.status ?? 'active'
+  if (status === 'snoozed') {
+    if (props.item.snoozeUntil) {
+      const d = new Date(props.item.snoozeUntil + 'T12:00:00')
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+    }
+    return 'Snoozed'
+  }
+  if (status === 'someday') return 'Someday'
   return '—'
+})
+
+const snoozeStatusColor = computed(() => {
+  if (pendingSnoozeDate.value) return 'text-warning'
+  if (pendingSomeday.value) return 'text-info'
+  const status = props.item.status ?? 'active'
+  if (status === 'snoozed') return 'text-warning'
+  if (status === 'someday') return 'text-info'
+  return 'text-fg-4'
 })
 
 const prioritySummary = computed(() => PRIORITIES.find(p => p.value === pendingPriority.value)?.label ?? '—')
@@ -382,43 +400,41 @@ function deleteItem(): void {
       </div>
     </div>
 
-    <!-- Snooze (active items) / Activate (non-active) -->
+    <!-- Snooze / Status -->
     <div>
       <button
-        v-if="itemStatus() !== 'active'"
-        class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-primary bg-primary/20 text-primary hover:bg-primary/30 transition-colors text-sm font-medium"
-        @click="store.activateItem(itemId); close()"
-      >↩ Activate</button>
-      <template v-else>
+        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bg-2/80 transition-colors"
+        :class="activeSection === 'snooze' ? 'bg-bg-2/80' : ''"
+        @click="toggleSection('snooze')"
+      >
+        <span class="text-sm text-fg-2">💤 Snooze</span>
+        <span class="text-sm" :class="snoozeStatusColor">{{ snoozeSummary }}</span>
+      </button>
+      <div v-if="activeSection === 'snooze'" class="px-3 pb-3 pt-1 space-y-2">
         <button
-          class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bg-2/80 transition-colors"
-          :class="activeSection === 'snooze' ? 'bg-bg-2/80' : ''"
-          @click="toggleSection('snooze')"
-        >
-          <span class="text-sm text-fg-2">💤 Snooze</span>
-          <span class="text-sm" :class="(pendingSnoozeDate || pendingSomeday) ? 'text-warning' : 'text-fg-4'">{{ snoozeSummary }}</span>
-        </button>
-        <div v-if="activeSection === 'snooze'" class="px-3 pb-3 pt-1 space-y-2">
-          <div class="grid grid-cols-2 gap-2">
-            <button
-              v-for="opt in snoozeOptions"
-              :key="opt.date"
-              class="px-3 py-2.5 text-sm rounded-xl border transition-colors text-left"
-              :class="pendingSnoozeDate === opt.date
-                ? 'bg-warning/25 border-warning text-warning'
-                : 'bg-bg-2 border-border text-fg-2 hover:bg-bg-3'"
-              @click="selectSnooze(opt.date)"
-            >{{ opt.label }}</button>
-          </div>
+          v-if="itemStatus() !== 'active'"
+          class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-primary bg-primary/20 text-primary hover:bg-primary/30 transition-colors text-sm font-medium"
+          @click="store.activateItem(itemId); close()"
+        >↩ Activate</button>
+        <div class="grid grid-cols-2 gap-2">
           <button
-            class="w-full px-3 py-2.5 text-sm rounded-xl border transition-colors text-left"
-            :class="pendingSomeday
-              ? 'bg-sky-600/30 border-sky-500 text-sky-200'
+            v-for="opt in snoozeOptions"
+            :key="opt.date"
+            class="px-3 py-2.5 text-sm rounded-xl border transition-colors text-left"
+            :class="pendingSnoozeDate === opt.date
+              ? 'bg-warning/25 border-warning text-warning'
               : 'bg-bg-2 border-border text-fg-2 hover:bg-bg-3'"
-            @click="toggleSomeday"
-          >☁ Someday</button>
+            @click="selectSnooze(opt.date)"
+          >{{ opt.label }}</button>
         </div>
-      </template>
+        <button
+          class="w-full px-3 py-2.5 text-sm rounded-xl border transition-colors text-left"
+          :class="pendingSomeday
+            ? 'bg-sky-600/30 border-sky-500 text-sky-200'
+            : 'bg-bg-2 border-border text-fg-2 hover:bg-bg-3'"
+          @click="toggleSomeday"
+        >☁ Someday</button>
+      </div>
     </div>
 
     <!-- Priority -->
