@@ -13,7 +13,7 @@ const store = useChecklistStore()
 
 // ── Accordion ─────────────────────────────────────────────────────────────────
 
-type SectionName = 'deadline' | 'reminders' | 'snooze' | 'priority' | 'effort'
+type SectionName = 'deadline' | 'reminders' | 'snooze' | 'priority' | 'effort' | 'comment' | 'url'
 const activeSection = ref<SectionName | null>(null)
 
 function toggleSection(name: SectionName): void {
@@ -60,6 +60,8 @@ function toggleSomeday(): void {
 
 const pendingPriority = ref<TaskPriority | undefined>(props.item.priority)
 const pendingEffort = ref<TaskEffort | undefined>(props.item.effort)
+const pendingComment = ref(props.item.comment ?? '')
+const pendingUrl = ref(props.item.url ?? '')
 
 const PRIORITIES: { value: TaskPriority; label: string; color: string }[] = [
   { value: 'urgent',    label: 'Urgent',    color: 'bg-danger/20 text-danger border-danger/40' },
@@ -250,6 +252,20 @@ const priorityColor = computed(() => {
   return 'text-fg-4 border-transparent'
 })
 
+const commentSummary = computed(() =>
+  pendingComment.value.trim()
+    ? pendingComment.value.trim().slice(0, 30) + (pendingComment.value.trim().length > 30 ? '…' : '')
+    : '—'
+)
+
+function urlHostname(raw: string): string {
+  try { return new URL(raw).hostname } catch { return raw }
+}
+
+const urlSummary = computed(() =>
+  pendingUrl.value.trim() ? urlHostname(pendingUrl.value.trim()) : '—'
+)
+
 // ── Confirm / Delete ──────────────────────────────────────────────────────────
 
 function confirm(): void {
@@ -278,6 +294,14 @@ function confirm(): void {
     pendingReminders.value.some(r => !currentReminders.includes(r))
   if (changed) {
     store.setItemReminders(props.itemId, [...pendingReminders.value])
+  }
+  const trimmedComment = pendingComment.value.trim()
+  if (trimmedComment !== (props.item.comment ?? '')) {
+    store.updateItemComment(props.itemId, trimmedComment)
+  }
+  const trimmedUrl = pendingUrl.value.trim()
+  if (trimmedUrl !== (props.item.url ?? '')) {
+    store.updateItemUrl(props.itemId, trimmedUrl)
   }
   props.close()
 }
@@ -397,6 +421,46 @@ function deleteItem(): void {
             @click="toggleReminder(preset)"
           >{{ preset.label }}</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Comment -->
+    <div>
+      <button
+        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bg-2/80 transition-colors"
+        :class="activeSection === 'comment' ? 'bg-bg-2/80' : ''"
+        @click="toggleSection('comment')"
+      >
+        <span class="text-sm text-fg-2">💬 Comment</span>
+        <span class="text-sm truncate max-w-[140px] text-right" :class="pendingComment.trim() ? 'text-primary' : 'text-fg-4'">{{ commentSummary }}</span>
+      </button>
+      <div v-if="activeSection === 'comment'" class="px-3 pb-3 pt-1">
+        <textarea
+          v-model="pendingComment"
+          rows="3"
+          placeholder="Add a note…"
+          class="w-full bg-bg-2 border border-border rounded-xl px-3 py-2.5 text-sm text-fg-2 placeholder-fg-4 focus:border-primary focus:outline-none transition-colors resize-none"
+        />
+      </div>
+    </div>
+
+    <!-- URL -->
+    <div>
+      <button
+        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bg-2/80 transition-colors"
+        :class="activeSection === 'url' ? 'bg-bg-2/80' : ''"
+        @click="toggleSection('url')"
+      >
+        <span class="text-sm text-fg-2">🔗 URL</span>
+        <span class="text-sm truncate max-w-[140px] text-right" :class="pendingUrl.trim() ? 'text-primary' : 'text-fg-4'">{{ urlSummary }}</span>
+      </button>
+      <div v-if="activeSection === 'url'" class="px-3 pb-3 pt-1">
+        <input
+          type="url"
+          v-model="pendingUrl"
+          placeholder="https://…"
+          class="w-full bg-bg-2 border border-border rounded-xl px-3 py-2.5 text-sm text-fg-2 placeholder-fg-4 focus:border-primary focus:outline-none transition-colors"
+        />
       </div>
     </div>
 

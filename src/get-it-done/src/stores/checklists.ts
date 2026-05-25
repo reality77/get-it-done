@@ -175,7 +175,6 @@ export const useChecklistStore = defineStore('checklists', () => {
         delete n.selectedForWeek
         delete n.snoozeUntil
         delete n.snoozedAt
-        delete n.completedAt
       }
     })
   }
@@ -337,6 +336,24 @@ export const useChecklistStore = defineStore('checklists', () => {
     void sync.upsertChecklist(checklist)
   }
 
+  function updateItemComment({ checklistId, itemId }: ChecklistItemId, comment: string): void {
+    const checklist = getChecklist(checklistId)
+    if (!checklist) return
+    const item = findItemDeep(checklist.items, itemId)
+    if (!item) return
+    item.comment = comment || undefined
+    void sync.upsertChecklist(checklist)
+  }
+
+  function updateItemUrl({ checklistId, itemId }: ChecklistItemId, url: string): void {
+    const checklist = getChecklist(checklistId)
+    if (!checklist) return
+    const item = findItemDeep(checklist.items, itemId)
+    if (!item) return
+    item.url = url || undefined
+    void sync.upsertChecklist(checklist)
+  }
+
   // ── Group CRUD ──────────────────────────────────────────────────────────────
 
   function addGroup(checklistId: string, title: string, parentGroupId?: string): ChecklistItemGroup {
@@ -451,6 +468,8 @@ export const useChecklistStore = defineStore('checklists', () => {
     removeItem,
     setItemDeadline,
     setItemReminders,
+    updateItemComment,
+    updateItemUrl,
     addGroup,
     updateGroupTitle,
     toggleGroupCollapsed,
