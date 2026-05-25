@@ -173,9 +173,9 @@ export function useDayPlanning(
   )
 
   const itemsByPriority = computed(() => ({
-    urgent:    weekPlanItems.value.filter(r => (r.item.priority ?? 'important') === 'urgent'),
-    important: weekPlanItems.value.filter(r => (r.item.priority ?? 'important') === 'important'),
-    secondary: weekPlanItems.value.filter(r => (r.item.priority ?? 'important') === 'secondary'),
+    urgent:    activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'urgent'),
+    important: activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'important'),
+    secondary: activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'secondary'),
   }))
 
   // ── Weekly review computed ──────────────────────────────────────────────────
@@ -366,10 +366,19 @@ export function useDayPlanning(
     return [...kept, ...mandatory, ...additions]
   }
 
+  const PRIORITY_ORDER: Record<string, number> = { urgent: 0, important: 1, secondary: 2 }
+
   function suggestWeekPlan(): TrackedItemRef[] {
-    return trackedItems.value.filter(r =>
-      (r.item.status ?? 'active') === 'snoozed'
-    )
+    return trackedItems.value
+      .filter(r => (r.item.status ?? 'active') === 'snoozed')
+      .sort((a, b) => {
+        const aDate = a.item.snoozeUntil ?? '9999-99-99'
+        const bDate = b.item.snoozeUntil ?? '9999-99-99'
+        if (aDate !== bDate) return aDate < bDate ? -1 : 1
+        const aPri = PRIORITY_ORDER[a.item.priority ?? 'important'] ?? 1
+        const bPri = PRIORITY_ORDER[b.item.priority ?? 'important'] ?? 1
+        return aPri - bPri
+      })
   }
 
   function toggleItemWeekPlan(ref: ChecklistItemId): void {
