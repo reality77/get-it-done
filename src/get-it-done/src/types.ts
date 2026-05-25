@@ -34,6 +34,8 @@ export interface ChecklistItem {
   completedAt?: string | null    // ISO timestamp of completion
   deadline?: string | null       // ISO date 'YYYY-MM-DD' or datetime 'YYYY-MM-DDTHH:mm'
   reminders?: string[]           // absolute ISO timestamps for push notifications
+  comment?: string
+  url?: string
 }
 
 export interface ChecklistItemGroup {
