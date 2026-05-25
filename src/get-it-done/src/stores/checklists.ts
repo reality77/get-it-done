@@ -388,6 +388,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     trackedItems: dayPlanning.trackedItems,
     activeTrackedItems: dayPlanning.activeTrackedItems,
     dayPlanItems: dayPlanning.dayPlanItems,
+    weekPlanItems: dayPlanning.weekPlanItems,
     snoozedItems: dayPlanning.snoozedItems,
     somedayItems: dayPlanning.somedayItems,
     dueSnoozedItems: dayPlanning.dueSnoozedItems,
@@ -423,11 +424,14 @@ export const useChecklistStore = defineStore('checklists', () => {
     activateItem: dayPlanning.activateItem,
     sendItemToSomeday: dayPlanning.sendItemToSomeday,
     toggleItemDayPlan: dayPlanning.toggleItemDayPlan,
+    toggleItemWeekPlan: dayPlanning.toggleItemWeekPlan,
     setDayPlan: dayPlanning.setDayPlan,
     refreshDayPlanIfStale: dayPlanning.refreshDayPlanIfStale,
+    refreshWeekPlanIfStale: dayPlanning.refreshWeekPlanIfStale,
     processDueSnoozed: dayPlanning.processDueSnoozed,
     completeWeeklyReview: dayPlanning.completeWeeklyReview,
     suggestDayPlan: dayPlanning.suggestDayPlan,
+    suggestWeekPlan: dayPlanning.suggestWeekPlan,
     clearDayPlan: dayPlanning.clearDayPlan,
     // Convenience: run suggestion algorithm and apply the result in one call
     applyDayPlanSuggestion(): void {

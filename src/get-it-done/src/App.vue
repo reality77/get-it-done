@@ -60,7 +60,6 @@ const {
   dayPlanItems,
   snoozedItems,
   somedayItems,
-  staleSnoozedItems,
   itemsByPriority,
   dismissedKeys,
 } = storeToRefs(checklistStore)
@@ -93,8 +92,9 @@ async function handleVisibilityChange(): Promise<void> {
 onMounted(async () => {
   await checklistStore.loadLocal()        // data available offline, before auth (#8)
   checklistStore.ensureStandaloneChecklist()
-  checklistStore.processDueSnoozed()      // now runs on real data (#4)
+  checklistStore.processDueSnoozed()       // now runs on real data (#4)
   checklistStore.refreshDayPlanIfStale()  // idem
+  checklistStore.refreshWeekPlanIfStale()
   const result = await authStore.checkSession()
   if (authStore.isAuthenticated) {
     startKeepAlive()
@@ -190,9 +190,6 @@ const syncStatusTitles: Record<string, string> = {
   <main class="flex-1 overflow-y-auto pb-20 md:pb-0">
     <WeeklyReviewPanel
       v-if="activeTab !== 'checklists' && weeklyReviewDue && !reviewDismissed"
-      :snoozed-items="snoozedItems"
-      :someday-items="somedayItems"
-      :stale-snoozed-ids="staleSnoozedItems.map(r => r.item.id)"
       @complete-review="handleCompleteReview"
       @dismiss="reviewDismissed = true"
     />
