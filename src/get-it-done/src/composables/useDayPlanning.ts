@@ -168,11 +168,16 @@ export function useDayPlanning(
     })
   })
 
-  const itemsByPriority = computed(() => ({
-    urgent:    activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'urgent'),
-    important: activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'important'),
-    secondary: activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'secondary'),
-  }))
+  const itemsByPriority = computed(() => {
+    const planned = trackedItems.value.filter(r =>
+      !r.item.done && r.item.selectedForWeek && (r.item.status ?? 'active') === 'active'
+    )
+    return {
+      urgent:    planned.filter(r => (r.item.priority ?? 'important') === 'urgent'),
+      important: planned.filter(r => (r.item.priority ?? 'important') === 'important'),
+      secondary: planned.filter(r => (r.item.priority ?? 'important') === 'secondary'),
+    }
+  })
 
   // ── Weekly review computed ──────────────────────────────────────────────────
 
@@ -184,7 +189,8 @@ export function useDayPlanning(
     const cutoff = new Date(today)
     cutoff.setDate(cutoff.getDate() - WEEKLY_REVIEW_INTERVAL_DAYS)
     const overdueReview = !lastReview || new Date(lastReview) < cutoff
-    return isMonday || hasDueSnoozed || overdueReview
+    const reviewedThisWeek = lastReview != null && lastReview.substring(0, 10) >= getMondayDateString()
+    return (isMonday && !reviewedThisWeek) || hasDueSnoozed || overdueReview
   })
 
   const isDayPlanFresh = computed(() =>
@@ -370,6 +376,7 @@ export function useDayPlanning(
   function suggestWeekPlan(): TrackedItemRef[] {
     const today = todayDateString()
     const scored = activeTrackedItems.value
+      .filter(r => !r.item.selectedForWeek)
       .map(r => ({ ref: r, units: effortUnits(r), score: scoreItem(r, today) }))
       .sort((a, b) => b.score - a.score)
 
