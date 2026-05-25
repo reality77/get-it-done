@@ -31,7 +31,8 @@ function addToWeek(taskRef: TrackedItemRef): void {
 
 function nextWeekDate(): string {
   const d = new Date()
-  d.setDate(d.getDate() + 7)
+  const daysUntil = d.getDay() === 1 ? 7 : ((8 - d.getDay()) % 7 || 7)
+  d.setDate(d.getDate() + daysUntil)
   return d.toISOString().slice(0, 10)
 }
 

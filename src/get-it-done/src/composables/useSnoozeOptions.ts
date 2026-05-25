@@ -17,10 +17,17 @@ export function getSnoozeOptions(): SnoozeOption[] {
     d.setDate(d.getDate() + daysUntil)
     return d.toISOString().slice(0, 10)
   }
+  const mondayAfterNext = (): string => {
+    const d = new Date(today)
+    const dayOfWeek = d.getDay()
+    const daysUntil = dayOfWeek === 1 ? 7 : ((8 - dayOfWeek) % 7 || 7)
+    d.setDate(d.getDate() + daysUntil + 7)
+    return d.toISOString().slice(0, 10)
+  }
   return [
-    { label: 'Tomorrow',    date: add(1) },
-    { label: 'In 3 days',   date: add(3) },
-    { label: 'Next week',   date: add(7) },
-    { label: 'Next Monday', date: nextMonday() },
+    { label: 'Tomorrow',   date: add(1) },
+    { label: 'In 3 days',  date: add(3) },
+    { label: 'Next week',  date: nextMonday() },
+    { label: 'In 2 weeks', date: mondayAfterNext() },
   ]
 }
