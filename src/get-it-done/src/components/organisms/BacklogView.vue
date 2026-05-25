@@ -13,12 +13,14 @@ defineProps<{
 const store = useChecklistStore()
 
 function backlogActions(taskRef: TrackedItemRef) {
-  return makeStatusActions(taskRef, {
+  const actions = makeStatusActions(taskRef, {
     onActivate: (id) => store.activateItem(id),
     onSnooze: (id, date) => store.snoozeItem(id, date),
     onSomeday: (id) => store.sendItemToSomeday(id),
     onDelete: (id) => store.removeItem(id),
   })
+  if (taskRef.isChecklistTask) return actions.filter(a => a.label !== 'Delete')
+  return actions
 }
 
 function addToWeek(taskRef: TrackedItemRef): void {
@@ -88,6 +90,8 @@ function somedaySwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
           :swipe-left="snoozedSwipeLeft(ref)"
           :swipe-right="snoozedSwipeRight(ref)"
           :actions="backlogActions(ref)"
+          :is-checklist-task="ref.isChecklistTask"
+          :progress="ref.progress"
         >
           <template #mobile-sheet="{ close }">
             <MobilePlanningSheet
@@ -118,6 +122,8 @@ function somedaySwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
           :swipe-left="somedaySwipeLeft(ref)"
           :swipe-right="somedaySwipeRight(ref)"
           :actions="backlogActions(ref)"
+          :is-checklist-task="ref.isChecklistTask"
+          :progress="ref.progress"
         >
           <template #mobile-sheet="{ close }">
             <MobilePlanningSheet

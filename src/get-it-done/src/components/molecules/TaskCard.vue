@@ -30,6 +30,12 @@ const props = defineProps<{
   actions?: ButtonActionDef[]
   /** Collapse actions into a ⋯ sheet on mobile */
   collapseMobileActions?: boolean
+  /** When true, the item represents the whole checklist as a single task */
+  isChecklistTask?: boolean
+  /** Progress counter for checklist tasks */
+  progress?: { done: number; total: number }
+  /** Called instead of toggleItem when isChecklistTask is true */
+  onChecklistDone?: () => void
 }>()
 
 const slots = useSlots()
@@ -104,7 +110,7 @@ const deadline = computed(() => props.item.deadline ? new Date(props.item.deadli
       <AppCheckbox
         v-if="showCheckbox !== false"
         :model-value="item.done"
-        @update:model-value="store.toggleItem({ checklistId, itemId: item.id })"
+        @update:model-value="isChecklistTask ? onChecklistDone?.() : store.toggleItem({ checklistId, itemId: item.id })"
       />
 
       <!-- Title -->
@@ -126,6 +132,12 @@ const deadline = computed(() => props.item.deadline ? new Date(props.item.deadli
         </span>
         <span v-if="showChecklistTitle !== undefined ? showChecklistTitle : !compact" class="text-xs text-fg-4 block truncate">{{ checklistTitle }}</span>
       </div>
+
+      <!-- Progress badge for checklist tasks -->
+      <span
+        v-if="progress"
+        class="text-xs text-fg-4 shrink-0 tabular-nums"
+      >{{ progress.done }}/{{ progress.total }}</span>
 
       <!-- Badges -->
     <PriorityBadge v-if="item.priority" :priority="item.priority" :compact="true"></PriorityBadge>

@@ -1,4 +1,5 @@
 export type ChecklistKind = 'one-time' | 'template' | 'run'
+export type TrackMode = 'none' | 'items' | 'checklist'
 
 // ── Task fields (used by tracked checklist items) ─────────────────────────────
 
@@ -56,16 +57,28 @@ export interface Checklist {
   templateId: string | null
   runLabel: string | null
   // Task-tracking fields
-  tracked: boolean
+  trackMode: TrackMode
   defaultPriority: TaskPriority
   defaultEffort: TaskEffort
+  // Task fields for trackMode='checklist' (the checklist itself is the task)
+  priority?: TaskPriority
+  effort?: TaskEffort
+  status?: TaskStatus
+  selectedForToday?: boolean
+  selectedForWeek?: boolean
+  snoozeUntil?: string | null
+  snoozedAt?: string | null
+  deadline?: string | null
+  reminders?: string[]
 }
 
-/** Flattened reference to a tracked checklist item (used in Tasks views) */
+/** Flattened reference to a tracked task (item or whole checklist) used in Tasks views */
 export interface TrackedItemRef {
   item: ChecklistItem
   checklistId: string
   checklistTitle: string
+  isChecklistTask?: boolean
+  progress?: { done: number; total: number }
 }
 
 export interface ChecklistItemId {
