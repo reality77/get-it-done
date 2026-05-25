@@ -24,10 +24,20 @@ import {
   WEEKLY_REVIEW_INTERVAL_DAYS,
 } from '../config/constants'
 
+const WEEK_PLAN_EFFORT_BUDGET = DAY_PLAN_EFFORT_BUDGET * 7
+
 // ── Module-level pure helpers ────────────────────────────────────────────────
 
 function itemKey(checklistId: string, itemId: string): string {
   return `${checklistId}:${itemId}`
+}
+
+function getMondayDateString(): string {
+  const d = new Date()
+  const day = d.getDay()
+  const daysToMonday = day === 0 ? -6 : 1 - day
+  d.setDate(d.getDate() + daysToMonday)
+  return d.toISOString().substring(0, 10)
 }
 
 function deadlineBonus(deadline: string | null | undefined, today: string, effort: TaskEffort): number {
@@ -181,6 +191,12 @@ export function useDayPlanning(
     planMeta.dayPlanDate === todayDateString()
   )
 
+  const weekPlanItems = computed(() =>
+    trackedItems.value.filter(r =>
+      !r.item.done && r.item.selectedForWeek && (r.item.status ?? 'active') === 'active'
+    )
+  )
+
   // ── Day plan actions ────────────────────────────────────────────────────────
 
   // Items the user manually removed — excluded from Suggest for 12 h.
@@ -246,6 +262,25 @@ export function useDayPlanning(
         })
       }
       planMeta.dayPlanDate = null
+      planMetaStore.persistPlanMeta()
+    }
+  }
+
+  function refreshWeekPlanIfStale(): void {
+    const thisMonday = getMondayDateString()
+    if (planMeta.weekPlanDate && planMeta.weekPlanDate !== thisMonday) {
+      for (const cl of checklists.value) {
+        if (!cl.tracked) continue
+        let changed = false
+        walkNodes(cl.items, n => {
+          if (n.type === 'item' && n.selectedForWeek) {
+            n.selectedForWeek = false
+            changed = true
+          }
+        })
+        if (changed) void upsertChecklist(cl)
+      }
+      planMeta.weekPlanDate = null
       planMetaStore.persistPlanMeta()
     }
   }
@@ -332,6 +367,37 @@ export function useDayPlanning(
     return [...kept, ...mandatory, ...additions]
   }
 
+  function suggestWeekPlan(): TrackedItemRef[] {
+    const today = todayDateString()
+    const scored = activeTrackedItems.value
+      .map(r => ({ ref: r, units: effortUnits(r), score: scoreItem(r, today) }))
+      .sort((a, b) => b.score - a.score)
+
+    const result: TrackedItemRef[] = []
+    let budgetLeft = WEEK_PLAN_EFFORT_BUDGET
+
+    for (const s of scored) {
+      if (budgetLeft <= 0) break
+      if (s.units <= budgetLeft || result.length === 0) {
+        result.push(s.ref)
+        budgetLeft -= s.units
+      }
+    }
+
+    return result
+  }
+
+  function toggleItemWeekPlan(ref: ChecklistItemId): void {
+    const cl = getChecklist(ref.checklistId)
+    if (!cl) return
+    const item = findItemDeep(cl.items, ref.itemId)
+    if (!item || (item.status ?? 'active') !== 'active') return
+    item.selectedForWeek = !item.selectedForWeek
+    if (!planMeta.weekPlanDate) planMeta.weekPlanDate = getMondayDateString()
+    planMetaStore.persistPlanMeta()
+    void upsertChecklist(cl)
+  }
+
   // ── Item task-tracking mutations ────────────────────────────────────────────
 
   function setItemPriority(ref: ChecklistItemId, priority: TaskPriority): void {
@@ -373,6 +439,7 @@ export function useDayPlanning(
     trackedItems,
     activeTrackedItems,
     dayPlanItems,
+    weekPlanItems,
     snoozedItems,
     somedayItems,
     dueSnoozedItems,
@@ -385,9 +452,12 @@ export function useDayPlanning(
     toggleItemDayPlan,
     setDayPlan,
     refreshDayPlanIfStale,
+    refreshWeekPlanIfStale,
     processDueSnoozed,
     completeWeeklyReview,
     suggestDayPlan,
+    suggestWeekPlan,
+    toggleItemWeekPlan,
     setItemPriority,
     setItemEffort,
     snoozeItem,

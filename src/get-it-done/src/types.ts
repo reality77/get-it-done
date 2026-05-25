@@ -12,6 +12,7 @@ export type TaskView     = 'day' | 'week' | 'backlog'
 export interface PlanMeta {
   lastReviewedAt: string | null  // ISO timestamp of last weekly review
   dayPlanDate: string | null     // YYYY-MM-DD — which day the current plan is for
+  weekPlanDate?: string | null   // YYYY-MM-DD of the Monday that started the current week plan
 }
 
 // ── Checklist types ───────────────────────────────────────────────────────────
@@ -26,6 +27,7 @@ export interface ChecklistItem {
   effort?: TaskEffort
   status?: TaskStatus            // defaults to 'active'
   selectedForToday?: boolean
+  selectedForWeek?: boolean
   snoozeUntil?: string | null    // YYYY-MM-DD
   snoozedAt?: string | null      // ISO timestamp, for 14-day alert
   completedAt?: string | null    // ISO timestamp of completion
