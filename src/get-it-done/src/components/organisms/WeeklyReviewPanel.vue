@@ -48,7 +48,9 @@ function reviewSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
     hint: 'Add to week',
     bgClass: 'bg-success',
     onTrigger: () => {
-      store.toggleItemWeekPlan(refToId(taskRef))
+      const id = refToId(taskRef)
+      store.activateItem(id)
+      store.toggleItemWeekPlan(id)
       dismissFromPanel(taskRef.item.id)
     },
   }

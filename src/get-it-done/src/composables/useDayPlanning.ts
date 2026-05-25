@@ -24,8 +24,6 @@ import {
   WEEKLY_REVIEW_INTERVAL_DAYS,
 } from '../config/constants'
 
-const WEEK_PLAN_EFFORT_BUDGET = DAY_PLAN_EFFORT_BUDGET * 7
-
 // ── Module-level pure helpers ────────────────────────────────────────────────
 
 function itemKey(checklistId: string, itemId: string): string {
@@ -168,10 +166,16 @@ export function useDayPlanning(
     })
   })
 
+  const weekPlanItems = computed(() =>
+    trackedItems.value.filter(r =>
+      !r.item.done && r.item.selectedForWeek && (r.item.status ?? 'active') === 'active'
+    )
+  )
+
   const itemsByPriority = computed(() => ({
-    urgent:    activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'urgent'),
-    important: activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'important'),
-    secondary: activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'secondary'),
+    urgent:    weekPlanItems.value.filter(r => (r.item.priority ?? 'important') === 'urgent'),
+    important: weekPlanItems.value.filter(r => (r.item.priority ?? 'important') === 'important'),
+    secondary: weekPlanItems.value.filter(r => (r.item.priority ?? 'important') === 'secondary'),
   }))
 
   // ── Weekly review computed ──────────────────────────────────────────────────
@@ -190,12 +194,6 @@ export function useDayPlanning(
 
   const isDayPlanFresh = computed(() =>
     planMeta.dayPlanDate === todayDateString()
-  )
-
-  const weekPlanItems = computed(() =>
-    trackedItems.value.filter(r =>
-      !r.item.done && r.item.selectedForWeek && (r.item.status ?? 'active') === 'active'
-    )
   )
 
   // ── Day plan actions ────────────────────────────────────────────────────────
@@ -369,24 +367,9 @@ export function useDayPlanning(
   }
 
   function suggestWeekPlan(): TrackedItemRef[] {
-    const today = todayDateString()
-    const scored = activeTrackedItems.value
-      .filter(r => !r.item.selectedForWeek)
-      .map(r => ({ ref: r, units: effortUnits(r), score: scoreItem(r, today) }))
-      .sort((a, b) => b.score - a.score)
-
-    const result: TrackedItemRef[] = []
-    let budgetLeft = WEEK_PLAN_EFFORT_BUDGET
-
-    for (const s of scored) {
-      if (budgetLeft <= 0) break
-      if (s.units <= budgetLeft || result.length === 0) {
-        result.push(s.ref)
-        budgetLeft -= s.units
-      }
-    }
-
-    return result
+    return trackedItems.value.filter(r =>
+      (r.item.status ?? 'active') === 'snoozed'
+    )
   }
 
   function toggleItemWeekPlan(ref: ChecklistItemId): void {
