@@ -184,8 +184,7 @@ export function useDayPlanning(
     const cutoff = new Date(today)
     cutoff.setDate(cutoff.getDate() - WEEKLY_REVIEW_INTERVAL_DAYS)
     const overdueReview = !lastReview || new Date(lastReview) < cutoff
-    const reviewedThisWeek = lastReview != null && lastReview.substring(0, 10) >= getMondayDateString()
-    return (isMonday && !reviewedThisWeek) || hasDueSnoozed || overdueReview
+    return isMonday || hasDueSnoozed || overdueReview
   })
 
   const isDayPlanFresh = computed(() =>
@@ -371,7 +370,6 @@ export function useDayPlanning(
   function suggestWeekPlan(): TrackedItemRef[] {
     const today = todayDateString()
     const scored = activeTrackedItems.value
-      .filter(r => !r.item.selectedForWeek)
       .map(r => ({ ref: r, units: effortUnits(r), score: scoreItem(r, today) }))
       .sort((a, b) => b.score - a.score)
 

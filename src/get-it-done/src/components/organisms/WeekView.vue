@@ -243,7 +243,6 @@ function weekActions(taskRef: TrackedItemRef) {
                 dragging?.itemId === ref.item.id || touchDragging?.itemId === ref.item.id ? 'opacity-40'
                   : isDismissed(ref) ? 'opacity-65' : '',
                 mode === 'planning' && ref.item.selectedForToday ? 'border-primary'
-                  : mode === 'planning' && ref.item.selectedForWeek ? 'border-violet-400'
                   : isDismissed(ref) ? 'border-border' : 'border-transparent',
               ]"
               :title="isDismissed(ref) ? 'Excluded from today\'s suggestion' : undefined"
