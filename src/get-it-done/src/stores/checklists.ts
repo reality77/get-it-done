@@ -321,6 +321,11 @@ export const useChecklistStore = defineStore('checklists', () => {
   function setItemDeadline({ checklistId, itemId }: ChecklistItemId, deadline: string | null): void {
     const checklist = getChecklist(checklistId)
     if (!checklist) return
+    if (checklist.trackMode === 'checklist' && itemId === checklistId) {
+      checklist.deadline = deadline
+      void sync.upsertChecklist(checklist)
+      return
+    }
     const item = findItemDeep(checklist.items, itemId)
     if (!item) return
     item.deadline = deadline
@@ -330,6 +335,11 @@ export const useChecklistStore = defineStore('checklists', () => {
   function setItemReminders({ checklistId, itemId }: ChecklistItemId, reminders: string[]): void {
     const checklist = getChecklist(checklistId)
     if (!checklist) return
+    if (checklist.trackMode === 'checklist' && itemId === checklistId) {
+      checklist.reminders = reminders.length > 0 ? reminders : undefined
+      void sync.upsertChecklist(checklist)
+      return
+    }
     const item = findItemDeep(checklist.items, itemId)
     if (!item) return
     item.reminders = reminders.length > 0 ? reminders : undefined
