@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { getSnoozeOptions, getDeadlineSnoozeOptions, type SnoozeOption } from '../../composables/useSnoozeOptions'
+import VSegmented from '../atoms/VSegmented.vue'
 
 const props = defineProps<{
   taskName: string
@@ -75,22 +76,11 @@ function submitCustom(): void {
         </div>
 
         <!-- Segment control (only when deadline options exist) -->
-        <div v-if="hasDeadlineSegment" class="flex bg-bg-2/60 rounded-lg p-1 gap-1">
-          <button
-            class="flex-1 text-xs font-medium py-1.5 rounded-md transition-colors"
-            :class="activeSegment === 'standard'
-              ? 'bg-primary text-fg-on-primary'
-              : 'text-fg-3 hover:text-fg'"
-            @click="activeSegment = 'standard'"
-          >Dates</button>
-          <button
-            class="flex-1 text-xs font-medium py-1.5 rounded-md transition-colors"
-            :class="activeSegment === 'deadline'
-              ? 'bg-primary text-fg-on-primary'
-              : 'text-fg-3 hover:text-fg'"
-            @click="activeSegment = 'deadline'"
-          >Before deadline</button>
-        </div>
+        <VSegmented
+          v-if="hasDeadlineSegment"
+          v-model="activeSegment"
+          :options="[{ value: 'standard', label: 'Dates' }, { value: 'deadline', label: 'Before deadline' }]"
+        />
 
         <!-- Date option grid -->
         <div class="grid grid-cols-2 gap-2">
