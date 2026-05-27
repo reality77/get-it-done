@@ -7,7 +7,7 @@ import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
 import { useChecklistStore } from '../../stores/checklists'
 import TaskCardActions from './TaskCardActions.vue'
 import TaskCardMobileSheet from './TaskCardMobileSheet.vue'
-import EffortAvatar from '../atoms/EffortAvatar.vue'
+import EffortBadge from './EffortBadge.vue'
 import VCard from '../atoms/VCard.vue'
 
 const props = defineProps<{
@@ -235,8 +235,8 @@ const progressDots = computed(() => {
             {{ dateInfo.label }}
           </span>
 
-          <!-- Effort avatar -->
-          <EffortAvatar v-if="item.effort" :effort="item.effort" />
+          <!-- Effort badge -->
+          <EffortBadge v-if="item.effort" :effort="item.effort" />
         </div>
       </div>
     </VCard>
