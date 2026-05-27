@@ -27,6 +27,13 @@ function onSnoozePick(date: string): void {
   }
 }
 
+function onSnoozeSomeday(): void {
+  if (pendingSnoozeTask.value) {
+    store.sendItemToSomeday(refToId(pendingSnoozeTask.value))
+    pendingSnoozeTask.value = null
+  }
+}
+
 function onSnoozeCancel(): void {
   pendingSnoozeTask.value = null
 }
@@ -153,8 +160,11 @@ function formatSnoozeDate(raw: string): string {
 
   <SnoozeModal
     v-if="pendingSnoozeTask"
+    :task-name="pendingSnoozeTask.item.text"
+    :checklist-title="pendingSnoozeTask.checklistTitle"
     :deadline="pendingSnoozeTask.item.deadline"
     @pick="onSnoozePick"
+    @someday="onSnoozeSomeday"
     @cancel="onSnoozeCancel"
   />
 </template>
