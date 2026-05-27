@@ -36,19 +36,19 @@ function nextWeekDate(): string {
   return d.toISOString().slice(0, 10)
 }
 
-function snoozedSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
+function snoozedSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
   return { hint: 'Add to week', bgClass: 'bg-success', onTrigger: () => addToWeek(taskRef) }
 }
 
-function snoozedSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
+function snoozedSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return { hint: 'Move to someday', bgClass: 'bg-info', onTrigger: () => store.sendItemToSomeday(refToId(taskRef)) }
 }
 
-function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
+function somedaySwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
   return { hint: 'Add to week', bgClass: 'bg-success', onTrigger: () => addToWeek(taskRef) }
 }
 
-function somedaySwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
+function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return { hint: 'Next week', bgClass: 'bg-warning', onTrigger: () => store.snoozeItem(refToId(taskRef), nextWeekDate()) }
 }
 
