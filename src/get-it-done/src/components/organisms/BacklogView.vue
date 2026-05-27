@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import type { TrackedItemRef, SwipeActionDef } from '../../types'
 import { makeStatusActions, refToId } from '../../composables/useTaskActions'
 import { useChecklistStore } from '../../stores/checklists'
 import TaskCard from '../molecules/TaskCard.vue'
 import MobilePlanningSheet from '../molecules/MobilePlanningSheet.vue'
+import SnoozeModal from '../molecules/SnoozeModal.vue'
 
 defineProps<{
   snoozedItems: TrackedItemRef[]
@@ -11,6 +13,23 @@ defineProps<{
 }>()
 
 const store = useChecklistStore()
+
+const pendingSnoozeTask = ref<TrackedItemRef | null>(null)
+
+function openSnoozeModal(taskRef: TrackedItemRef): void {
+  pendingSnoozeTask.value = taskRef
+}
+
+function onSnoozePick(date: string): void {
+  if (pendingSnoozeTask.value) {
+    store.snoozeItem(refToId(pendingSnoozeTask.value), date)
+    pendingSnoozeTask.value = null
+  }
+}
+
+function onSnoozeCancel(): void {
+  pendingSnoozeTask.value = null
+}
 
 function backlogActions(taskRef: TrackedItemRef) {
   const actions = makeStatusActions(taskRef, {
@@ -29,19 +48,12 @@ function addToWeek(taskRef: TrackedItemRef): void {
   store.toggleItemWeekPlan(id)
 }
 
-function nextWeekDate(): string {
-  const d = new Date()
-  const daysUntil = d.getDay() === 1 ? 7 : ((8 - d.getDay()) % 7 || 7)
-  d.setDate(d.getDate() + daysUntil)
-  return d.toISOString().slice(0, 10)
-}
-
 function snoozedSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
   return { hint: 'Add to week', bgClass: 'bg-success', onTrigger: () => addToWeek(taskRef) }
 }
 
 function snoozedSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
-  return { hint: 'Move to someday', bgClass: 'bg-info', onTrigger: () => store.sendItemToSomeday(refToId(taskRef)) }
+  return { hint: '💤 Snooze', bgClass: 'bg-warning', onTrigger: () => openSnoozeModal(taskRef) }
 }
 
 function somedaySwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
@@ -49,7 +61,7 @@ function somedaySwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
 }
 
 function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
-  return { hint: 'Next week', bgClass: 'bg-warning', onTrigger: () => store.snoozeItem(refToId(taskRef), nextWeekDate()) }
+  return { hint: '💤 Snooze', bgClass: 'bg-warning', onTrigger: () => openSnoozeModal(taskRef) }
 }
 
 function formatSnoozeDate(raw: string): string {
@@ -138,4 +150,11 @@ function formatSnoozeDate(raw: string): string {
     </section>
 
   </div>
+
+  <SnoozeModal
+    v-if="pendingSnoozeTask"
+    :deadline="pendingSnoozeTask.item.deadline"
+    @pick="onSnoozePick"
+    @cancel="onSnoozeCancel"
+  />
 </template>
