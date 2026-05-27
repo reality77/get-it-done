@@ -5,12 +5,10 @@ import { useSwipeAction } from '../../composables/useSwipeAction'
 import { useEditableField } from '../../composables/useEditableField'
 import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
 import { useChecklistStore } from '../../stores/checklists'
-import PriorityBadge from './PriorityBadge.vue'
-import EffortBadge from './EffortBadge.vue'
-import AppCheckbox from '../atoms/AppCheckbox.vue'
-import DeadlineBar from '../atoms/DeadlineBar.vue'
 import TaskCardActions from './TaskCardActions.vue'
 import TaskCardMobileSheet from './TaskCardMobileSheet.vue'
+import EffortBadge from './EffortBadge.vue'
+import DeadlineBar from '../atoms/DeadlineBar.vue'
 import VCard from '../atoms/VCard.vue'
 
 const props = defineProps<{
@@ -18,23 +16,14 @@ const props = defineProps<{
   checklistId: string
   checklistTitle: string
   compact?: boolean
-  /** Override checklist title visibility; defaults to true when non-compact, false when compact */
   showChecklistTitle?: boolean
-  /** Show the completion checkbox (default: true) */
   showCheckbox?: boolean
-  /** Swipe-left action — triggers when the user swipes left */
   swipeLeft?: SwipeActionDef
-  /** Swipe-right action — triggers when the user swipes right */
   swipeRight?: SwipeActionDef
-  /** Desktop hover buttons (and mobile inline buttons when no mobile-sheet slot) */
   actions?: ButtonActionDef[]
-  /** Collapse actions into a ⋯ sheet on mobile */
   collapseMobileActions?: boolean
-  /** When true, the item represents the whole checklist as a single task */
   isChecklistTask?: boolean
-  /** Progress counter for checklist tasks */
   progress?: { done: number; total: number }
-  /** Called instead of toggleItem when isChecklistTask is true */
   onChecklistDone?: () => void
 }>()
 
@@ -56,6 +45,16 @@ const onKeydown = makeKeydownHandler(confirmEdit, cancelEdit)
 // ── Mobile sheet ──────────────────────────────────────────────────────────────
 const mobileMenuOpen = ref(false)
 
+const hasMobileSheet = computed(() =>
+  !!slots['mobile-sheet'] || !!(props.collapseMobileActions && props.actions?.length)
+)
+
+function handleCardClick(): void {
+  if (hasMobileSheet.value) {
+    mobileMenuOpen.value = true
+  }
+}
+
 // ── Swipe gesture ─────────────────────────────────────────────────────────────
 const rowEl = ref<HTMLElement | null>(null)
 
@@ -66,16 +65,47 @@ const { style: rowStyle, rightProgress, leftProgress } = useSwipeAction(rowEl, {
   onRight: () => props.swipeRight?.onTrigger(),
 })
 
-const hasMobileSheet = () => !!slots['mobile-sheet'] || !!(props.collapseMobileActions && props.actions?.length)
-const hasActions = () => !!(props.actions?.length)
+// ── Priority bar ──────────────────────────────────────────────────────────────
+const priorityBarClass = computed(() => {
+  if (props.item.done) return 'bg-fg-4/30'
+  switch (props.item.priority) {
+    case 'urgent': return 'bg-danger'
+    case 'important': return 'bg-warning'
+    case 'secondary': return 'bg-fg-3'
+    default: return 'bg-transparent'
+  }
+})
 
-const deadline = computed(() => props.item.deadline ? new Date(props.item.deadline) : null)
+// ── Date badges ───────────────────────────────────────────────────────────────
+function dateBadge(raw: string): { label: string; danger: boolean } {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const d = new Date(raw)
+  d.setHours(0, 0, 0, 0)
+  return {
+    label: d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
+    danger: d.getTime() <= today.getTime(),
+  }
+}
 
+const deadlineInfo = computed(() =>
+  !props.item.done && props.item.deadline ? dateBadge(props.item.deadline) : null
+)
+
+
+// ── Progress dots (up to 5) ───────────────────────────────────────────────────
+const progressDots = computed(() => {
+  if (!props.progress || props.progress.total === 0) return null
+  const { done, total } = props.progress
+  const max = Math.min(total, 5)
+  const doneDots = Math.round((done / total) * max)
+  return Array.from({ length: max }, (_, i) => i < doneDots)
+})
 </script>
 
 <template>
   <!-- Swipe wrapper -->
-  <div ref="rowEl" class="relative overflow-hidden rounded-lg">
+  <div ref="rowEl" class="relative overflow-hidden rounded-xl">
 
     <!-- Left hint (revealed on swipe right) -->
     <div
@@ -97,72 +127,125 @@ const deadline = computed(() => props.item.deadline ? new Date(props.item.deadli
       <span class="text-white text-xs font-medium">{{ swipeLeft.hint }}</span>
     </div>
 
-    <!-- Row content -->
+    <!-- Card -->
     <VCard
-      class="relative flex group rounded-lg hover:bg-bg-2/50 transition-colors bg-bg-1"
+      class="relative flex group overflow-hidden transition-colors cursor-pointer"
       :style="rowStyle"
+      @click="handleCardClick"
     >
-      <div class="flex flex-col w-full">
-        <div class="flex flex-row items-center gap-2"
-        :class="compact ? 'py-1.5 px-2' : 'py-4 px-4'">
+      <!-- Priority bar -->
+      <div class="w-1 shrink-0 self-stretch" :class="priorityBarClass" />
 
-      <!-- Completion checkbox -->
-      <AppCheckbox
-        v-if="showCheckbox !== false"
-        :model-value="item.done"
-        @update:model-value="isChecklistTask ? onChecklistDone?.() : store.toggleItem({ checklistId, itemId: item.id })"
-      />
+      <!-- Content -->
+      <div class="flex-1 flex flex-col min-w-0" :class="compact ? 'py-2 px-3' : 'py-3 px-3'">
 
-      <!-- Title -->
-      <input
-        v-if="isEditing"
-        v-focus
-        v-model="editTitle"
-        class="flex-1 bg-transparent border-b border-border focus:border-primary outline-none text-fg text-sm py-0.5 transition-colors"
-        @keydown="onKeydown"
-        @blur="confirmEdit"
-      />
-      <div v-else class="flex-1 min-w-0">
-        <span
-          class="text-sm wrap-break-word block cursor-text"
-          :class="item.done ? 'line-through text-fg-4' : 'text-fg'"
-          @dblclick="startEdit()"
-        >
-          {{ item.text }}
-        </span>
-        <span v-if="showChecklistTitle !== undefined ? showChecklistTitle : !compact" class="text-xs text-fg-4 block truncate">{{ checklistTitle }}</span>
-      </div>
+        <!-- Title row -->
+        <div class="flex items-start gap-2">
+          <input
+            v-if="isEditing"
+            v-focus
+            v-model="editTitle"
+            class="flex-1 bg-transparent border-b border-border focus:border-primary outline-none text-fg py-0.5 transition-colors"
+            :class="compact ? 'text-sm' : 'text-base'"
+            @keydown="onKeydown"
+            @blur="confirmEdit"
+            @click.stop
+          />
+          <span
+            v-else
+            class="flex-1 wrap-break-word leading-snug"
+            :class="[
+              compact ? 'text-sm' : 'text-base font-medium',
+              item.done ? 'line-through text-fg-4' : 'text-fg',
+            ]"
+            @dblclick.stop="startEdit()"
+          >{{ item.text }}</span>
 
-      <!-- Progress badge for checklist tasks -->
-      <span
-        v-if="progress"
-        class="text-xs text-fg-4 shrink-0 tabular-nums"
-      >{{ progress.done }}/{{ progress.total }}</span>
-
-      <!-- Badges -->
-    <PriorityBadge v-if="item.priority" :priority="item.priority" :compact="true"></PriorityBadge>
-    <EffortBadge v-if="item.effort" :effort="item.effort" />
-
-    <!-- Actions -->
-    <TaskCardActions
-      v-if="hasActions() || hasMobileSheet()"
-      :actions="actions ?? []"
-      :has-mobile-sheet="hasMobileSheet()"
-      @open-mobile-menu="mobileMenuOpen = true"
-    />
-
-      </div>
-      <div v-if="deadline && item.deadline && !item.done" elevated class="opacity-50 px-3 py-1 bg-bg-2 flex flex-row items-center rounded-md overflow-hidden">
-          <!-- Deadline proximity bar -->
-          <DeadlineBar :deadline="item.deadline" />
-          <div class="flex-1 flex justify-end px-2">
-            <span class="block w-full text-right whitespace-nowrap">
-              <span v-if="deadline.getFullYear() > new Date().getFullYear()">{{ deadline.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) }}</span>
-              <span v-else :class="deadline.getTime() < new Date().getTime() ? 'text-danger' : ''">{{ deadline.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }}</span>
-            </span>
+          <!-- Desktop hover actions (hidden on mobile) -->
+          <div
+            v-if="actions?.length"
+            class="hidden sm:flex shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            @click.stop
+          >
+            <TaskCardActions :actions="actions" :has-mobile-sheet="false" />
           </div>
+        </div>
+
+        <!-- Meta row: checklist name + icons + date + effort -->
+        <div class="flex items-center gap-1.5 mt-1.5 min-w-0">
+          <!-- Checklist title -->
+          <span
+            v-if="showChecklistTitle !== undefined ? showChecklistTitle : true"
+            class="text-xs text-fg-4 flex-1 truncate min-w-0"
+          >{{ checklistTitle }}</span>
+          <span v-else class="flex-1" />
+
+          <!-- Link icon -->
+          <svg
+            v-if="item.url"
+            class="w-3.5 h-3.5 text-fg-4 shrink-0"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M6.5 9.5a3.5 3.5 0 0 0 4.95 0l1.5-1.5a3.5 3.5 0 0 0-4.95-4.95l-.75.75" />
+            <path d="M9.5 6.5a3.5 3.5 0 0 0-4.95 0L3.05 8a3.5 3.5 0 0 0 4.95 4.95l.75-.75" />
+          </svg>
+
+          <!-- Bell icon -->
+          <svg
+            v-if="item.reminders?.length"
+            class="w-3.5 h-3.5 text-fg-4 shrink-0"
+            viewBox="0 0 16 16"
+            fill="currentColor"
+          >
+            <path d="M8 1.5a.75.75 0 0 1 .75.75v.42A4.5 4.5 0 0 1 12.5 7v2l1 1.5H2.5L3.5 9V7A4.5 4.5 0 0 1 7.25 2.67V2.25A.75.75 0 0 1 8 1.5Zm0 12.5a1.5 1.5 0 0 1-1.5-1.5h3A1.5 1.5 0 0 1 8 14Z" />
+          </svg>
+
+          <!-- Comment icon -->
+          <svg
+            v-if="item.comment"
+            class="w-3.5 h-3.5 text-fg-4 shrink-0"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5l-3 2V3Z" />
+          </svg>
+
+          <!-- Progress dots -->
+          <div v-if="progressDots" class="flex gap-0.5 items-center shrink-0">
+            <span
+              v-for="(filled, i) in progressDots"
+              :key="i"
+              class="w-2 h-2 rounded-full"
+              :class="filled ? 'bg-success' : 'bg-fg-4/30'"
+            />
+          </div>
+
+          <!-- Deadline badge -->
+          <span
+            v-if="deadlineInfo"
+            class="flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full shrink-0 font-medium"
+            :class="deadlineInfo.danger ? 'bg-danger/20 text-danger' : 'bg-bg-3 text-fg-3'"
+          >
+            <span class="w-3.5 shrink-0">
+              <DeadlineBar :deadline="item.deadline!" />
+            </span>
+            {{ deadlineInfo.label }}
+          </span>
+
+
+          <!-- Effort badge -->
+          <EffortBadge v-if="item.effort" :effort="item.effort" />
+        </div>
       </div>
-    </div>
     </VCard>
   </div>
 
