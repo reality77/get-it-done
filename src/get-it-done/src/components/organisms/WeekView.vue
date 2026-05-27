@@ -203,6 +203,8 @@ function onModalClose(): void {
     :task-name="pendingSnoozeTask.item.text"
     :checklist-title="pendingSnoozeTask.checklistTitle"
     :deadline="pendingSnoozeTask.item.deadline"
+    :snooze-until="pendingSnoozeTask.item.snoozeUntil"
+    :status="pendingSnoozeTask.item.status"
     @pick="onSnoozePick"
     @someday="onSnoozeSomeday"
     @cancel="onSnoozeCancel"
