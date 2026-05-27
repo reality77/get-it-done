@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import type { TaskStatus } from '../../types'
 import { getSnoozeOptions, getDeadlineSnoozeOptions, type SnoozeOption } from '../../composables/useSnoozeOptions'
 import VSegmented from '../atoms/VSegmented.vue'
 
@@ -7,6 +8,8 @@ const props = defineProps<{
   taskName: string
   checklistTitle: string
   deadline?: string | null
+  snoozeUntil?: string | null
+  status?: TaskStatus
 }>()
 
 const emit = defineEmits<{
@@ -24,7 +27,13 @@ const deadlineOptions = computed<SnoozeOption[]>(() =>
 )
 
 const hasDeadlineSegment = computed(() => deadlineOptions.value.length > 0)
-const activeSegment = ref<Segment>('standard')
+
+// Open on the segment that contains the current snooze date (if any)
+const initialSegment = computed<Segment>(() => {
+  if (props.snoozeUntil && deadlineOptions.value.some(o => o.date === props.snoozeUntil)) return 'deadline'
+  return 'standard'
+})
+const activeSegment = ref<Segment>(initialSegment.value)
 
 const visibleOptions = computed<SnoozeOption[]>(() =>
   activeSegment.value === 'deadline' && hasDeadlineSegment.value
@@ -32,7 +41,20 @@ const visibleOptions = computed<SnoozeOption[]>(() =>
     : standardOptions
 )
 
-const customDate = ref('')
+// Which date is currently active on the task
+const activeDate = computed(() => props.status === 'snoozed' ? (props.snoozeUntil ?? null) : null)
+const activeSomeday = computed(() => props.status === 'someday')
+
+// If current snooze date doesn't match any preset, pre-fill the custom input
+const allPresetDates = computed(() =>
+  [...standardOptions, ...deadlineOptions.value].map(o => o.date)
+)
+const customDate = ref(
+  props.snoozeUntil && !allPresetDates.value.includes(props.snoozeUntil)
+    ? props.snoozeUntil
+    : ''
+)
+
 const todayStr = new Date().toISOString().slice(0, 10)
 
 function formatDeadline(deadline: string): string {
@@ -54,14 +76,9 @@ function submitCustom(): void {
 
 <template>
   <Teleport to="body">
-    <div
-      class="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-    >
+    <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <!-- Backdrop -->
-      <div
-        class="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        @click="$emit('cancel')"
-      />
+      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="$emit('cancel')" />
 
       <!-- Sheet -->
       <div class="relative bg-bg-1 border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm shadow-2xl p-4 space-y-3">
@@ -87,20 +104,28 @@ function submitCustom(): void {
           <button
             v-for="opt in visibleOptions"
             :key="opt.date"
-            class="flex flex-col items-start px-3 py-2.5 rounded-xl border border-border bg-bg-2 text-fg-2 hover:bg-bg-3 transition-colors text-left"
+            class="flex flex-col items-start px-3 py-2.5 rounded-xl border transition-[colors,transform] duration-100 text-left active:scale-[0.96]"
+            :class="activeDate === opt.date
+              ? 'bg-warning/20 border-warning text-warning'
+              : 'bg-bg-2 border-border text-fg-2 hover:bg-bg-3'"
             @click="$emit('pick', opt.date)"
           >
             <span class="text-sm font-medium">{{ opt.label }}</span>
-            <span class="text-xs text-fg-4 mt-0.5">{{ formatOptionDate(opt.date) }}</span>
+            <span class="text-xs mt-0.5" :class="activeDate === opt.date ? 'text-warning/70' : 'text-fg-4'">
+              {{ formatOptionDate(opt.date) }}
+            </span>
           </button>
         </div>
 
         <!-- Someday -->
         <button
-          class="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border bg-bg-2 text-fg-2 hover:bg-bg-3 transition-colors text-sm font-medium"
+          class="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-[colors,transform] duration-100 text-sm font-medium active:scale-[0.98]"
+          :class="activeSomeday
+            ? 'bg-info/20 border-info text-info'
+            : 'bg-bg-2 border-border text-fg-2 hover:bg-bg-3'"
           @click="$emit('someday')"
         >
-          <span class="text-info">☁</span> Someday
+          <span>☁</span> Someday
         </button>
 
         <!-- Custom date -->
@@ -112,7 +137,7 @@ function submitCustom(): void {
             class="flex-1 bg-bg-2 border border-border rounded-xl px-3 py-2.5 text-sm text-fg-2 focus:border-primary focus:outline-none transition-colors"
           />
           <button
-            class="px-4 py-2.5 bg-primary text-fg-on-primary text-sm font-semibold rounded-xl disabled:opacity-40 transition-opacity"
+            class="px-4 py-2.5 bg-primary text-fg-on-primary text-sm font-semibold rounded-xl disabled:opacity-40 transition-[opacity,transform] duration-100 active:scale-[0.96]"
             :disabled="!customDate"
             @click="submitCustom"
           >OK</button>
