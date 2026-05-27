@@ -37,37 +37,24 @@ function nextWeekDate(): string {
 }
 
 function snoozedSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
-  return {
-    hint: 'Add to week',
-    bgClass: 'bg-success',
-    onTrigger: () => addToWeek(taskRef),
-  }
+  return { hint: 'Add to week', bgClass: 'bg-success', onTrigger: () => addToWeek(taskRef) }
 }
 
 function snoozedSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
-  return {
-    hint: 'Move to someday',
-    bgClass: 'bg-info',
-    onTrigger: () => store.sendItemToSomeday(refToId(taskRef)),
-  }
+  return { hint: 'Move to someday', bgClass: 'bg-info', onTrigger: () => store.sendItemToSomeday(refToId(taskRef)) }
 }
 
 function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
-  return {
-    hint: 'Add to week',
-    bgClass: 'bg-success',
-    onTrigger: () => addToWeek(taskRef),
-  }
+  return { hint: 'Add to week', bgClass: 'bg-success', onTrigger: () => addToWeek(taskRef) }
 }
 
 function somedaySwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
-  return {
-    hint: 'Next week',
-    bgClass: 'bg-warning',
-    onTrigger: () => store.snoozeItem(refToId(taskRef), nextWeekDate()),
-  }
+  return { hint: 'Next week', bgClass: 'bg-warning', onTrigger: () => store.snoozeItem(refToId(taskRef), nextWeekDate()) }
 }
 
+function formatSnoozeDate(raw: string): string {
+  return new Date(raw).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+}
 </script>
 
 <template>
@@ -80,28 +67,40 @@ function somedaySwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
         <span class="text-fg-4 font-normal">({{ snoozedItems.length }})</span>
       </h3>
       <div v-if="snoozedItems.length === 0" class="text-xs text-fg-4 py-2 pl-4">No snoozed tasks.</div>
-      <div v-else class="space-y-0.5">
-        <TaskCard
+      <div v-else class="space-y-3">
+        <div
           v-for="ref in snoozedItems"
           :key="ref.item.id"
-          :item="ref.item"
-          :checklist-id="ref.checklistId"
-          :checklist-title="ref.checklistTitle"
-          :show-checkbox="false"
-          :swipe-left="snoozedSwipeLeft(ref)"
-          :swipe-right="snoozedSwipeRight(ref)"
-          :actions="backlogActions(ref)"
-          :is-checklist-task="ref.isChecklistTask"
-          :progress="ref.progress"
+          class="relative overflow-hidden rounded-xl"
         >
-          <template #mobile-sheet="{ close }">
-            <MobilePlanningSheet
-              :item="ref.item"
-              :item-id="{ checklistId: ref.checklistId, itemId: ref.item.id }"
-              :close="close"
-            />
-          </template>
-        </TaskCard>
+          <!-- Snooze date ribbon -->
+          <div
+            v-if="ref.item.snoozeUntil"
+            class="absolute top-0 right-0 z-10 pointer-events-none pl-5 pr-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider text-white bg-sky-500 rounded-bl-xl"
+            style="clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 35% 100%)"
+          >💤 {{ formatSnoozeDate(ref.item.snoozeUntil) }}</div>
+
+          <TaskCard
+            :item="ref.item"
+            :checklist-id="ref.checklistId"
+            :checklist-title="ref.checklistTitle"
+            :show-checklist-title="true"
+            :show-checkbox="false"
+            :swipe-left="snoozedSwipeLeft(ref)"
+            :swipe-right="snoozedSwipeRight(ref)"
+            :actions="backlogActions(ref)"
+            :is-checklist-task="ref.isChecklistTask"
+            :progress="ref.progress"
+          >
+            <template #mobile-sheet="{ close }">
+              <MobilePlanningSheet
+                :item="ref.item"
+                :item-id="{ checklistId: ref.checklistId, itemId: ref.item.id }"
+                :close="close"
+              />
+            </template>
+          </TaskCard>
+        </div>
       </div>
     </section>
 
@@ -112,13 +111,14 @@ function somedaySwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
         <span class="text-fg-4 font-normal">({{ somedayItems.length }})</span>
       </h3>
       <div v-if="somedayItems.length === 0" class="text-xs text-fg-4 py-2 pl-4">No someday tasks.</div>
-      <div v-else class="space-y-0.5">
+      <div v-else class="space-y-3">
         <TaskCard
           v-for="ref in somedayItems"
           :key="ref.item.id"
           :item="ref.item"
           :checklist-id="ref.checklistId"
           :checklist-title="ref.checklistTitle"
+          :show-checklist-title="true"
           :show-checkbox="false"
           :swipe-left="somedaySwipeLeft(ref)"
           :swipe-right="somedaySwipeRight(ref)"

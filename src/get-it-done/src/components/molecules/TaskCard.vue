@@ -92,9 +92,6 @@ const deadlineInfo = computed(() =>
   !props.item.done && props.item.deadline ? dateBadge(props.item.deadline) : null
 )
 
-const snoozeInfo = computed(() =>
-  !props.item.done && props.item.snoozeUntil ? dateBadge(props.item.snoozeUntil) : null
-)
 
 // ── Progress dots (up to 5) ───────────────────────────────────────────────────
 const progressDots = computed(() => {
@@ -244,19 +241,6 @@ const progressDots = computed(() => {
             {{ deadlineInfo.label }}
           </span>
 
-          <!-- Snooze badge -->
-          <span
-            v-if="snoozeInfo"
-            class="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full shrink-0 font-medium"
-            :class="snoozeInfo.danger ? 'bg-danger/20 text-danger' : 'bg-bg-3 text-fg-3'"
-          >
-            <svg class="w-3 h-3 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="8" cy="8" r="6" />
-              <path d="M8 5v3l2 2" />
-              <path d="M3.5 2.5 2 4M12.5 2.5 14 4" />
-            </svg>
-            {{ snoozeInfo.label }}
-          </span>
 
           <!-- Effort badge -->
           <EffortBadge v-if="item.effort" :effort="item.effort" />
