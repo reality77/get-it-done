@@ -76,30 +76,25 @@ const priorityBarClass = computed(() => {
   }
 })
 
-// ── Date badge ────────────────────────────────────────────────────────────────
-const dateInfo = computed(() => {
-  if (props.item.done) return null
+// ── Date badges ───────────────────────────────────────────────────────────────
+function dateBadge(raw: string): { label: string; danger: boolean } {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-
-  if (props.item.deadline) {
-    const d = new Date(props.item.deadline)
-    d.setHours(0, 0, 0, 0)
-    const isUrgent = d.getTime() <= today.getTime()
-    const label = d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
-    return { label, danger: isUrgent, deadline: props.item.deadline }
+  const d = new Date(raw)
+  d.setHours(0, 0, 0, 0)
+  return {
+    label: d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
+    danger: d.getTime() <= today.getTime(),
   }
+}
 
-  if (props.item.snoozeUntil) {
-    const d = new Date(props.item.snoozeUntil)
-    d.setHours(0, 0, 0, 0)
-    const isUrgent = d.getTime() <= today.getTime()
-    const label = d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
-    return { label, danger: isUrgent, deadline: null }
-  }
+const deadlineInfo = computed(() =>
+  !props.item.done && props.item.deadline ? dateBadge(props.item.deadline) : null
+)
 
-  return null
-})
+const snoozeInfo = computed(() =>
+  !props.item.done && props.item.snoozeUntil ? dateBadge(props.item.snoozeUntil) : null
+)
 
 // ── Progress dots (up to 5) ───────────────────────────────────────────────────
 const progressDots = computed(() => {
@@ -237,18 +232,30 @@ const progressDots = computed(() => {
             />
           </div>
 
-          <!-- Date badge -->
+          <!-- Deadline badge -->
           <span
-            v-if="dateInfo"
+            v-if="deadlineInfo"
             class="flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full shrink-0 font-medium"
-            :class="dateInfo.danger ? 'bg-danger/20 text-danger' : 'bg-bg-3 text-fg-3'"
+            :class="deadlineInfo.danger ? 'bg-danger/20 text-danger' : 'bg-bg-3 text-fg-3'"
           >
-            <!-- Deadline proximity bar when date comes from a deadline -->
-            <span v-if="dateInfo.deadline" class="w-3.5 shrink-0">
-              <DeadlineBar :deadline="dateInfo.deadline" />
+            <span class="w-3.5 shrink-0">
+              <DeadlineBar :deadline="item.deadline!" />
             </span>
-            <span v-else class="opacity-60">—</span>
-            {{ dateInfo.label }}
+            {{ deadlineInfo.label }}
+          </span>
+
+          <!-- Snooze badge -->
+          <span
+            v-if="snoozeInfo"
+            class="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full shrink-0 font-medium"
+            :class="snoozeInfo.danger ? 'bg-danger/20 text-danger' : 'bg-bg-3 text-fg-3'"
+          >
+            <svg class="w-3 h-3 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="8" cy="8" r="6" />
+              <path d="M8 5v3l2 2" />
+              <path d="M3.5 2.5 2 4M12.5 2.5 14 4" />
+            </svg>
+            {{ snoozeInfo.label }}
           </span>
 
           <!-- Effort badge -->
