@@ -8,6 +8,7 @@ import { useChecklistStore } from '../../stores/checklists'
 import TaskCardActions from './TaskCardActions.vue'
 import TaskCardMobileSheet from './TaskCardMobileSheet.vue'
 import EffortBadge from './EffortBadge.vue'
+import DeadlineBar from '../atoms/DeadlineBar.vue'
 import VCard from '../atoms/VCard.vue'
 
 const props = defineProps<{
@@ -80,13 +81,24 @@ const dateInfo = computed(() => {
   if (props.item.done) return null
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const raw = props.item.deadline ?? props.item.snoozeUntil
-  if (!raw) return null
-  const d = new Date(raw)
-  d.setHours(0, 0, 0, 0)
-  const isUrgent = d.getTime() <= today.getTime()
-  const label = d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
-  return { label, danger: isUrgent }
+
+  if (props.item.deadline) {
+    const d = new Date(props.item.deadline)
+    d.setHours(0, 0, 0, 0)
+    const isUrgent = d.getTime() <= today.getTime()
+    const label = d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+    return { label, danger: isUrgent, deadline: props.item.deadline }
+  }
+
+  if (props.item.snoozeUntil) {
+    const d = new Date(props.item.snoozeUntil)
+    d.setHours(0, 0, 0, 0)
+    const isUrgent = d.getTime() <= today.getTime()
+    const label = d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+    return { label, danger: isUrgent, deadline: null }
+  }
+
+  return null
 })
 
 // ── Progress dots (up to 5) ───────────────────────────────────────────────────
@@ -228,10 +240,14 @@ const progressDots = computed(() => {
           <!-- Date badge -->
           <span
             v-if="dateInfo"
-            class="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full shrink-0 font-medium"
+            class="flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full shrink-0 font-medium"
             :class="dateInfo.danger ? 'bg-danger/20 text-danger' : 'bg-bg-3 text-fg-3'"
           >
-            <span class="opacity-60">—</span>
+            <!-- Deadline proximity bar when date comes from a deadline -->
+            <span v-if="dateInfo.deadline" class="w-3.5 shrink-0">
+              <DeadlineBar :deadline="dateInfo.deadline" />
+            </span>
+            <span v-else class="opacity-60">—</span>
             {{ dateInfo.label }}
           </span>
 
