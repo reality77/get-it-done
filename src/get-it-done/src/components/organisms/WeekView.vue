@@ -6,6 +6,7 @@ import { useChecklistStore } from "../../stores/checklists";
 import TaskCard from "../molecules/TaskCard.vue";
 import MobilePlanningSheet from "../molecules/MobilePlanningSheet.vue";
 import ChecklistCompletionModal from "../molecules/ChecklistCompletionModal.vue";
+import SnoozeModal from "../molecules/SnoozeModal.vue";
 
 type WeekMode = "planning" | "completion";
 
@@ -19,6 +20,23 @@ const props = defineProps<{
 }>()
 
 const store = useChecklistStore()
+
+const pendingSnoozeTask = ref<TrackedItemRef | null>(null)
+
+function openSnoozeModal(taskRef: TrackedItemRef): void {
+  pendingSnoozeTask.value = taskRef
+}
+
+function onSnoozePick(date: string): void {
+  if (pendingSnoozeTask.value) {
+    store.snoozeItem(refToId(pendingSnoozeTask.value), date)
+    pendingSnoozeTask.value = null
+  }
+}
+
+function onSnoozeCancel(): void {
+  pendingSnoozeTask.value = null
+}
 
 function isDismissed(ref: TrackedItemRef): boolean {
   return mode.value === 'planning' && props.dismissedKeys.has(`${ref.checklistId}:${ref.item.id}`)
@@ -50,13 +68,9 @@ const sortedItems = computed((): TrackedItemRef[] => {
 
 function weekSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return {
-    hint: '💤 Next week',
+    hint: '💤 Snooze',
     bgClass: 'bg-warning',
-    onTrigger: () => {
-      const d = new Date()
-      d.setDate(d.getDate() + ((1 + 7 - d.getDay()) % 7 || 7))
-      store.snoozeItem(refToId(taskRef), d.toISOString().slice(0, 10))
-    },
+    onTrigger: () => openSnoozeModal(taskRef),
   }
 }
 
@@ -175,5 +189,12 @@ function onModalClose(): void {
     :checklist="completionModalChecklist"
     @archive="onModalArchive"
     @close="onModalClose"
+  />
+
+  <SnoozeModal
+    v-if="pendingSnoozeTask"
+    :deadline="pendingSnoozeTask.item.deadline"
+    @pick="onSnoozePick"
+    @cancel="onSnoozeCancel"
   />
 </template>
