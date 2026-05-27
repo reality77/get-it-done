@@ -111,6 +111,9 @@ export function migrateNodes(raw: unknown[]): ChecklistNode[] {
     if (node.completedAt !== undefined) item.completedAt = node.completedAt as string | null
     if (node.deadline !== undefined) item.deadline = node.deadline as string | null
     if (node.reminders !== undefined) item.reminders = node.reminders as string[]
+    if (node.selectedForWeek) item.selectedForWeek = Boolean(node.selectedForWeek)
+    if (node.comment !== undefined) item.comment = node.comment as string
+    if (node.url !== undefined) item.url = node.url as string
     return item
   })
 }
