@@ -10,6 +10,7 @@ import TaskCardMobileSheet from './TaskCardMobileSheet.vue'
 import EffortBadge from './EffortBadge.vue'
 import DeadlineBar from '../atoms/DeadlineBar.vue'
 import VCard from '../atoms/VCard.vue'
+import VButton from '../atoms/VButton.vue'
 
 const props = defineProps<{
   item: ChecklistItem
@@ -101,6 +102,22 @@ const progressDots = computed(() => {
   const doneDots = Math.round((done / total) * max)
   return Array.from({ length: max }, (_, i) => i < doneDots)
 })
+
+const displayDetails = ref(false)
+const hasDetails = computed(() => {
+  return !!(props.item.comment || props.item.url || checkListItems.value.length)
+})
+
+const checkListItems = computed(() => {
+  const checklist = store.getChecklist(props.checklistId)
+  return checklist ? checklist.items : []
+});
+
+function openItemUrl(): void {
+  if (!props.item.url) return
+  window.open(props.item.url, '_blank', 'noopener,noreferrer')
+}
+
 </script>
 
 <template>
@@ -173,17 +190,27 @@ const progressDots = computed(() => {
 
         <!-- Meta row: checklist name + icons + date + effort -->
         <div class="flex items-center gap-1.5 mt-1.5 min-w-0">
+          <button
+            v-if="hasDetails"
+            class="text-fg-3 hover:text-fg-2 transition-colors text-sm w-4 shrink-0 text-left"
+            :aria-label="displayDetails ? 'Hide details' : 'Show details'"
+            :aria-expanded="displayDetails"
+            @click.stop="displayDetails = !displayDetails"
+          >
+            {{ displayDetails ? '▾' : '▸' }}
+          </button>
+
           <!-- Checklist title -->
           <span
             v-if="showChecklistTitle !== undefined ? showChecklistTitle : true"
-            class="text-xs text-fg-4 flex-1 truncate min-w-0"
+            class="text-xs text-fg-3 flex-1 truncate min-w-0"
           >{{ checklistTitle }}</span>
           <span v-else class="flex-1" />
 
           <!-- Link icon -->
           <svg
             v-if="item.url"
-            class="w-3.5 h-3.5 text-fg-4 shrink-0"
+            class="w-4.5 h-4.5 text-fg-3 shrink-0"
             viewBox="0 0 16 16"
             fill="none"
             stroke="currentColor"
@@ -198,7 +225,7 @@ const progressDots = computed(() => {
           <!-- Bell icon -->
           <svg
             v-if="item.reminders?.length"
-            class="w-3.5 h-3.5 text-fg-4 shrink-0"
+            class="w-4.5 h-4.5 text-fg-3 shrink-0"
             viewBox="0 0 16 16"
             fill="currentColor"
           >
@@ -208,7 +235,7 @@ const progressDots = computed(() => {
           <!-- Comment icon -->
           <svg
             v-if="item.comment"
-            class="w-3.5 h-3.5 text-fg-4 shrink-0"
+            class="w-4.5 h-4.5 text-fg-3 shrink-0"
             viewBox="0 0 16 16"
             fill="none"
             stroke="currentColor"
@@ -232,10 +259,10 @@ const progressDots = computed(() => {
           <!-- Deadline badge -->
           <span
             v-if="deadlineInfo"
-            class="flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full shrink-0 font-medium"
-            :class="deadlineInfo.danger ? 'bg-danger/20 text-danger' : 'bg-bg-3 text-fg-3'"
+            class="flex items-center gap-1.5 text-xs px-3 py-1 rounded-full shrink-0 font-medium"
+            :class="deadlineInfo.danger ? 'bg-danger/10 text-danger' : 'bg-bg-3 text-fg-2'"
           >
-            <span class="w-3.5 shrink-0">
+            <span class="w-5 shrink-0">
               <DeadlineBar :deadline="item.deadline!" />
             </span>
             {{ deadlineInfo.label }}
@@ -245,6 +272,44 @@ const progressDots = computed(() => {
           <!-- Effort badge -->
           <EffortBadge v-if="item.effort" :effort="item.effort" />
         </div>
+        <!-- Details -->
+        <div v-if="displayDetails" class="flex-1 flex flex-col min-w-0 bg-bg-2 -mx-3 -mb-3 mt-3" :class="compact ? 'py-2 px-3' : 'py-3 px-3'">
+          <div class="flex flex-col gap-2">
+            <div v-if="item.comment" class="flex flex-row gap-2 items-center text-fg-3">
+                <span class="inline-block flex-grow-1" v-html="item.comment.replace(/\n/g, '<br/>')"></span>
+            </div>
+
+            <div v-if="item.url" class="flex flex-row gap-2 items-center text-primary">
+              <!-- Link icon -->
+              <svg
+                v-if="item.url"
+                class="w-3.5 h-3.5 shrink-0"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M6.5 9.5a3.5 3.5 0 0 0 4.95 0l1.5-1.5a3.5 3.5 0 0 0-4.95-4.95l-.75.75" />
+                <path d="M9.5 6.5a3.5 3.5 0 0 0-4.95 0L3.05 8a3.5 3.5 0 0 0 4.95 4.95l.75-.75" />
+              </svg>
+              <span class="inline-block flex-grow-1">{{ item.url }}</span>
+              <VButton size="sm" @click.stop="openItemUrl()">
+                Open ↗
+              </VButton>
+            </div>
+            <div v-if="item.url" class="flex flex-col gap-2 items-start text-fg-2">
+              <div v-for="item in checkListItems">
+                <template v-if="item.type == 'item'">
+                  <input type="checkbox" class="mr-2 bg-bg-primary" disabled :checked="item.done"/>
+                  <span class="inline-block flex-grow-1">{{ item.text }}</span>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </VCard>
   </div>
