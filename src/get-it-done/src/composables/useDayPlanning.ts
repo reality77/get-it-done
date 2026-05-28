@@ -28,6 +28,8 @@ import {
 
 // ── Module-level pure helpers ────────────────────────────────────────────────
 
+const PRIORITY_ORDER: Record<string, number> = { urgent: 0, important: 1, secondary: 2 }
+
 function itemKey(checklistId: string, itemId: string): string {
   return `${checklistId}:${itemId}`
 }
@@ -194,7 +196,16 @@ export function useDayPlanning(
   // ── Snooze / status computed ────────────────────────────────────────────────
 
   const snoozedItems = computed(() =>
-    trackedItems.value.filter(r => (r.item.status ?? 'active') === 'snoozed')
+    trackedItems.value
+      .filter(r => (r.item.status ?? 'active') === 'snoozed')
+      .sort((a, b) => {
+        const da = a.item.snoozeUntil ?? '￿'
+        const db = b.item.snoozeUntil ?? '￿'
+        if (da !== db) return da < db ? -1 : 1
+        const pa = PRIORITY_ORDER[a.item.priority ?? 'secondary'] ?? 2
+        const pb = PRIORITY_ORDER[b.item.priority ?? 'secondary'] ?? 2
+        return pa - pb
+      })
   )
 
   const somedayItems = computed(() =>
@@ -460,8 +471,6 @@ export function useDayPlanning(
 
     return [...kept, ...mandatory, ...additions]
   }
-
-  const PRIORITY_ORDER: Record<string, number> = { urgent: 0, important: 1, secondary: 2 }
 
   function suggestWeekPlan(): TrackedItemRef[] {
     return trackedItems.value
