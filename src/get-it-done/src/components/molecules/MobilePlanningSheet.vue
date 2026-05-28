@@ -553,7 +553,7 @@ function deleteItem(): void {
   <button
     class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border border-danger/40 bg-danger/15 text-danger hover:bg-danger/20 transition-colors"
     @click="deleteItem"
-  >✕ Delete task</button>
+  >Delete task</button>
 
   <!-- Cancel / OK -->
   <div class="flex gap-3 pt-1">
