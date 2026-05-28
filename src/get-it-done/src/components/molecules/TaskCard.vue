@@ -4,6 +4,7 @@ import type { ChecklistItem, SwipeActionDef, ButtonActionDef } from '../../types
 import { useSwipeAction } from '../../composables/useSwipeAction'
 import { useEditableField } from '../../composables/useEditableField'
 import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
+import { walkNodes } from '../../composables/useTreeHelpers'
 import { useChecklistStore } from '../../stores/checklists'
 import TaskCardActions from './TaskCardActions.vue'
 import TaskCardMobileSheet from './TaskCardMobileSheet.vue'
@@ -104,14 +105,17 @@ const progressDots = computed(() => {
 })
 
 const displayDetails = ref(false)
-const hasDetails = computed(() => {
-  return !!(props.item.comment || props.item.url || checkListItems.value.length)
-})
 
 const checkListItems = computed(() => {
   const checklist = store.getChecklist(props.checklistId)
-  return checklist ? checklist.items : []
-});
+  if (!checklist) return []
+
+  const items: ChecklistItem[] = []
+  walkNodes(checklist.items, (node) => {
+    if (node.type === 'item') items.push(node)
+  })
+  return items
+})
 
 function openItemUrl(): void {
   if (!props.item.url) return
@@ -125,31 +129,21 @@ function openItemUrl(): void {
   <div ref="rowEl" class="relative overflow-hidden rounded-xl">
 
     <!-- Left hint (revealed on swipe right) -->
-    <div
-      v-if="swipeRight"
-      class="absolute inset-0 flex items-center px-3 pointer-events-none"
-      :class="swipeRight.bgClass"
-      :style="{ opacity: rightProgress * 0.9 }"
-    >
+    <div v-if="swipeRight" class="absolute inset-0 flex items-center px-3 pointer-events-none"
+      :class="swipeRight.bgClass" :style="{ opacity: rightProgress * 0.9 }">
       <span class="text-white text-xs font-medium">{{ swipeRight.hint }}</span>
     </div>
 
     <!-- Right hint (revealed on swipe left) -->
-    <div
-      v-if="swipeLeft"
-      class="absolute inset-0 flex items-center justify-end pointer-events-none"
-      :class="swipeLeft.bgClass"
-      :style="{ opacity: leftProgress * 0.9 }"
-    >
+    <div v-if="swipeLeft" class="absolute inset-0 flex items-center justify-end pointer-events-none"
+      :class="swipeLeft.bgClass" :style="{ opacity: leftProgress * 0.9 }">
       <span class="text-white text-xs font-medium">{{ swipeLeft.hint }}</span>
     </div>
 
     <!-- Card -->
-    <VCard
-      class="relative flex group overflow-hidden transition-colors cursor-pointer"
-      :style="rowStyle"
-      @click="handleCardClick"
-    >
+    <VCard class="relative flex group overflow-hidden transition-colors cursor-pointer" :style="rowStyle"
+      @click="handleCardClick">
+
       <!-- Priority bar -->
       <div class="w-1 shrink-0 self-stretch" :class="priorityBarClass" />
 
@@ -158,153 +152,96 @@ function openItemUrl(): void {
 
         <!-- Title row -->
         <div class="flex items-start gap-2">
-          <input
-            v-if="isEditing"
-            v-focus
-            v-model="editTitle"
+          <input v-if="isEditing" v-focus v-model="editTitle"
             class="flex-1 bg-transparent border-b border-border focus:border-primary outline-none text-fg py-0.5 transition-colors"
-            :class="compact ? 'text-sm' : 'text-base'"
-            @keydown="onKeydown"
-            @blur="confirmEdit"
-            @click.stop
-          />
-          <span
-            v-else
-            class="flex-1 wrap-break-word leading-snug"
-            :class="[
-              compact ? 'text-sm' : 'text-base font-medium',
-              item.done ? 'line-through text-fg-4' : 'text-fg',
-            ]"
-            @dblclick.stop="startEdit()"
-          >{{ item.text }}</span>
+            :class="compact ? 'text-sm' : 'text-base'" @keydown="onKeydown" @blur="confirmEdit" @click.stop />
+          <span v-else class="flex-1 wrap-break-word leading-snug" :class="[
+            compact ? 'text-sm' : 'text-base font-medium',
+            item.done ? 'line-through text-fg-4' : 'text-fg',
+          ]" @dblclick.stop="startEdit()">{{ item.text }}</span>
 
           <!-- Desktop hover actions (hidden on mobile) -->
-          <div
-            v-if="actions?.length"
-            class="hidden sm:flex shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-            @click.stop
-          >
+          <div v-if="actions?.length"
+            class="hidden sm:flex shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
             <TaskCardActions :actions="actions" :has-mobile-sheet="false" />
           </div>
         </div>
 
         <!-- Meta row: checklist name + icons + date + effort -->
         <div class="flex items-center gap-1.5 mt-1.5 min-w-0">
-          <button
-            v-if="hasDetails"
-            class="text-fg-3 hover:text-fg-2 transition-colors text-sm w-4 shrink-0 text-left"
-            :aria-label="displayDetails ? 'Hide details' : 'Show details'"
-            :aria-expanded="displayDetails"
-            @click.stop="displayDetails = !displayDetails"
-          >
-            {{ displayDetails ? '▾' : '▸' }}
-          </button>
-
           <!-- Checklist title -->
-          <span
-            v-if="showChecklistTitle !== undefined ? showChecklistTitle : true"
-            class="text-xs text-fg-3 flex-1 truncate min-w-0"
-          >{{ checklistTitle }}</span>
+          <span v-if="showChecklistTitle !== undefined ? showChecklistTitle : true"
+            class="text-xs text-fg-3 flex-1 truncate min-w-0">{{ checklistTitle }}</span>
           <span v-else class="flex-1" />
 
-          <!-- Link icon -->
-          <svg
-            v-if="item.url"
-            class="w-4.5 h-4.5 text-fg-3 shrink-0"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M6.5 9.5a3.5 3.5 0 0 0 4.95 0l1.5-1.5a3.5 3.5 0 0 0-4.95-4.95l-.75.75" />
-            <path d="M9.5 6.5a3.5 3.5 0 0 0-4.95 0L3.05 8a3.5 3.5 0 0 0 4.95 4.95l.75-.75" />
-          </svg>
+          <!-- Meta icons & badges -->
+          <div class="flex flex-row items-center justify-end rounded-lg border border-bg-2 gap-2 p-1 hover:bg-bg-2 transition-colors"
+            @click.stop="displayDetails = !displayDetails">
+            <!-- Link icon -->
+            <svg v-if="item.url" class="w-4.5 h-4.5 text-fg-3 shrink-0" viewBox="0 0 16 16" fill="none"
+              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6.5 9.5a3.5 3.5 0 0 0 4.95 0l1.5-1.5a3.5 3.5 0 0 0-4.95-4.95l-.75.75" />
+              <path d="M9.5 6.5a3.5 3.5 0 0 0-4.95 0L3.05 8a3.5 3.5 0 0 0 4.95 4.95l.75-.75" />
+            </svg>
 
-          <!-- Bell icon -->
-          <svg
-            v-if="item.reminders?.length"
-            class="w-4.5 h-4.5 text-fg-3 shrink-0"
-            viewBox="0 0 16 16"
-            fill="currentColor"
-          >
-            <path d="M8 1.5a.75.75 0 0 1 .75.75v.42A4.5 4.5 0 0 1 12.5 7v2l1 1.5H2.5L3.5 9V7A4.5 4.5 0 0 1 7.25 2.67V2.25A.75.75 0 0 1 8 1.5Zm0 12.5a1.5 1.5 0 0 1-1.5-1.5h3A1.5 1.5 0 0 1 8 14Z" />
-          </svg>
+            <!-- Bell icon -->
+            <svg v-if="item.reminders?.length" class="w-4.5 h-4.5 text-fg-3 shrink-0" viewBox="0 0 16 16"
+              fill="currentColor">
+              <path
+                d="M8 1.5a.75.75 0 0 1 .75.75v.42A4.5 4.5 0 0 1 12.5 7v2l1 1.5H2.5L3.5 9V7A4.5 4.5 0 0 1 7.25 2.67V2.25A.75.75 0 0 1 8 1.5Zm0 12.5a1.5 1.5 0 0 1-1.5-1.5h3A1.5 1.5 0 0 1 8 14Z" />
+            </svg>
 
-          <!-- Comment icon -->
-          <svg
-            v-if="item.comment"
-            class="w-4.5 h-4.5 text-fg-3 shrink-0"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5l-3 2V3Z" />
-          </svg>
+            <!-- Comment icon -->
+            <svg v-if="item.comment" class="w-4.5 h-4.5 text-fg-3 shrink-0" viewBox="0 0 16 16" fill="none"
+              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5l-3 2V3Z" />
+            </svg>
 
-          <!-- Progress dots -->
-          <div v-if="progressDots" class="flex gap-0.5 items-center shrink-0">
-            <span
-              v-for="(filled, i) in progressDots"
-              :key="i"
-              class="w-2 h-2 rounded-full"
-              :class="filled ? 'bg-success' : 'bg-fg-4/30'"
-            />
+            <!-- Progress dots -->
+            <div v-if="progressDots" class="flex gap-0.5 items-center shrink-0">
+              <span v-for="(filled, i) in progressDots" :key="i" class="w-2 h-2 rounded-full"
+                :class="filled ? 'bg-success' : 'bg-fg-4/30'" />
+            </div>
+
+            <!-- Deadline badge -->
+            <span v-if="deadlineInfo"
+              class="flex items-center gap-1.5 text-xs px-3 py-1 rounded-full shrink-0 font-medium"
+              :class="deadlineInfo.danger ? 'bg-danger/10 text-danger' : 'bg-bg-3 text-fg-2'">
+              <span class="w-5 shrink-0">
+                <DeadlineBar :deadline="item.deadline!" />
+              </span>
+              {{ deadlineInfo.label }}
+            </span>
+
+            <!-- Effort badge -->
+            <EffortBadge v-if="item.effort" :effort="item.effort" />
           </div>
 
-          <!-- Deadline badge -->
-          <span
-            v-if="deadlineInfo"
-            class="flex items-center gap-1.5 text-xs px-3 py-1 rounded-full shrink-0 font-medium"
-            :class="deadlineInfo.danger ? 'bg-danger/10 text-danger' : 'bg-bg-3 text-fg-2'"
-          >
-            <span class="w-5 shrink-0">
-              <DeadlineBar :deadline="item.deadline!" />
-            </span>
-            {{ deadlineInfo.label }}
-          </span>
-
-
-          <!-- Effort badge -->
-          <EffortBadge v-if="item.effort" :effort="item.effort" />
         </div>
         <!-- Details -->
-        <div v-if="displayDetails" class="flex-1 flex flex-col min-w-0 bg-bg-2 -mx-3 -mb-3 mt-3" :class="compact ? 'py-2 px-3' : 'py-3 px-3'">
+        <div v-if="displayDetails" class="flex-1 flex flex-col min-w-0 bg-bg-2 -mx-3 -mb-3 mt-3"
+          :class="compact ? 'py-2 px-3' : 'py-3 px-3'">
           <div class="flex flex-col gap-2">
             <div v-if="item.comment" class="flex flex-row gap-2 items-center text-fg-3">
-                <span class="inline-block flex-grow-1" v-html="item.comment.replace(/\n/g, '<br/>')"></span>
+              <span class="inline-block grow" v-html="item.comment.replace(/\n/g, '<br/>')"></span>
             </div>
 
             <div v-if="item.url" class="flex flex-row gap-2 items-center text-primary">
               <!-- Link icon -->
-              <svg
-                v-if="item.url"
-                class="w-3.5 h-3.5 shrink-0"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
+              <svg v-if="item.url" class="w-3.5 h-3.5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M6.5 9.5a3.5 3.5 0 0 0 4.95 0l1.5-1.5a3.5 3.5 0 0 0-4.95-4.95l-.75.75" />
                 <path d="M9.5 6.5a3.5 3.5 0 0 0-4.95 0L3.05 8a3.5 3.5 0 0 0 4.95 4.95l.75-.75" />
               </svg>
-              <span class="inline-block flex-grow-1">{{ item.url }}</span>
+              <span class="inline-block grow text-ellipsis text-nowrap overflow-hidden">{{ item.url }}</span>
               <VButton size="sm" @click.stop="openItemUrl()">
                 Open ↗
               </VButton>
             </div>
-            <div v-if="checkListItems && isChecklistTask" class="flex flex-col gap-2 items-start text-fg-2">
-              <div v-for="item in checkListItems">
-                <template v-if="item.type == 'item'">
-                  <input type="checkbox" class="mr-2 bg-bg-primary" disabled :checked="item.done"/>
-                  <span class="inline-block flex-grow-1">{{ item.text }}</span>
-                </template>
+            <div v-if="checkListItems.length > 0 && isChecklistTask" class="flex flex-col gap-2 items-start text-fg-2">
+              <div v-for="checklistItem in checkListItems" :key="checklistItem.id">
+                <input type="checkbox" class="mr-2 bg-bg-primary" disabled :checked="checklistItem.done" />
+                <span class="inline-block grow">{{ checklistItem.text }}</span>
               </div>
             </div>
           </div>
@@ -315,12 +252,7 @@ function openItemUrl(): void {
   </div>
 
   <!-- Mobile bottom sheet -->
-  <TaskCardMobileSheet
-    :item="item"
-    :actions="actions"
-    :open="mobileMenuOpen"
-    @close="mobileMenuOpen = false"
-  >
+  <TaskCardMobileSheet :item="item" :actions="actions" :open="mobileMenuOpen" @close="mobileMenuOpen = false">
     <template v-if="$slots['mobile-sheet']" #default="slotProps">
       <slot name="mobile-sheet" v-bind="slotProps" />
     </template>
