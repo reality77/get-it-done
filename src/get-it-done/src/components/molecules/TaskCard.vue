@@ -51,7 +51,13 @@ const hasMobileSheet = computed(() =>
   !!slots['mobile-sheet'] || !!(props.collapseMobileActions && props.actions?.length)
 )
 
+const displayDetails = ref(false)
+
 function handleCardClick(): void {
+  displayDetails.value = !displayDetails.value
+}
+
+function handleMetaBarClick(): void {
   if (hasMobileSheet.value) {
     mobileMenuOpen.value = true
   }
@@ -103,8 +109,6 @@ const progressDots = computed(() => {
   const doneDots = Math.round((done / total) * max)
   return Array.from({ length: max }, (_, i) => i < doneDots)
 })
-
-const displayDetails = ref(false)
 
 const checkListItems = computed(() => {
   const checklist = store.getChecklist(props.checklistId)
@@ -176,7 +180,7 @@ function openItemUrl(): void {
 
           <!-- Meta icons & badges -->
           <div class="flex flex-row items-center justify-end rounded-lg border border-bg-2 gap-2 p-1 hover:bg-bg-2 transition-colors"
-            @click.stop="displayDetails = !displayDetails">
+            @click.stop="handleMetaBarClick">
             <!-- Link icon -->
             <svg v-if="item.url" class="w-4.5 h-4.5 text-fg-3 shrink-0" viewBox="0 0 16 16" fill="none"
               stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
