@@ -299,7 +299,7 @@ function openItemUrl(): void {
                 Open ↗
               </VButton>
             </div>
-            <div v-if="item.url" class="flex flex-col gap-2 items-start text-fg-2">
+            <div v-if="checkListItems && isChecklistTask" class="flex flex-col gap-2 items-start text-fg-2">
               <div v-for="item in checkListItems">
                 <template v-if="item.type == 'item'">
                   <input type="checkbox" class="mr-2 bg-bg-primary" disabled :checked="item.done"/>
