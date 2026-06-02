@@ -72,6 +72,11 @@ function deadlineTimePart(d: string | null | undefined): string {
 const pendingDeadlineDate = ref(deadlineDatePart(props.item.deadline))
 const pendingDeadlineTime = ref(deadlineTimePart(props.item.deadline))
 const deadlineHasTime = ref(Boolean(props.item.deadline && props.item.deadline.length > 10))
+const deadlineInputEl = ref<HTMLInputElement | null>(null)
+
+function openDeadlinePicker(): void {
+  deadlineInputEl.value?.showPicker()
+}
 
 function buildDeadline(): string | null {
   if (!pendingDeadlineDate.value) return null
@@ -86,6 +91,14 @@ function clearDeadline(): void {
   pendingDeadlineTime.value = ''
   deadlineHasTime.value = false
 }
+
+const deadlineSummary = computed(() => {
+  if (!pendingDeadlineDate.value) return '—'
+  const date = new Date(`${pendingDeadlineDate.value}T12:00:00`)
+  const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  if (deadlineHasTime.value && pendingDeadlineTime.value) return `${dateStr}, ${pendingDeadlineTime.value}`
+  return dateStr
+})
 
 // ── Reminders ─────────────────────────────────────────────────────────────────
 const pendingReminders = ref<string[]>([...(props.item.reminders ?? [])])
@@ -314,16 +327,24 @@ function deleteItem(): void {
         </div>
       </div>
 
-      <!-- Deadline (direct input, no accordion) -->
+      <!-- Deadline (label that opens native calendar on click) -->
       <div class="px-3 py-2">
-        <div class="flex items-center justify-between gap-2">
-          <span class="text-sm text-fg-2 shrink-0">📅 Deadline</span>
+        <!-- Hidden date input — opened programmatically via showPicker() -->
+        <input
+          ref="deadlineInputEl"
+          type="date"
+          v-model="pendingDeadlineDate"
+          class="sr-only"
+          tabindex="-1"
+        />
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-fg-2">📅 Deadline</span>
           <div class="flex items-center gap-2">
-            <input
-              type="date"
-              v-model="pendingDeadlineDate"
-              class="bg-bg-2 border border-border rounded-xl px-3 py-1.5 text-sm text-fg-2 focus:border-primary focus:outline-none transition-colors"
-            />
+            <button
+              class="text-sm px-2.5 py-1 rounded-lg transition-colors"
+              :class="pendingDeadlineDate ? 'text-primary hover:bg-primary/10' : 'text-fg-4 hover:bg-bg-2'"
+              @click="openDeadlinePicker"
+            >{{ deadlineSummary }}</button>
             <button
               v-if="pendingDeadlineDate"
               class="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-fg-4 hover:text-fg-2 hover:bg-bg-2 transition-colors text-xs"
