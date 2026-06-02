@@ -227,7 +227,7 @@ const syncStatusTitles: Record<string, string> = {
     @change="activeTab = $event"
   />
 
-  <StandaloneTaskFab v-if="activeTab !== 'checklists'" />
+  <StandaloneTaskFab v-if="activeTab !== 'checklists'" :active-tab="activeTab" />
 
   <PasswordPrompt v-if="loginPrompted" @cancel="loginPrompted = false" />
   <NotificationSettings v-if="notificationsOpen" @close="notificationsOpen = false" />
