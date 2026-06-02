@@ -125,20 +125,24 @@ function formatSnoozeDate(raw: string): string {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div>
 
-    <!-- Quick filter -->
-    <div class="flex overflow-x-auto gap-1.5 pb-0.5 -mx-1 px-1 scrollbar-hide">
-      <button
-        v-for="f in filters"
-        :key="f.key"
-        class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
-        :class="activeFilter === f.key
-          ? 'bg-primary text-fg-on-primary'
-          : 'bg-bg-2 text-fg-3 hover:text-fg-2 hover:bg-bg-3'"
-        @click="activeFilter = f.key"
-      >{{ f.label }}</button>
+    <!-- Quick filter — sticky, does not scroll with content -->
+    <div class="sticky top-0 z-10 bg-bg-0 -mx-4 px-4 pt-1 pb-3">
+      <div class="flex gap-1.5 overflow-x-auto scrollbar-hide">
+        <button
+          v-for="f in filters"
+          :key="f.key"
+          class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
+          :class="activeFilter === f.key
+            ? 'bg-primary text-fg-on-primary'
+            : 'bg-bg-2 text-fg-3 hover:text-fg-2 hover:bg-bg-3'"
+          @click="activeFilter = f.key"
+        >{{ f.label }}</button>
+      </div>
     </div>
+
+    <div class="space-y-6">
 
     <!-- Snoozed -->
     <section v-if="activeFilter !== 'someday'">
@@ -217,6 +221,7 @@ function formatSnoozeDate(raw: string): string {
       </div>
     </section>
 
+    </div><!-- end space-y-6 -->
   </div>
 
   <SnoozeModal
