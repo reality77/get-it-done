@@ -25,8 +25,8 @@ const props = defineProps<{
 const activeFilter = ref<BacklogFilter>('all')
 
 function parseLocalDate(dateStr: string): Date {
-  const [y, m, d] = dateStr.split('-').map(Number)
-  return new Date(y, m - 1, d)
+  const [y = '0', m = '1', d = '1'] = dateStr.split('-')
+  return new Date(+y, +m - 1, +d)
 }
 
 function getWeekBoundaries() {
