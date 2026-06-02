@@ -1,27 +1,23 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { ChecklistItem, ChecklistItemId, TaskPriority, TaskEffort } from '../../types'
-import { getSnoozeOptions, useChecklistStore } from '../../stores/checklists'
+import { useChecklistStore } from '../../stores/checklists'
+import VSegmented from '../atoms/VSegmented.vue'
 
 const props = defineProps<{
   item: ChecklistItem
   itemId: ChecklistItemId
   close: () => void
+  isChecklistTask?: boolean
+  onComplete?: () => void
 }>()
 
 const store = useChecklistStore()
 
-// ── Accordion ─────────────────────────────────────────────────────────────────
-
-type SectionName = 'deadline' | 'reminders' | 'snooze' | 'priority' | 'effort' | 'comment' | 'url'
-const activeSection = ref<SectionName | null>(null)
-
-function toggleSection(name: SectionName): void {
-  activeSection.value = activeSection.value === name ? null : name
-}
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+const activeTab = ref<'details' | 'actions'>('details')
 
 // ── Title editing ─────────────────────────────────────────────────────────────
-
 const pendingText = ref(props.item.text)
 const isEditingTitle = ref(false)
 const titleSnapshot = ref(props.item.text)
@@ -40,28 +36,9 @@ function cancelTitleEdit(): void {
   isEditingTitle.value = false
 }
 
-// ── Snooze / Someday ──────────────────────────────────────────────────────────
-
-const snoozeOptions = getSnoozeOptions()
-const pendingSnoozeDate = ref<string | null>(null)
-const pendingSomeday = ref(false)
-
-function selectSnooze(date: string): void {
-  pendingSnoozeDate.value = pendingSnoozeDate.value === date ? null : date
-  pendingSomeday.value = false
-}
-
-function toggleSomeday(): void {
-  pendingSomeday.value = !pendingSomeday.value
-  pendingSnoozeDate.value = null
-}
-
 // ── Priority / Effort ─────────────────────────────────────────────────────────
-
 const pendingPriority = ref<TaskPriority | undefined>(props.item.priority)
 const pendingEffort = ref<TaskEffort | undefined>(props.item.effort)
-const pendingComment = ref(props.item.comment ?? '')
-const pendingUrl = ref(props.item.url ?? '')
 
 const PRIORITIES: { value: TaskPriority; label: string; color: string }[] = [
   { value: 'urgent',    label: 'Urgent',    color: 'bg-danger/20 text-danger border-danger/40' },
@@ -69,14 +46,19 @@ const PRIORITIES: { value: TaskPriority; label: string; color: string }[] = [
   { value: 'secondary', label: 'Secondary', color: 'bg-bg-3/60 text-fg-3 border-border' },
 ]
 
-const EFFORTS: { value: TaskEffort; label: string }[] = [
-  { value: 'small',  label: 'S — Small' },
-  { value: 'medium', label: 'M — Medium' },
-  { value: 'large',  label: 'L — Large' },
+const EFFORTS: { value: TaskEffort; label: string; short: string }[] = [
+  { value: 'small',  label: 'Small',  short: 'S' },
+  { value: 'medium', label: 'Medium', short: 'M' },
+  { value: 'large',  label: 'Large',  short: 'L' },
 ]
 
-// ── Deadline ──────────────────────────────────────────────────────────────────
+// ── Comment / URL inline editing ──────────────────────────────────────────────
+const pendingComment = ref(props.item.comment ?? '')
+const pendingUrl = ref(props.item.url ?? '')
+const isEditingComment = ref(false)
+const isEditingUrl = ref(false)
 
+// ── Deadline ──────────────────────────────────────────────────────────────────
 function deadlineDatePart(d: string | null | undefined): string {
   if (!d) return ''
   return d.slice(0, 10)
@@ -106,8 +88,8 @@ function clearDeadline(): void {
 }
 
 // ── Reminders ─────────────────────────────────────────────────────────────────
-
 const pendingReminders = ref<string[]>([...(props.item.reminders ?? [])])
+const showReminders = ref(false)
 
 interface ReminderPreset { key: string; label: string; compute: () => string }
 
@@ -194,62 +176,11 @@ function isReminderPast(iso: string): boolean {
 }
 
 // ── Display summaries ─────────────────────────────────────────────────────────
-
-const itemStatus = () => props.item.status ?? 'active'
-
-const deadlineSummary = computed(() => {
-  if (!pendingDeadlineDate.value) return '—'
-  const date = new Date(`${pendingDeadlineDate.value}T12:00:00`)
-  const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-  if (deadlineHasTime.value && pendingDeadlineTime.value) return `${dateStr}, ${pendingDeadlineTime.value}`
-  return dateStr
-})
-
 const remindersSummary = computed(() => {
   const n = pendingReminders.value.length
   if (n === 0) return '—'
   if (n === 1) return formatReminder(pendingReminders.value[0]!)
   return `${n} reminders`
-})
-
-const snoozeSummary = computed(() => {
-  if (pendingSnoozeDate.value) {
-    return snoozeOptions.find(o => o.date === pendingSnoozeDate.value)?.label ?? pendingSnoozeDate.value
-  }
-  if (pendingSomeday.value) return 'Someday'
-  const status = props.item.status ?? 'active'
-  if (status === 'snoozed') {
-    if (props.item.snoozeUntil) {
-      const d = new Date(props.item.snoozeUntil + 'T12:00:00')
-      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-    }
-    return 'Snoozed'
-  }
-  if (status === 'someday') return 'Someday'
-  return '—'
-})
-
-const snoozeStatusColor = computed(() => {
-  if (pendingSnoozeDate.value) return 'text-warning'
-  if (pendingSomeday.value) return 'text-info'
-  const status = props.item.status ?? 'active'
-  if (status === 'snoozed') return 'text-warning'
-  if (status === 'someday') return 'text-info'
-  return 'text-fg-4'
-})
-
-const prioritySummary = computed(() => PRIORITIES.find(p => p.value === pendingPriority.value)?.label ?? '—')
-
-const effortSummary = computed(() => {
-  const e = EFFORTS.find(e => e.value === pendingEffort.value)
-  return e ? e.label.split(' — ')[0] : '—'
-})
-
-const priorityColor = computed(() => {
-  if (pendingPriority.value === 'urgent')    return 'bg-danger/20 text-danger border-danger/40'
-  if (pendingPriority.value === 'important') return 'bg-warning/20 text-warning border-warning/40'
-  if (pendingPriority.value === 'secondary') return 'bg-bg-3/60 text-fg-3 border-border'
-  return 'text-fg-4 border-transparent'
 })
 
 const commentSummary = computed(() =>
@@ -266,14 +197,8 @@ const urlSummary = computed(() =>
   pendingUrl.value.trim() ? urlHostname(pendingUrl.value.trim()) : '—'
 )
 
-// ── Confirm / Delete ──────────────────────────────────────────────────────────
-
+// ── Confirm ───────────────────────────────────────────────────────────────────
 function confirm(): void {
-  if (pendingSnoozeDate.value) {
-    store.snoozeItem(props.itemId, pendingSnoozeDate.value)
-  } else if (pendingSomeday.value) {
-    store.sendItemToSomeday(props.itemId)
-  }
   if (pendingPriority.value !== undefined && pendingPriority.value !== props.item.priority) {
     store.setItemPriority(props.itemId, pendingPriority.value)
   }
@@ -306,6 +231,18 @@ function confirm(): void {
   props.close()
 }
 
+// ── Actions tab ───────────────────────────────────────────────────────────────
+function completeTask(): void {
+  if (props.item.done && props.isChecklistTask) {
+    store.unarchiveChecklist(props.itemId.checklistId)
+  } else if (!props.item.done && props.isChecklistTask && props.onComplete) {
+    props.onComplete()
+  } else {
+    store.toggleItem(props.itemId)
+  }
+  props.close()
+}
+
 function deleteItem(): void {
   store.removeItem(props.itemId)
   props.close()
@@ -313,54 +250,88 @@ function deleteItem(): void {
 </script>
 
 <template>
-  <!-- Editable title -->
-  <div class="border-b border-hairline pb-3 mb-1">
-    <input
-      v-if="isEditingTitle"
-      v-focus
-      v-model="pendingText"
-      class="w-full bg-transparent text-sm font-medium text-fg outline-none border-b border-primary pb-0.5 transition-colors"
-      @keydown.enter.prevent="stopTitleEdit"
-      @keydown.escape.prevent="cancelTitleEdit"
-      @blur="stopTitleEdit"
-    />
-    <button
-      v-else
-      class="w-full text-left flex items-center justify-between gap-2 group"
-      @click="startTitleEdit"
-    >
-      <span class="text-sm font-medium text-fg truncate">{{ pendingText }}</span>
-      <span class="shrink-0 text-fg-4 group-hover:text-fg-3 text-xs transition-colors">✏</span>
-    </button>
-  </div>
+  <!-- Tab selector -->
+  <VSegmented
+    v-model="activeTab"
+    :options="[{ value: 'details', label: 'Details' }, { value: 'actions', label: 'Actions' }]"
+    class="mb-3"
+  />
 
-  <!-- Option sections (accordion) -->
-  <div class="space-y-0.5">
-
-    <!-- Deadline -->
-    <div>
+  <!-- ── Details tab ─────────────────────────────────────────────────────────── -->
+  <template v-if="activeTab === 'details'">
+    <!-- Editable title -->
+    <div class="border-b border-hairline pb-3 mb-2">
+      <input
+        v-if="isEditingTitle"
+        v-focus
+        v-model="pendingText"
+        class="w-full bg-transparent text-sm font-medium text-fg outline-none border-b border-primary pb-0.5 transition-colors"
+        @keydown.enter.prevent="stopTitleEdit"
+        @keydown.escape.prevent="cancelTitleEdit"
+        @blur="stopTitleEdit"
+      />
       <button
-        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bg-2/80 transition-colors"
-        :class="activeSection === 'deadline' ? 'bg-bg-2/80' : ''"
-        @click="toggleSection('deadline')"
+        v-else
+        class="w-full text-left flex items-center justify-between gap-2 group"
+        @click="startTitleEdit"
       >
-        <span class="text-sm text-fg-2">📅 Deadline</span>
-        <span class="text-sm" :class="pendingDeadlineDate ? 'text-primary' : 'text-fg-4'">{{ deadlineSummary }}</span>
+        <span class="text-sm font-medium text-fg truncate">{{ pendingText }}</span>
+        <span class="shrink-0 text-fg-4 group-hover:text-fg-3 text-xs transition-colors">✏</span>
       </button>
-      <div v-if="activeSection === 'deadline'" class="px-3 pb-3 pt-1 space-y-2">
-        <div class="flex gap-2 items-center">
-          <input
-            type="date"
-            v-model="pendingDeadlineDate"
-            class="flex-1 bg-bg-2 border border-border rounded-xl px-3 py-2.5 text-sm text-fg-2 focus:border-primary focus:outline-none transition-colors"
-          />
+    </div>
+
+    <!-- Fields -->
+    <div class="space-y-0.5">
+
+      <!-- Priority (inline buttons) -->
+      <div v-if="pendingPriority !== undefined" class="flex items-center justify-between px-3 py-2">
+        <span class="text-sm text-fg-2 shrink-0">Priority</span>
+        <div class="flex gap-1.5">
           <button
-            v-if="pendingDeadlineDate"
-            class="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-fg-4 hover:text-fg-2 hover:bg-bg-2 transition-colors"
-            @click="clearDeadline"
-          >✕</button>
+            v-for="p in PRIORITIES"
+            :key="p.value"
+            class="px-2.5 py-1 text-xs font-medium border rounded-lg transition-all"
+            :class="[p.color, pendingPriority === p.value ? 'ring-2 ring-offset-1 ring-offset-bg-1 ring-primary/60' : 'opacity-50 hover:opacity-90']"
+            @click="pendingPriority = p.value"
+          >{{ p.label }}</button>
         </div>
-        <div v-if="pendingDeadlineDate" class="flex items-center gap-3">
+      </div>
+
+      <!-- Effort (inline S / M / L) -->
+      <div v-if="pendingEffort !== undefined" class="flex items-center justify-between px-3 py-2">
+        <span class="text-sm text-fg-2 shrink-0">Effort</span>
+        <div class="flex gap-1.5">
+          <button
+            v-for="e in EFFORTS"
+            :key="e.value"
+            class="w-10 py-1 text-xs font-semibold border rounded-lg transition-all text-center"
+            :class="pendingEffort === e.value
+              ? 'bg-primary/20 border-primary text-primary ring-2 ring-offset-1 ring-offset-bg-1 ring-primary/60'
+              : 'bg-bg-2 border-border text-fg-3 hover:bg-bg-3 hover:text-fg-2'"
+            :title="e.label"
+            @click="pendingEffort = e.value"
+          >{{ e.short }}</button>
+        </div>
+      </div>
+
+      <!-- Deadline (direct input, no accordion) -->
+      <div class="px-3 py-2">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-sm text-fg-2 shrink-0">📅 Deadline</span>
+          <div class="flex items-center gap-2">
+            <input
+              type="date"
+              v-model="pendingDeadlineDate"
+              class="bg-bg-2 border border-border rounded-xl px-3 py-1.5 text-sm text-fg-2 focus:border-primary focus:outline-none transition-colors"
+            />
+            <button
+              v-if="pendingDeadlineDate"
+              class="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-fg-4 hover:text-fg-2 hover:bg-bg-2 transition-colors text-xs"
+              @click.stop="clearDeadline"
+            >✕</button>
+          </div>
+        </div>
+        <div v-if="pendingDeadlineDate" class="flex items-center gap-3 mt-2 pl-1">
           <label class="flex items-center gap-1.5 text-xs text-fg-3 cursor-pointer select-none">
             <input type="checkbox" v-model="deadlineHasTime" class="accent-primary rounded" />
             Add time
@@ -369,201 +340,154 @@ function deleteItem(): void {
             v-if="deadlineHasTime"
             type="time"
             v-model="pendingDeadlineTime"
-            class="bg-bg-2 border border-border rounded-xl px-3 py-2 text-sm text-fg-2 focus:border-primary focus:outline-none transition-colors"
+            class="bg-bg-2 border border-border rounded-xl px-3 py-1.5 text-sm text-fg-2 focus:border-primary focus:outline-none transition-colors"
           />
         </div>
       </div>
-    </div>
 
-    <!-- Reminders -->
-    <div>
-      <button
-        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bg-2/80 transition-colors"
-        :class="activeSection === 'reminders' ? 'bg-bg-2/80' : ''"
-        @click="toggleSection('reminders')"
-      >
-        <span class="text-sm text-fg-2">🔔 Reminders</span>
-        <span class="text-sm" :class="pendingReminders.length > 0 ? 'text-primary' : 'text-fg-4'">{{ remindersSummary }}</span>
-      </button>
-      <div v-if="activeSection === 'reminders'" class="px-3 pb-3 pt-1 space-y-2">
-        <div v-if="pendingReminders.length > 0" class="flex flex-wrap gap-1.5">
-          <span
-            v-for="r in pendingReminders"
-            :key="r"
-            class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg border"
-            :class="isReminderPast(r)
-              ? 'bg-bg-1 border-border text-fg-4'
-              : 'bg-primary/15 border-primary/50 text-primary'"
-          >
-            {{ formatReminder(r) }}
-            <button class="ml-0.5 hover:text-white transition-colors" @click="removeReminder(r)">✕</button>
-          </span>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <button
-            v-for="preset in absolutePresets"
-            :key="preset.key"
-            class="px-3 py-2 text-sm rounded-xl border transition-colors text-left"
-            :class="isPresetSelected(preset)
-              ? 'bg-primary/30 border-primary text-primary'
-              : 'bg-bg-2 border-border text-fg-2 hover:bg-bg-3'"
-            @click="toggleReminder(preset)"
-          >{{ preset.label }}</button>
-        </div>
-        <div v-if="deadlinePresets.length > 0" class="grid grid-cols-2 gap-2">
-          <button
-            v-for="preset in deadlinePresets"
-            :key="preset.key"
-            class="px-3 py-2 text-sm rounded-xl border transition-colors text-left"
-            :class="isPresetSelected(preset)
-              ? 'bg-primary/30 border-primary text-primary'
-              : 'bg-bg-2 border-border text-fg-2 hover:bg-bg-3'"
-            @click="toggleReminder(preset)"
-          >{{ preset.label }}</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Comment -->
-    <div>
-      <button
-        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bg-2/80 transition-colors"
-        :class="activeSection === 'comment' ? 'bg-bg-2/80' : ''"
-        @click="toggleSection('comment')"
-      >
-        <span class="text-sm text-fg-2">💬 Comment</span>
-        <span class="text-sm truncate max-w-[140px] text-right" :class="pendingComment.trim() ? 'text-primary' : 'text-fg-4'">{{ commentSummary }}</span>
-      </button>
-      <div v-if="activeSection === 'comment'" class="px-3 pb-3 pt-1">
+      <!-- Comment (replaces row when editing) -->
+      <div class="px-3 py-2">
         <textarea
+          v-if="isEditingComment"
+          v-focus
           v-model="pendingComment"
           rows="3"
           placeholder="Add a note…"
           class="w-full bg-bg-2 border border-border rounded-xl px-3 py-2.5 text-sm text-fg-2 placeholder-fg-4 focus:border-primary focus:outline-none transition-colors resize-none"
+          @blur="isEditingComment = false"
         />
+        <button
+          v-else
+          class="w-full flex items-center justify-between rounded-lg hover:bg-bg-2/60 transition-colors -mx-1 px-1 py-1"
+          @click="isEditingComment = true"
+        >
+          <span class="text-sm text-fg-2">💬 Comment</span>
+          <span
+            class="text-sm truncate max-w-[150px] text-right ml-2"
+            :class="pendingComment.trim() ? 'text-primary' : 'text-fg-4'"
+          >{{ commentSummary }}</span>
+        </button>
       </div>
-    </div>
 
-    <!-- URL -->
-    <div>
-      <button
-        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bg-2/80 transition-colors"
-        :class="activeSection === 'url' ? 'bg-bg-2/80' : ''"
-        @click="toggleSection('url')"
-      >
-        <span class="text-sm text-fg-2">🔗 URL</span>
-        <span class="text-sm truncate max-w-[140px] text-right" :class="pendingUrl.trim() ? 'text-primary' : 'text-fg-4'">{{ urlSummary }}</span>
-      </button>
-      <div v-if="activeSection === 'url'" class="px-3 pb-3 pt-1">
+      <!-- URL (replaces row when editing) -->
+      <div class="px-3 py-2">
         <input
+          v-if="isEditingUrl"
+          v-focus
           type="url"
           v-model="pendingUrl"
           placeholder="https://…"
           class="w-full bg-bg-2 border border-border rounded-xl px-3 py-2.5 text-sm text-fg-2 placeholder-fg-4 focus:border-primary focus:outline-none transition-colors"
+          @blur="isEditingUrl = false"
+          @keydown.enter.prevent="isEditingUrl = false"
         />
-      </div>
-    </div>
-
-    <!-- Snooze / Status -->
-    <div>
-      <button
-        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bg-2/80 transition-colors"
-        :class="activeSection === 'snooze' ? 'bg-bg-2/80' : ''"
-        @click="toggleSection('snooze')"
-      >
-        <span class="text-sm text-fg-2">💤 Snooze</span>
-        <span class="text-sm" :class="snoozeStatusColor">{{ snoozeSummary }}</span>
-      </button>
-      <div v-if="activeSection === 'snooze'" class="px-3 pb-3 pt-1 space-y-2">
         <button
-          v-if="itemStatus() !== 'active'"
-          class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-primary bg-primary/20 text-primary hover:bg-primary/30 transition-colors text-sm font-medium"
-          @click="store.activateItem(itemId); close()"
-        >↩ Activate</button>
-        <div class="grid grid-cols-2 gap-2">
-          <button
-            v-for="opt in snoozeOptions"
-            :key="opt.date"
-            class="px-3 py-2.5 text-sm rounded-xl border transition-colors text-left"
-            :class="pendingSnoozeDate === opt.date
-              ? 'bg-warning/25 border-warning text-warning'
-              : 'bg-bg-2 border-border text-fg-2 hover:bg-bg-3'"
-            @click="selectSnooze(opt.date)"
-          >{{ opt.label }}</button>
-        </div>
+          v-else
+          class="w-full flex items-center justify-between rounded-lg hover:bg-bg-2/60 transition-colors -mx-1 px-1 py-1"
+          @click="isEditingUrl = true"
+        >
+          <span class="text-sm text-fg-2">🔗 URL</span>
+          <span
+            class="text-sm truncate max-w-[150px] text-right ml-2"
+            :class="pendingUrl.trim() ? 'text-primary' : 'text-fg-4'"
+          >{{ urlSummary }}</span>
+        </button>
+      </div>
+
+      <!-- Reminders (accordion) -->
+      <div>
         <button
-          class="w-full px-3 py-2.5 text-sm rounded-xl border transition-colors text-left"
-          :class="pendingSomeday
-            ? 'bg-sky-600/30 border-sky-500 text-sky-200'
-            : 'bg-bg-2 border-border text-fg-2 hover:bg-bg-3'"
-          @click="toggleSomeday"
-        >☁ Someday</button>
-      </div>
-    </div>
-
-    <!-- Priority -->
-    <div v-if="pendingPriority !== undefined">
-      <button
-        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bg-2/80 transition-colors"
-        :class="activeSection === 'priority' ? 'bg-bg-2/80' : ''"
-        @click="toggleSection('priority')"
-      >
-        <span class="text-sm text-fg-2">Priority</span>
-        <span class="text-xs font-medium px-2 py-0.5 rounded-lg border" :class="priorityColor">{{ prioritySummary }}</span>
-      </button>
-      <div v-if="activeSection === 'priority'" class="px-3 pb-3 pt-1">
-        <div class="flex gap-2">
-          <button
-            v-for="p in PRIORITIES"
-            :key="p.value"
-            class="flex-1 py-2.5 text-xs font-medium border rounded-xl transition-colors"
-            :class="[p.color, pendingPriority === p.value ? 'ring-2 ring-primary' : '']"
-            @click="pendingPriority = p.value"
-          >{{ p.label }}</button>
+          class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bg-2/80 transition-colors"
+          :class="showReminders ? 'bg-bg-2/80' : ''"
+          @click="showReminders = !showReminders"
+        >
+          <span class="text-sm text-fg-2">🔔 Reminders</span>
+          <span class="text-sm" :class="pendingReminders.length > 0 ? 'text-primary' : 'text-fg-4'">{{ remindersSummary }}</span>
+        </button>
+        <div v-if="showReminders" class="px-3 pb-3 pt-1 space-y-2">
+          <div v-if="pendingReminders.length > 0" class="flex flex-wrap gap-1.5">
+            <span
+              v-for="r in pendingReminders"
+              :key="r"
+              class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg border"
+              :class="isReminderPast(r)
+                ? 'bg-bg-1 border-border text-fg-4'
+                : 'bg-primary/15 border-primary/50 text-primary'"
+            >
+              {{ formatReminder(r) }}
+              <button class="ml-0.5 hover:text-white transition-colors" @click="removeReminder(r)">✕</button>
+            </span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              v-for="preset in absolutePresets"
+              :key="preset.key"
+              class="px-3 py-2 text-sm rounded-xl border transition-colors text-left"
+              :class="isPresetSelected(preset)
+                ? 'bg-primary/30 border-primary text-primary'
+                : 'bg-bg-2 border-border text-fg-2 hover:bg-bg-3'"
+              @click="toggleReminder(preset)"
+            >{{ preset.label }}</button>
+          </div>
+          <div v-if="deadlinePresets.length > 0" class="grid grid-cols-2 gap-2">
+            <button
+              v-for="preset in deadlinePresets"
+              :key="preset.key"
+              class="px-3 py-2 text-sm rounded-xl border transition-colors text-left"
+              :class="isPresetSelected(preset)
+                ? 'bg-primary/30 border-primary text-primary'
+                : 'bg-bg-2 border-border text-fg-2 hover:bg-bg-3'"
+              @click="toggleReminder(preset)"
+            >{{ preset.label }}</button>
+          </div>
         </div>
       </div>
+
     </div>
 
-    <!-- Effort -->
-    <div v-if="pendingEffort !== undefined">
+    <!-- Cancel / OK -->
+    <div class="flex gap-3 pt-3">
       <button
-        class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-bg-2/80 transition-colors"
-        :class="activeSection === 'effort' ? 'bg-bg-2/80' : ''"
-        @click="toggleSection('effort')"
-      >
-        <span class="text-sm text-fg-2">Effort</span>
-        <span class="text-sm text-fg-4">{{ effortSummary }}</span>
-      </button>
-      <div v-if="activeSection === 'effort'" class="px-3 pb-3 pt-1">
-        <div class="flex gap-2">
-          <button
-            v-for="e in EFFORTS"
-            :key="e.value"
-            class="flex-1 py-2.5 text-xs font-medium border border-border rounded-xl text-fg-2 hover:bg-bg-3 transition-colors"
-            :class="pendingEffort === e.value ? 'bg-bg-3 ring-2 ring-primary' : 'bg-bg-2'"
-            @click="pendingEffort = e.value"
-          >{{ e.label }}</button>
-        </div>
-      </div>
+        class="flex-1 py-3 text-sm font-medium text-fg-3 hover:text-fg transition-colors border border-border rounded-xl"
+        @click="close()"
+      >Cancel</button>
+      <button
+        class="flex-1 py-3 text-sm font-semibold bg-primary text-white rounded-xl transition-colors hover:opacity-90"
+        @click="confirm"
+      >OK</button>
     </div>
+  </template>
 
-  </div>
+  <!-- ── Actions tab ─────────────────────────────────────────────────────────── -->
+  <template v-if="activeTab === 'actions'">
+    <div class="space-y-3 pt-1">
 
-  <!-- Delete -->
-  <button
-    class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border border-danger/40 bg-danger/15 text-danger hover:bg-danger/20 transition-colors"
-    @click="deleteItem"
-  >Delete task</button>
+      <!-- Complete / Uncomplete -->
+      <button
+        v-if="item.done"
+        class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border transition-colors border-border bg-bg-2 text-fg-2 hover:bg-bg-3"
+        @click="completeTask"
+      >↩ Mark incomplete</button>
+      <template v-else>
+        <button
+          v-if="!isChecklistTask"
+          class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border transition-colors border-success/40 bg-success/15 text-success hover:bg-success/20"
+          @click="completeTask"
+        >✓ Complete task</button>
+        <button
+          v-else-if="onComplete"
+          class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border transition-colors border-success/40 bg-success/15 text-success hover:bg-success/20"
+          @click="completeTask"
+        >✓ Complete checklist</button>
+      </template>
 
-  <!-- Cancel / OK -->
-  <div class="flex gap-3 pt-1">
-    <button
-      class="flex-1 py-3 text-sm font-medium text-fg-3 hover:text-fg transition-colors border border-border rounded-xl"
-      @click="close()"
-    >Cancel</button>
-    <button
-      class="flex-1 py-3 text-sm font-semibold bg-primary hover:bg-primary text-white rounded-xl transition-colors"
-      @click="confirm"
-    >OK</button>
-  </div>
+      <!-- Delete (not available for checklist tasks) -->
+      <button
+        v-if="!isChecklistTask"
+        class="flex items-center justify-center w-full py-3 text-sm font-medium rounded-xl border border-danger/40 bg-danger/15 text-danger hover:bg-danger/20 transition-colors"
+        @click="deleteItem"
+      >Delete task</button>
+
+    </div>
+  </template>
 </template>

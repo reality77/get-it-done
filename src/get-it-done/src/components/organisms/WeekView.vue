@@ -183,6 +183,10 @@ function onModalClose(): void {
               :item="ref.item"
               :item-id="{ checklistId: ref.checklistId, itemId: ref.item.id }"
               :close="close"
+              :is-checklist-task="ref.isChecklistTask"
+              :on-complete="ref.isChecklistTask
+                ? () => openCompletionModal(ref.checklistId)
+                : undefined"
             />
           </template>
         </TaskCard>
