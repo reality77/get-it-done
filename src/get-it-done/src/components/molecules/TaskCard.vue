@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useSlots } from 'vue'
+import { onLongPress } from '@vueuse/core'
 import type { ChecklistItem, SwipeActionDef, ButtonActionDef } from '../../types'
 import { useSwipeAction } from '../../composables/useSwipeAction'
 import { useEditableField } from '../../composables/useEditableField'
@@ -53,14 +54,15 @@ const hasMobileSheet = computed(() =>
 
 const displayDetails = ref(false)
 
-function handleCardClick(): void {
-  displayDetails.value = !displayDetails.value
-}
+// Suppress the click that fires immediately after a long press completes.
+let suppressNextClick = false
 
-function handleMetaBarClick(): void {
-  if (hasMobileSheet.value) {
-    mobileMenuOpen.value = true
+function handleCardClick(): void {
+  if (suppressNextClick) {
+    suppressNextClick = false
+    return
   }
+  displayDetails.value = !displayDetails.value
 }
 
 // ── Swipe gesture ─────────────────────────────────────────────────────────────
@@ -72,6 +74,15 @@ const { style: rowStyle, rightProgress, leftProgress } = useSwipeAction(rowEl, {
   onLeft: () => props.swipeLeft?.onTrigger(),
   onRight: () => props.swipeRight?.onTrigger(),
 })
+
+// Long press on the card (mobile) → open the planning sheet.
+// distanceThreshold cancels the press if the pointer moves (e.g. during a swipe).
+onLongPress(rowEl, () => {
+  if (hasMobileSheet.value) {
+    suppressNextClick = true
+    mobileMenuOpen.value = true
+  }
+}, { delay: 500, distanceThreshold: 10 })
 
 // ── Priority bar ──────────────────────────────────────────────────────────────
 const priorityBarClass = computed(() => {
@@ -164,10 +175,15 @@ function openItemUrl(): void {
             item.done ? 'line-through text-fg-4' : 'text-fg',
           ]" @dblclick.stop="startEdit()">{{ item.text }}</span>
 
-          <!-- Desktop hover actions (hidden on mobile) -->
-          <div v-if="actions?.length"
-            class="hidden sm:flex shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
-            <TaskCardActions :actions="actions" :has-mobile-sheet="false" />
+          <!-- Desktop hover actions + three-dot sheet button (hidden on mobile) -->
+          <div class="hidden sm:flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
+            <TaskCardActions v-if="actions?.length" :actions="actions" :has-mobile-sheet="false" />
+            <button
+              v-if="hasMobileSheet"
+              class="flex items-center justify-center w-8 h-8 rounded-lg text-fg-3 hover:text-fg hover:bg-bg-2 transition-colors text-lg leading-none"
+              title="More options"
+              @click="mobileMenuOpen = true"
+            >⋯</button>
           </div>
         </div>
 
@@ -179,8 +195,7 @@ function openItemUrl(): void {
           <span v-else class="flex-1" />
 
           <!-- Meta icons & badges -->
-          <div class="flex flex-row items-center justify-end rounded-lg border border-bg-2 gap-2 p-1 hover:bg-bg-2 transition-colors"
-            @click.stop="handleMetaBarClick">
+          <div class="flex flex-row items-center justify-end rounded-lg border border-bg-2 gap-2 p-1">
             <!-- Link icon -->
             <svg v-if="item.url" class="w-4.5 h-4.5 text-fg-3 shrink-0" viewBox="0 0 16 16" fill="none"
               stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">

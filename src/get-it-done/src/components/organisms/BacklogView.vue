@@ -6,6 +6,7 @@ import { useChecklistStore } from '../../stores/checklists'
 import TaskCard from '../molecules/TaskCard.vue'
 import MobilePlanningSheet from '../molecules/MobilePlanningSheet.vue'
 import SnoozeModal from '../molecules/SnoozeModal.vue'
+import ChecklistCompletionModal from '../molecules/ChecklistCompletionModal.vue'
 
 type BacklogFilter = 'all' | 'next-week' | 'in-2-weeks' | 'later' | 'someday'
 
@@ -61,6 +62,27 @@ const filteredSomedayItems = computed<TrackedItemRef[]>(() => {
 })
 
 const store = useChecklistStore()
+
+// ── Completion modal ──────────────────────────────────────────────────────────
+const completionModalChecklistId = ref<string | null>(null)
+const completionModalChecklist = computed(() =>
+  completionModalChecklistId.value
+    ? store.getChecklist(completionModalChecklistId.value) ?? null
+    : null
+)
+
+function openCompletionModal(checklistId: string): void {
+  completionModalChecklistId.value = checklistId
+}
+
+function onModalArchive(): void {
+  if (completionModalChecklistId.value) store.archiveChecklist(completionModalChecklistId.value)
+  completionModalChecklistId.value = null
+}
+
+function onModalClose(): void {
+  completionModalChecklistId.value = null
+}
 
 const pendingSnoozeTask = ref<TrackedItemRef | null>(null)
 
@@ -181,6 +203,10 @@ function formatSnoozeDate(raw: string): string {
                 :item="ref.item"
                 :item-id="{ checklistId: ref.checklistId, itemId: ref.item.id }"
                 :close="close"
+                :is-checklist-task="ref.isChecklistTask"
+                :on-complete="ref.isChecklistTask
+                  ? () => openCompletionModal(ref.checklistId)
+                  : undefined"
               />
             </template>
           </TaskCard>
@@ -215,6 +241,10 @@ function formatSnoozeDate(raw: string): string {
               :item="ref.item"
               :item-id="{ checklistId: ref.checklistId, itemId: ref.item.id }"
               :close="close"
+              :is-checklist-task="ref.isChecklistTask"
+              :on-complete="ref.isChecklistTask
+                ? () => openCompletionModal(ref.checklistId)
+                : undefined"
             />
           </template>
         </TaskCard>
@@ -234,5 +264,12 @@ function formatSnoozeDate(raw: string): string {
     @pick="onSnoozePick"
     @someday="onSnoozeSomeday"
     @cancel="onSnoozeCancel"
+  />
+
+  <ChecklistCompletionModal
+    v-if="completionModalChecklist"
+    :checklist="completionModalChecklist"
+    @archive="onModalArchive"
+    @close="onModalClose"
   />
 </template>

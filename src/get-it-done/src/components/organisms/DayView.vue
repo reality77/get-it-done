@@ -156,6 +156,10 @@ function dismissCelebration(): void {
             :item="taskRef.item"
             :item-id="{ checklistId: taskRef.checklistId, itemId: taskRef.item.id }"
             :close="close"
+            :is-checklist-task="taskRef.isChecklistTask"
+            :on-complete="taskRef.isChecklistTask
+              ? () => openCompletionModal(taskRef.checklistId)
+              : undefined"
           />
         </template>
       </TaskCard>
@@ -185,6 +189,7 @@ function dismissCelebration(): void {
               :item="taskRef.item"
               :item-id="{ checklistId: taskRef.checklistId, itemId: taskRef.item.id }"
               :close="close"
+              :is-checklist-task="taskRef.isChecklistTask"
             />
           </template>
         </TaskCard>
