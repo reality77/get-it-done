@@ -1,15 +1,23 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
-import type { TaskPriority } from '../../types'
+import type { TaskPriority, TaskEffort } from '../../types'
 import { useChecklistStore, STANDALONE_CHECKLIST_ID } from '../../stores/checklists'
+import { getSnoozeOptions } from '../../composables/useSnoozeOptions'
 import VButton from '../atoms/VButton.vue'
+
+const props = defineProps<{
+  activeTab: 'today' | 'week' | 'backlog'
+}>()
 
 const store = useChecklistStore()
 
 const open = ref(false)
 const text = ref('')
 const priority = ref<TaskPriority>('important')
-const inputEl = ref<HTMLInputElement | null>(null)
+const effort = ref<TaskEffort>('medium')
+
+type SchedulingOption = 'today' | 'week' | 'next-week' | 'someday'
+const scheduling = ref<SchedulingOption>('today')
 
 const PRIORITIES: { value: TaskPriority; label: string; color: string }[] = [
   { value: 'urgent',    label: 'Urgent',    color: 'bg-danger/20 text-danger border-danger/40' },
@@ -17,7 +25,27 @@ const PRIORITIES: { value: TaskPriority; label: string; color: string }[] = [
   { value: 'secondary', label: 'Secondary', color: 'bg-bg-3/60 text-fg-3 border-border' },
 ]
 
+const EFFORTS: { value: TaskEffort; label: string }[] = [
+  { value: 'small',  label: 'Small' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'large',  label: 'Large' },
+]
+
+const SCHEDULING: { value: SchedulingOption; label: string }[] = [
+  { value: 'today',     label: 'Today' },
+  { value: 'week',      label: 'This week' },
+  { value: 'next-week', label: 'Next week' },
+  { value: 'someday',   label: 'Someday' },
+]
+
+function defaultScheduling(): SchedulingOption {
+  if (props.activeTab === 'week') return 'week'
+  if (props.activeTab === 'backlog') return 'next-week'
+  return 'today'
+}
+
 async function openSheet(): Promise<void> {
+  scheduling.value = defaultScheduling()
   open.value = true
   await nextTick()
   inputEl.value?.focus()
@@ -27,15 +55,40 @@ function close(): void {
   open.value = false
   text.value = ''
   priority.value = 'important'
+  effort.value = 'medium'
+  scheduling.value = defaultScheduling()
 }
+
+const inputEl = ref<HTMLInputElement | null>(null)
 
 function submit(): void {
   const trimmed = text.value.trim()
   if (!trimmed) return
   const item = store.addItem(STANDALONE_CHECKLIST_ID, trimmed)
+  const ref = { checklistId: STANDALONE_CHECKLIST_ID, itemId: item.id }
+
   if (priority.value !== 'important') {
-    store.setItemPriority({ checklistId: STANDALONE_CHECKLIST_ID, itemId: item.id }, priority.value)
+    store.setItemPriority(ref, priority.value)
   }
+  if (effort.value !== 'medium') {
+    store.setItemEffort(ref, effort.value)
+  }
+
+  switch (scheduling.value) {
+    case 'today':
+      store.toggleItemDayPlan(ref)
+      break
+    case 'week':
+      store.toggleItemWeekPlan(ref)
+      break
+    case 'next-week':
+      store.snoozeItem(ref, getSnoozeOptions()[0]!.date)
+      break
+    case 'someday':
+      store.sendItemToSomeday(ref)
+      break
+  }
+
   close()
 }
 </script>
@@ -74,6 +127,7 @@ function submit(): void {
           @keydown.escape.prevent="close"
         />
 
+        <!-- Priority -->
         <div class="flex gap-2">
           <button
             v-for="p in PRIORITIES"
@@ -82,6 +136,28 @@ function submit(): void {
             :class="[p.color, priority === p.value ? 'ring-2 ring-primary' : '']"
             @click="priority = p.value"
           >{{ p.label }}</button>
+        </div>
+
+        <!-- Effort -->
+        <div class="flex gap-2">
+          <button
+            v-for="e in EFFORTS"
+            :key="e.value"
+            class="flex-1 py-2 text-xs font-medium border rounded-xl transition-colors bg-bg-3/60 text-fg-3 border-border"
+            :class="effort === e.value ? 'ring-2 ring-primary text-fg' : ''"
+            @click="effort = e.value"
+          >{{ e.label }}</button>
+        </div>
+
+        <!-- Scheduling -->
+        <div class="flex flex-wrap gap-1.5">
+          <button
+            v-for="s in SCHEDULING"
+            :key="s.value"
+            class="px-3 py-1.5 text-xs font-medium border rounded-xl transition-colors bg-bg-3/60 text-fg-3 border-border"
+            :class="scheduling === s.value ? 'ring-2 ring-primary text-fg' : ''"
+            @click="scheduling = s.value"
+          >{{ s.label }}</button>
         </div>
 
         <div class="flex gap-3">
