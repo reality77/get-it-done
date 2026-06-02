@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { TrackedItemRef, SwipeActionDef } from '../../types'
 import { makeStatusActions, refToId } from '../../composables/useTaskActions'
 import { useChecklistStore } from '../../stores/checklists'
@@ -7,10 +7,58 @@ import TaskCard from '../molecules/TaskCard.vue'
 import MobilePlanningSheet from '../molecules/MobilePlanningSheet.vue'
 import SnoozeModal from '../molecules/SnoozeModal.vue'
 
-defineProps<{
+type BacklogFilter = 'all' | 'next-week' | 'in-2-weeks' | 'later' | 'someday'
+
+const filters: { key: BacklogFilter; label: string }[] = [
+  { key: 'all',        label: 'All' },
+  { key: 'next-week',  label: 'Next week' },
+  { key: 'in-2-weeks', label: 'In 2 weeks' },
+  { key: 'later',      label: 'Later' },
+  { key: 'someday',    label: 'Someday' },
+]
+
+const props = defineProps<{
   snoozedItems: TrackedItemRef[]
   somedayItems: TrackedItemRef[]
 }>()
+
+const activeFilter = ref<BacklogFilter>('all')
+
+function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+function getWeekBoundaries() {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const dow = today.getDay() // 0=Sun
+  const thisMonday = new Date(today)
+  thisMonday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1))
+  const nextMonday     = new Date(thisMonday); nextMonday.setDate(thisMonday.getDate() + 7)
+  const twoWeeksMonday = new Date(thisMonday); twoWeeksMonday.setDate(thisMonday.getDate() + 14)
+  const laterMonday    = new Date(thisMonday); laterMonday.setDate(thisMonday.getDate() + 21)
+  return { nextMonday, twoWeeksMonday, laterMonday }
+}
+
+const filteredSnoozedItems = computed<TrackedItemRef[]>(() => {
+  if (activeFilter.value === 'someday') return []
+  if (activeFilter.value === 'all') return props.snoozedItems
+  const { nextMonday, twoWeeksMonday, laterMonday } = getWeekBoundaries()
+  return props.snoozedItems.filter(r => {
+    if (!r.item.snoozeUntil) return false
+    const d = parseLocalDate(r.item.snoozeUntil)
+    if (activeFilter.value === 'next-week')  return d >= nextMonday     && d < twoWeeksMonday
+    if (activeFilter.value === 'in-2-weeks') return d >= twoWeeksMonday && d < laterMonday
+    if (activeFilter.value === 'later')      return d >= laterMonday
+    return false
+  })
+})
+
+const filteredSomedayItems = computed<TrackedItemRef[]>(() => {
+  if (activeFilter.value === 'all' || activeFilter.value === 'someday') return props.somedayItems
+  return []
+})
 
 const store = useChecklistStore()
 
@@ -79,16 +127,29 @@ function formatSnoozeDate(raw: string): string {
 <template>
   <div class="space-y-6">
 
+    <!-- Quick filter -->
+    <div class="flex overflow-x-auto gap-1.5 pb-0.5 -mx-1 px-1 scrollbar-hide">
+      <button
+        v-for="f in filters"
+        :key="f.key"
+        class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
+        :class="activeFilter === f.key
+          ? 'bg-primary text-fg-on-primary'
+          : 'bg-bg-2 text-fg-3 hover:text-fg-2 hover:bg-bg-3'"
+        @click="activeFilter = f.key"
+      >{{ f.label }}</button>
+    </div>
+
     <!-- Snoozed -->
-    <section>
+    <section v-if="activeFilter !== 'someday'">
       <h3 class="text-sm font-semibold text-fg-3 mb-2 flex items-center gap-2">
         <span>💤 Snoozed</span>
-        <span class="text-fg-4 font-normal">({{ snoozedItems.length }})</span>
+        <span class="text-fg-4 font-normal">({{ filteredSnoozedItems.length }})</span>
       </h3>
-      <div v-if="snoozedItems.length === 0" class="text-xs text-fg-4 py-2 pl-4">No snoozed tasks.</div>
+      <div v-if="filteredSnoozedItems.length === 0" class="text-xs text-fg-4 py-2 pl-4">No snoozed tasks.</div>
       <div v-else class="space-y-3">
         <div
-          v-for="ref in snoozedItems"
+          v-for="ref in filteredSnoozedItems"
           :key="ref.item.id"
           class="relative overflow-hidden rounded-xl"
         >
@@ -124,15 +185,15 @@ function formatSnoozeDate(raw: string): string {
     </section>
 
     <!-- Someday -->
-    <section>
+    <section v-if="activeFilter === 'all' || activeFilter === 'someday'">
       <h3 class="text-sm font-semibold text-fg-3 mb-2 flex items-center gap-2">
         <span>☁ Someday</span>
-        <span class="text-fg-4 font-normal">({{ somedayItems.length }})</span>
+        <span class="text-fg-4 font-normal">({{ filteredSomedayItems.length }})</span>
       </h3>
-      <div v-if="somedayItems.length === 0" class="text-xs text-fg-4 py-2 pl-4">No someday tasks.</div>
+      <div v-if="filteredSomedayItems.length === 0" class="text-xs text-fg-4 py-2 pl-4">No someday tasks.</div>
       <div v-else class="space-y-3">
         <TaskCard
-          v-for="ref in somedayItems"
+          v-for="ref in filteredSomedayItems"
           :key="ref.item.id"
           :item="ref.item"
           :checklist-id="ref.checklistId"
