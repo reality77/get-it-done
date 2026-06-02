@@ -187,38 +187,41 @@ const syncStatusTitles: Record<string, string> = {
     @change="activeTab = $event"
   />
 
-  <main class="flex-1 overflow-y-auto pb-20 md:pb-0">
+  <main class="flex-1 overflow-hidden flex flex-col min-h-0">
     <WeeklyReviewPanel
       v-if="activeTab !== 'checklists' && weeklyReviewDue && !reviewDismissed"
+      class="shrink-0"
       @complete-review="handleCompleteReview"
       @dismiss="reviewDismissed = true"
     />
 
-    <DayView
-      v-if="activeTab === 'today'"
-      :items="dayPlanItems"
-    />
+    <div v-if="activeTab === 'today'" class="flex-1 overflow-y-auto pb-20 md:pb-0">
+      <DayView :items="dayPlanItems" />
+    </div>
 
-    <WeekView
-      v-else-if="activeTab === 'week'"
-      :items-by-priority="itemsByPriority"
-      :dismissed-keys="dismissedKeys"
-    />
+    <div v-else-if="activeTab === 'week'" class="flex-1 overflow-y-auto pb-20 md:pb-0">
+      <WeekView
+        :items-by-priority="itemsByPriority"
+        :dismissed-keys="dismissedKeys"
+      />
+    </div>
 
     <BacklogView
       v-else-if="activeTab === 'backlog'"
+      class="flex-1 overflow-hidden"
       :snoozed-items="snoozedItems"
       :someday-items="somedayItems"
     />
 
-    <ActiveView
-      v-else-if="activeTab === 'checklists'"
-      :checklists="activeChecklists"
-      :focus-checklist-id="newlyCreatedId"
-      @delete="deleteChecklist"
-      @archive="archiveChecklist"
-      @create="(name) => handleCreateChecklist(name, 'one-time')"
-    />
+    <div v-else-if="activeTab === 'checklists'" class="flex-1 overflow-y-auto pb-20 md:pb-0">
+      <ActiveView
+        :checklists="activeChecklists"
+        :focus-checklist-id="newlyCreatedId"
+        @delete="deleteChecklist"
+        @archive="archiveChecklist"
+        @create="(name) => handleCreateChecklist(name, 'one-time')"
+      />
+    </div>
   </main>
 
   <BottomNavBar

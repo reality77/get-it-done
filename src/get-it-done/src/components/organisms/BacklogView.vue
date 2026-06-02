@@ -125,10 +125,10 @@ function formatSnoozeDate(raw: string): string {
 </script>
 
 <template>
-  <div>
+  <div class="flex flex-col h-full">
 
-    <!-- Quick filter — sticky, does not scroll with content -->
-    <div class="sticky top-0 z-10 bg-bg-0 -mx-4 px-4 pt-1 pb-3">
+    <!-- Quick filter — sits above the scroll area, never scrolls -->
+    <div class="shrink-0 pt-1 pb-3">
       <div class="flex gap-1.5 overflow-x-auto scrollbar-hide">
         <button
           v-for="f in filters"
@@ -142,7 +142,7 @@ function formatSnoozeDate(raw: string): string {
       </div>
     </div>
 
-    <div class="space-y-6">
+    <div class="flex-1 overflow-y-auto space-y-6 pb-20 md:pb-0">
 
     <!-- Snoozed -->
     <section v-if="activeFilter !== 'someday'">
@@ -221,7 +221,7 @@ function formatSnoozeDate(raw: string): string {
       </div>
     </section>
 
-    </div><!-- end space-y-6 -->
+    </div><!-- end scroll area -->
   </div>
 
   <SnoozeModal
