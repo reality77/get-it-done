@@ -25,10 +25,10 @@ const PRIORITIES: { value: TaskPriority; label: string; color: string }[] = [
   { value: 'secondary', label: 'Secondary', color: 'bg-bg-3/60 text-fg-3 border-border' },
 ]
 
-const EFFORTS: { value: TaskEffort; label: string }[] = [
-  { value: 'small',  label: 'Small' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'large',  label: 'Large' },
+const EFFORTS: { value: TaskEffort; label: string; short: string }[] = [
+  { value: 'small',  label: 'Small',  short: 'S' },
+  { value: 'medium', label: 'Medium', short: 'M' },
+  { value: 'large',  label: 'Large',  short: 'L' },
 ]
 
 const SCHEDULING: { value: SchedulingOption; label: string }[] = [
@@ -128,25 +128,34 @@ function submit(): void {
         />
 
         <!-- Priority -->
-        <div class="flex gap-2">
-          <button
-            v-for="p in PRIORITIES"
-            :key="p.value"
-            class="flex-1 py-2 text-xs font-medium border rounded-xl transition-colors"
-            :class="[p.color, priority === p.value ? 'ring-2 ring-primary' : '']"
-            @click="priority = p.value"
-          >{{ p.label }}</button>
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-fg-2">Priority</span>
+          <div class="flex gap-1.5">
+            <button
+              v-for="p in PRIORITIES"
+              :key="p.value"
+              class="px-2.5 py-1 text-xs font-medium border rounded-lg transition-all"
+              :class="[p.color, priority === p.value ? 'ring-2 ring-offset-1 ring-offset-bg-1 ring-primary/60' : 'opacity-50 hover:opacity-90']"
+              @click="priority = p.value"
+            >{{ p.label }}</button>
+          </div>
         </div>
 
         <!-- Effort -->
-        <div class="flex gap-2">
-          <button
-            v-for="e in EFFORTS"
-            :key="e.value"
-            class="flex-1 py-2 text-xs font-medium border rounded-xl transition-colors bg-bg-3/60 text-fg-3 border-border"
-            :class="effort === e.value ? 'ring-2 ring-primary text-fg' : ''"
-            @click="effort = e.value"
-          >{{ e.label }}</button>
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-fg-2">Effort</span>
+          <div class="flex gap-1.5">
+            <button
+              v-for="e in EFFORTS"
+              :key="e.value"
+              class="w-10 py-1 text-xs font-semibold border rounded-lg transition-all text-center"
+              :class="effort === e.value
+                ? 'bg-primary/20 border-primary text-primary ring-2 ring-offset-1 ring-offset-bg-1 ring-primary/60'
+                : 'bg-bg-2 border-border text-fg-3 hover:bg-bg-3 hover:text-fg-2'"
+              :title="e.label"
+              @click="effort = e.value"
+            >{{ e.short }}</button>
+          </div>
         </div>
 
         <!-- Scheduling -->
