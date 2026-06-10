@@ -123,6 +123,8 @@ export function useDayPlanning(
           completedAt: cl.archived ? (cl.archivedAt ?? null) : null,
           deadline: cl.deadline,
           reminders: cl.reminders,
+          comment: cl.comment,
+          url: cl.url,
         }
         result.push({
           item: syntheticItem,
@@ -172,6 +174,7 @@ export function useDayPlanning(
             selectedForToday: true, selectedForWeek: cl.selectedForWeek ?? false,
             snoozeUntil: null, snoozedAt: null, completedAt: cl.archivedAt ?? null,
             deadline: cl.deadline, reminders: cl.reminders,
+            comment: cl.comment, url: cl.url,
           },
           checklistId: cl.id,
           checklistTitle: title,

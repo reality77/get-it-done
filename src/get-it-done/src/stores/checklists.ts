@@ -305,6 +305,12 @@ export const useChecklistStore = defineStore('checklists', () => {
   function updateItemText({ checklistId, itemId }: ChecklistItemId, text: string): void {
     const checklist = getChecklist(checklistId)
     if (!checklist) return
+    if (checklist.trackMode === 'checklist' && itemId === checklistId) {
+      if (checklist.runLabel != null) checklist.runLabel = text
+      else checklist.title = text
+      void sync.upsertChecklist(checklist)
+      return
+    }
     const item = findItemDeep(checklist.items, itemId)
     if (!item) return
     item.text = text
@@ -314,6 +320,7 @@ export const useChecklistStore = defineStore('checklists', () => {
   function removeItem({ checklistId, itemId }: ChecklistItemId): void {
     const checklist = getChecklist(checklistId)
     if (!checklist) return
+    if (checklist.trackMode === 'checklist' && itemId === checklistId) return
     checklist.items = removeNodeDeep(checklist.items, itemId)
     void sync.upsertChecklist(checklist)
   }
@@ -349,6 +356,11 @@ export const useChecklistStore = defineStore('checklists', () => {
   function updateItemComment({ checklistId, itemId }: ChecklistItemId, comment: string): void {
     const checklist = getChecklist(checklistId)
     if (!checklist) return
+    if (checklist.trackMode === 'checklist' && itemId === checklistId) {
+      checklist.comment = comment || undefined
+      void sync.upsertChecklist(checklist)
+      return
+    }
     const item = findItemDeep(checklist.items, itemId)
     if (!item) return
     item.comment = comment || undefined
@@ -358,6 +370,11 @@ export const useChecklistStore = defineStore('checklists', () => {
   function updateItemUrl({ checklistId, itemId }: ChecklistItemId, url: string): void {
     const checklist = getChecklist(checklistId)
     if (!checklist) return
+    if (checklist.trackMode === 'checklist' && itemId === checklistId) {
+      checklist.url = url || undefined
+      void sync.upsertChecklist(checklist)
+      return
+    }
     const item = findItemDeep(checklist.items, itemId)
     if (!item) return
     item.url = url || undefined

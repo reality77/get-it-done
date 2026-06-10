@@ -72,6 +72,8 @@ export interface Checklist {
   snoozedAt?: string | null
   deadline?: string | null
   reminders?: string[]
+  comment?: string
+  url?: string
 }
 
 /** Flattened reference to a tracked task (item or whole checklist) used in Tasks views */

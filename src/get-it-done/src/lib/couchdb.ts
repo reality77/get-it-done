@@ -28,6 +28,7 @@ export function docToChecklist(doc: PouchDB.Core.ExistingDocument<CouchDoc>): Ch
     selectedForToday: doc.selectedForToday, selectedForWeek: doc.selectedForWeek,
     snoozeUntil: doc.snoozeUntil, snoozedAt: doc.snoozedAt,
     deadline: doc.deadline, reminders: doc.reminders,
+    comment: doc.comment, url: doc.url,
   }
 }
 
