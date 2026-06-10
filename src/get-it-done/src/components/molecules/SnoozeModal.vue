@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import type { TaskStatus } from '../../types'
 import { getSnoozeOptions, getDeadlineSnoozeOptions, type SnoozeOption } from '../../composables/useSnoozeOptions'
+import { todayDateString } from '../../composables/useTreeHelpers'
 import VSegmented from '../atoms/VSegmented.vue'
 
 const props = defineProps<{
@@ -55,7 +56,7 @@ const customDate = ref(
     : ''
 )
 
-const todayStr = new Date().toISOString().slice(0, 10)
+const todayStr = todayDateString()
 
 function formatDeadline(deadline: string): string {
   return new Date(deadline.slice(0, 10) + 'T12:00:00').toLocaleDateString(undefined, {

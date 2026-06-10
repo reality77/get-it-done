@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import type { TrackedItemRef, SwipeActionDef, ButtonActionDef } from '../../types'
 import { makeStatusActions, refToId } from '../../composables/useTaskActions'
+import { toLocalDateString } from '../../composables/useTreeHelpers'
 import { useChecklistStore } from '../../stores/checklists'
 import TaskCard from '../molecules/TaskCard.vue'
 import VButton from '../atoms/VButton.vue'
@@ -37,7 +38,7 @@ function reviewSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
     onTrigger: () => {
       const d = new Date()
       d.setDate(d.getDate() + ((1 + 7 - d.getDay()) % 7 || 7))
-      store.snoozeItem(refToId(taskRef), d.toISOString().slice(0, 10))
+      store.snoozeItem(refToId(taskRef), toLocalDateString(d))
       dismissFromPanel(taskRef.item.id)
     },
   }

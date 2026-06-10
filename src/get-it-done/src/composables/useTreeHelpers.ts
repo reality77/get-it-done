@@ -8,8 +8,22 @@ import type {
 
 // ── Date helper ───────────────────────────────────────────────────────────────
 
+/** Format a Date as the LOCAL calendar day, YYYY-MM-DD. */
+export function toLocalDateString(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** Parse a YYYY-MM-DD (or longer ISO) string as LOCAL midnight of that day. */
+export function parseLocalDate(dateStr: string): Date {
+  const [y = '0', m = '1', d = '1'] = dateStr.slice(0, 10).split('-')
+  return new Date(+y, +m - 1, +d)
+}
+
 export function todayDateString(): string {
-  return new Date().toISOString().slice(0, 10)
+  return toLocalDateString(new Date())
 }
 
 // ── Tree traversal ────────────────────────────────────────────────────────────

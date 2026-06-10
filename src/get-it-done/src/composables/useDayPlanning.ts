@@ -13,6 +13,8 @@ import {
   walkNodes,
   findItemDeep,
   todayDateString,
+  toLocalDateString,
+  parseLocalDate,
   countItems,
   countDone,
 } from './useTreeHelpers'
@@ -34,12 +36,15 @@ function itemKey(checklistId: string, itemId: string): string {
   return `${checklistId}:${itemId}`
 }
 
+const completedToday = (iso: string | null | undefined, today: string): boolean =>
+  iso != null && toLocalDateString(new Date(iso)) === today
+
 function getMondayDateString(): string {
   const d = new Date()
   const day = d.getDay()
   const daysToMonday = day === 0 ? -6 : 1 - day
   d.setDate(d.getDate() + daysToMonday)
-  return d.toISOString().substring(0, 10)
+  return toLocalDateString(d)
 }
 
 function deadlineBonus(deadline: string | null | undefined, today: string, effort: TaskEffort): number {
@@ -48,7 +53,7 @@ function deadlineBonus(deadline: string | null | undefined, today: string, effor
   const b = DAY_PLAN_DEADLINE_BONUSES[effort]
   if (d < today) return b.overdue
   if (d === today) return b.today
-  const daysAway = Math.ceil((new Date(d).getTime() - new Date(today).getTime()) / 86_400_000)
+  const daysAway = Math.ceil((parseLocalDate(d).getTime() - parseLocalDate(today).getTime()) / 86_400_000)
   if (daysAway === 1)  return b.tomorrow
   if (daysAway <= 7)   return b.week
   if (daysAway <= 14)  return b.twoWeeks
@@ -160,11 +165,11 @@ export function useDayPlanning(
 
       if (cl.trackMode === 'items') {
         walkNodes(cl.items, n => {
-          if (n.type === 'item' && n.done && n.completedAt?.startsWith(today)) {
+          if (n.type === 'item' && n.done && completedToday(n.completedAt, today)) {
             result.push({ item: n, checklistId: cl.id, checklistTitle: title })
           }
         })
-      } else if (cl.trackMode === 'checklist' && cl.archivedAt?.startsWith(today) && cl.selectedForToday) {
+      } else if (cl.trackMode === 'checklist' && completedToday(cl.archivedAt, today) && cl.selectedForToday) {
         const total = countItems(cl.items)
         const done = countDone(cl.items)
         result.push({
@@ -191,7 +196,7 @@ export function useDayPlanning(
     const fromActive = trackedItems.value.filter(r => {
       if ((r.item.status ?? 'active') !== 'active') return false
       if (r.item.selectedForToday && !r.item.done) return true
-      return r.item.done && (r.item.completedAt?.startsWith(today) ?? false)
+      return r.item.done && completedToday(r.item.completedAt, today)
     })
     return [...fromActive, ...archivedTodayItems.value]
   })
@@ -434,7 +439,7 @@ export function useDayPlanning(
   function suggestDayPlan(): Array<ChecklistItemId> {
     const today = todayDateString()
     const now = Date.now()
-    const tomorrow = new Date(new Date(today).getTime() + 86_400_000).toISOString().substring(0, 10)
+    const t = parseLocalDate(today); t.setDate(t.getDate() + 1); const tomorrow = toLocalDateString(t)
 
     // Phase 1 — keep existing selections, charge their effort against the budget
     const kept: Array<ChecklistItemId> = []

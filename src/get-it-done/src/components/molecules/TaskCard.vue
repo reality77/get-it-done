@@ -5,7 +5,7 @@ import type { ChecklistItem, SwipeActionDef, ButtonActionDef } from '../../types
 import { useSwipeAction } from '../../composables/useSwipeAction'
 import { useEditableField } from '../../composables/useEditableField'
 import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
-import { walkNodes } from '../../composables/useTreeHelpers'
+import { walkNodes, parseLocalDate } from '../../composables/useTreeHelpers'
 import { useChecklistStore } from '../../stores/checklists'
 import TaskCardActions from './TaskCardActions.vue'
 import TaskCardMobileSheet from './TaskCardMobileSheet.vue'
@@ -100,8 +100,7 @@ const priorityBarClass = computed(() => {
 function dateBadge(raw: string): { label: string; danger: boolean } {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const d = new Date(raw)
-  d.setHours(0, 0, 0, 0)
+  const d = parseLocalDate(raw)
   return {
     label: d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
     danger: d.getTime() <= today.getTime(),

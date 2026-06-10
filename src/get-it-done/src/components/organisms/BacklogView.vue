@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import type { TrackedItemRef, SwipeActionDef } from '../../types'
 import { makeStatusActions, refToId } from '../../composables/useTaskActions'
+import { parseLocalDate } from '../../composables/useTreeHelpers'
 import { useChecklistStore } from '../../stores/checklists'
 import TaskCard from '../molecules/TaskCard.vue'
 import MobilePlanningSheet from '../molecules/MobilePlanningSheet.vue'
@@ -24,11 +25,6 @@ const props = defineProps<{
 }>()
 
 const activeFilter = ref<BacklogFilter>('all')
-
-function parseLocalDate(dateStr: string): Date {
-  const [y = '0', m = '1', d = '1'] = dateStr.split('-')
-  return new Date(+y, +m - 1, +d)
-}
 
 function getWeekBoundaries() {
   const today = new Date()
@@ -140,7 +136,7 @@ function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
 }
 
 function formatSnoozeDate(raw: string): string {
-  return new Date(raw).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+  return parseLocalDate(raw).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 }
 </script>
 
