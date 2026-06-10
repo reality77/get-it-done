@@ -243,15 +243,16 @@ export function useDayPlanning(
   // ── Weekly review computed ──────────────────────────────────────────────────
 
   const weeklyReviewDue = computed((): boolean => {
+    if (trackedItems.value.length === 0) return false
     const today = new Date()
     const isMonday = today.getDay() === 1
-    const hasDueSnoozed = dueSnoozedItems.value.length > 0
+    const hasStaleSnoozed = staleSnoozedItems.value.length > 0
     const lastReview = planMeta.lastReviewedAt
     const cutoff = new Date(today)
     cutoff.setDate(cutoff.getDate() - WEEKLY_REVIEW_INTERVAL_DAYS)
     const overdueReview = !lastReview || new Date(lastReview) < cutoff
     const reviewedThisWeek = lastReview != null && lastReview.substring(0, 10) >= getMondayDateString()
-    return (isMonday && !reviewedThisWeek) || hasDueSnoozed || overdueReview
+    return (isMonday && !reviewedThisWeek) || hasStaleSnoozed || overdueReview
   })
 
   const isDayPlanFresh = computed(() =>
@@ -273,13 +274,20 @@ export function useDayPlanning(
   function clearDayPlan(): void {
     for (const k in dismissedUntil) delete dismissedUntil[k]
     for (const cl of checklists.value) {
+      if (cl.archived || cl.kind === 'template') continue
+      let changed = false
       if (cl.trackMode === 'items') {
         walkNodes(cl.items, n => {
-          if (n.type === 'item' && n.selectedForToday) n.selectedForToday = false
+          if (n.type === 'item' && n.selectedForToday) {
+            n.selectedForToday = false
+            changed = true
+          }
         })
       } else if (cl.trackMode === 'checklist' && cl.selectedForToday) {
         cl.selectedForToday = false
+        changed = true
       }
+      if (changed) void upsertChecklist(cl)
     }
   }
 
@@ -345,13 +353,19 @@ export function useDayPlanning(
   function refreshDayPlanIfStale(): void {
     if (planMeta.dayPlanDate && planMeta.dayPlanDate !== todayDateString()) {
       for (const cl of checklists.value) {
+        let changed = false
         if (cl.trackMode === 'items') {
           walkNodes(cl.items, n => {
-            if (n.type === 'item') n.selectedForToday = false
+            if (n.type === 'item' && n.selectedForToday) {
+              n.selectedForToday = false
+              changed = true
+            }
           })
-        } else if (cl.trackMode === 'checklist') {
+        } else if (cl.trackMode === 'checklist' && cl.selectedForToday) {
           cl.selectedForToday = false
+          changed = true
         }
+        if (changed) void upsertChecklist(cl)
       }
       planMeta.dayPlanDate = null
       planMetaStore.persistPlanMeta()
