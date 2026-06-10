@@ -31,6 +31,7 @@ interface ChecklistItem {
   type: 'item'
   id: string
   text: string
+  done?: boolean
   status?: 'active' | 'snoozed' | 'someday'
   snoozeUntil?: string | null
   reminders?: string[]
@@ -43,6 +44,15 @@ interface ChecklistGroup {
 
 interface ChecklistDoc {
   _id: string
+  title?: string
+  runLabel?: string | null
+  kind?: string
+  archived?: boolean
+  trackMode?: string
+  status?: 'active' | 'snoozed' | 'someday'
+  snoozeUntil?: string | null
+  reminders?: string[]
+  done?: never
   items?: ChecklistNode[]
 }
 
@@ -139,10 +149,17 @@ export async function findDueSnoozedItems(today: string): Promise<{ text: string
   )
   const due: { text: string }[] = []
   for (const { doc } of result.rows) {
-    if (!doc?.items) continue
-    for (const item of flattenItems(doc.items)) {
-      if (item.status === 'snoozed' && item.snoozeUntil && item.snoozeUntil <= today) {
-        due.push({ text: item.text })
+    if (!doc || doc.archived || doc.kind === 'template') continue
+    if (doc.trackMode === 'checklist') {
+      if (doc.status === 'snoozed' && doc.snoozeUntil && doc.snoozeUntil <= today) {
+        due.push({ text: doc.runLabel ?? doc.title ?? 'Checklist' })
+      }
+    } else {
+      if (!doc.items) continue
+      for (const item of flattenItems(doc.items)) {
+        if (item.status === 'snoozed' && item.snoozeUntil && item.snoozeUntil <= today) {
+          due.push({ text: item.text })
+        }
       }
     }
   }
@@ -167,13 +184,26 @@ export async function findDueTaskReminders(
   )
   const due: DueReminder[] = []
   for (const { id: checklistId, doc } of result.rows) {
-    if (!doc?.items) continue
-    for (const item of flattenItems(doc.items)) {
-      if (!item.reminders?.length) continue
-      for (const reminderAt of item.reminders) {
-        const t = new Date(reminderAt)
-        if (t >= windowStart && t < windowEnd) {
-          due.push({ checklistId, itemId: item.id, text: item.text, reminderAt })
+    if (!doc || doc.archived || doc.kind === 'template') continue
+    if (doc.trackMode === 'checklist') {
+      if (doc.reminders?.length) {
+        for (const reminderAt of doc.reminders) {
+          const t = new Date(reminderAt)
+          if (t >= windowStart && t < windowEnd) {
+            due.push({ checklistId, itemId: checklistId, text: doc.runLabel ?? doc.title ?? 'Checklist', reminderAt })
+          }
+        }
+      }
+    } else {
+      if (!doc.items) continue
+      for (const item of flattenItems(doc.items)) {
+        if (item.done) continue
+        if (!item.reminders?.length) continue
+        for (const reminderAt of item.reminders) {
+          const t = new Date(reminderAt)
+          if (t >= windowStart && t < windowEnd) {
+            due.push({ checklistId, itemId: item.id, text: item.text, reminderAt })
+          }
         }
       }
     }
