@@ -15,6 +15,15 @@ const allowedOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
 
 app.log.info({ allowedOrigins }, 'Configured CORS origins')
 
+// ── Allowlist: restrict push subscriptions to specific CouchDB users ──────────
+// Default is 'admin' (single-account deployment). Set ALLOWED_USERS=user1,user2
+// to grant additional accounts. See README.md for design rationale.
+
+const allowedUsers = (process.env.ALLOWED_USERS ?? 'admin')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+
 app.addHook('onRequest', async (request) => {
   app.log.info(
     {
@@ -59,6 +68,10 @@ async function requireAuth(request: FastifyRequest, reply: FastifyReply): Promis
   const userId = await validateSession(cookie)
   if (!userId) {
     await reply.status(401).send({ error: 'Unauthorized' })
+    return
+  }
+  if (!allowedUsers.includes(userId)) {
+    await reply.status(403).send({ error: 'Forbidden' })
     return
   }
   request.userId = userId
@@ -125,6 +138,9 @@ app.setNotFoundHandler((request, reply) => {
 const PORT = Number(process.env.PORT ?? 3000)
 
 async function start(): Promise<void> {
+  if (!process.env.COUCH_PASSWORD) {
+    app.log.warn('COUCH_PASSWORD is not set — server will boot with blank CouchDB credentials')
+  }
   await ensureSubsDb()
   await ensureFiredRemindersDb()
   startScheduler()
