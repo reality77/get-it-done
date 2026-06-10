@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import type { ChecklistKind } from './types'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useChecklistStore } from './stores/checklists'
 import { useAuthStore } from './stores/auth'
 import TabBar from './components/organisms/TabBar.vue'
-import ActiveView from './components/templates/ActiveView.vue'
+import ChecklistsView from './components/templates/ChecklistsView.vue'
 import DayView from './components/organisms/DayView.vue'
 import WeekView from './components/organisms/WeekView.vue'
 import BacklogView from './components/organisms/BacklogView.vue'
@@ -17,8 +16,6 @@ import { storeToRefs } from 'pinia'
 
 const activeTab = ref<'today' | 'week' | 'backlog' | 'checklists'>('today')
 const notificationsOpen = ref(false)
-
-const newlyCreatedId = ref<string | null>(null)
 
 const authStore = useAuthStore()
 const checklistStore = useChecklistStore()
@@ -53,7 +50,6 @@ function stopKeepAlive(): void {
   }
 }
 const {
-  activeChecklists,
   syncStatus,
   writeError,
   weeklyReviewDue,
@@ -63,12 +59,6 @@ const {
   itemsByPriority,
   dismissedKeys,
 } = storeToRefs(checklistStore)
-
-const {
-  createChecklist,
-  deleteChecklist,
-  archiveChecklist,
-} = checklistStore
 
 const reviewDismissed = ref(false)
 
@@ -121,13 +111,6 @@ watch(() => authStore.isAuthenticated, async (authed, wasAuthed) => {
     if (wasAuthed) loginPrompted.value = true  // session expired during use
   }
 })
-
-async function handleCreateChecklist(title: string, kind: ChecklistKind): Promise<void> {
-    const created = createChecklist(kind, title, [])
-    newlyCreatedId.value = created.id
-    await nextTick()
-    newlyCreatedId.value = null
-}
 
 function handleCompleteReview(): void {
   checklistStore.completeWeeklyReview()
@@ -213,13 +196,7 @@ const syncStatusTitles: Record<string, string> = {
     />
 
     <div v-else-if="activeTab === 'checklists'" class="flex-1 overflow-y-auto pb-20 md:pb-0">
-      <ActiveView
-        :checklists="activeChecklists"
-        :focus-checklist-id="newlyCreatedId"
-        @delete="deleteChecklist"
-        @archive="archiveChecklist"
-        @create="(name) => handleCreateChecklist(name, 'one-time')"
-      />
+      <ChecklistsView />
     </div>
   </main>
 
