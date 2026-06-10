@@ -81,6 +81,12 @@ async function handleVisibilityChange(): Promise<void> {
 
 onMounted(async () => {
   await checklistStore.loadLocal()        // data available offline, before auth (#8)
+  // Order matters but is safe to keep: ensureStandaloneChecklist() may create a
+  // fresh rev-1 standalone doc locally before first sync. When replication later
+  // pulls the existing remote standalone doc, the two revision trees collide. The
+  // Phase-2 conflict resolver (resolveConflicts, fired from the changes feed) merges
+  // the item arrays by id, so any tasks added here pre-login survive the merge.
+  // Do not "optimize" this ordering away — the merge is what makes it correct.
   checklistStore.ensureStandaloneChecklist()
   checklistStore.processDueSnoozed()       // now runs on real data (#4)
   checklistStore.refreshDayPlanIfStale()  // idem

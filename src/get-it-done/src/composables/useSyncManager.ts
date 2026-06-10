@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import type { Ref } from 'vue'
 import type { Checklist } from '../types'
-import { localDB, createRemoteDB, checklistToDoc, docToChecklist } from '../lib/couchdb'
+import { localDB, createRemoteDB, checklistToDoc, docToChecklist, mergeChecklistDocs } from '../lib/couchdb'
 import type { CouchDoc } from '../lib/couchdb'
 import { useAuthStore } from '../stores/auth'
 import { migrateNodes } from './useTreeHelpers'
@@ -44,6 +44,11 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
   // below, which serializes calls so this read always happens after the previous
   // put updated the rev cache.
   async function putChecklist(c: Checklist): Promise<void> {
+    // Single write choke point: stamp the LWW timestamp here so every persisted
+    // revision carries a fresh modifiedAt used by conflict resolution. Capture the
+    // previous value first — the 409 branch needs it to detect a cross-device edit.
+    const prevModifiedAt = c.modifiedAt
+    c.modifiedAt = new Date().toISOString()
     const doc = checklistToDoc(c)
     const rev = revCache.get(c.id)
     try {
@@ -53,11 +58,21 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
       return
     } catch (e) {
       if ((e as PouchDB.Core.Error).status === 409) {
-        // Conflict: fetch fresh _rev and retry once
+        // Conflict: fetch fresh _rev and retry once.
         try {
-          const existing = await localDB.get(c.id)
+          const existing = await localDB.get<CouchDoc>(c.id)
           revCache.set(c.id, existing._rev)
-          const result = await localDB.put({ ...doc, _rev: existing._rev })
+          // If the stored doc is NEWER than the version we started from, it came
+          // from another device via replication — merge its items in (our edit
+          // still wins field-level) so we don't clobber the other device. The
+          // common case (our own stale rev cache, existing not newer) is unchanged.
+          let payload: PouchDB.Core.Document<CouchDoc> & { _rev: string } = { ...doc, _rev: existing._rev }
+          const existingTs = existing.modifiedAt ? Date.parse(existing.modifiedAt) || 0 : 0
+          const prevTs = prevModifiedAt ? Date.parse(prevModifiedAt) || 0 : 0
+          if (existingTs > prevTs) {
+            payload = { ...mergeChecklistDocs(doc, existing), _rev: existing._rev }
+          }
+          const result = await localDB.put(payload)
           revCache.set(c.id, result.rev)
           writeError.value = null  // clear any stale error banner on retry success
           return
@@ -127,14 +142,81 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
     const info = await localDB.info()
     lastSeq = info.update_seq
     const result = await localDB.allDocs<CouchDoc>({ include_docs: true })
+    const ids: string[] = []
     checklists.value = result.rows
       .filter(row => row.doc)
       .map(row => {
         revCache.set(row.id, row.doc!._rev)
         const doc = row.doc!
+        ids.push(row.id)
         return { ...docToChecklist(doc), items: migrateNodes(doc.items as unknown[]) }
       })
     localLoaded = true
+    // Resolve any conflicts left by a prior offline sync. Each resolved put fires
+    // the changes feed, which refreshes the in-memory copy with the merged result.
+    for (const id of ids) await resolveConflicts(id)
+  }
+
+  // ── Conflict resolution ───────────────────────────────────────────────────────
+
+  // Resolves CouchDB replication conflicts for a single doc. Replication can leave
+  // multiple competing revisions on the same id; PouchDB picks a deterministic
+  // winner but the losing revs linger forever and their changes vanish from view.
+  // We pick the revision with the newest modifiedAt (missing = oldest), merge the
+  // items arrays so no task is lost, put the merged winner, then delete the losers.
+  //
+  // Termination: this writes at most one new revision and then removes the losing
+  // revs, leaving _conflicts empty. The resulting put re-triggers the changes feed,
+  // but that second pass finds no _conflicts and returns without writing — so the
+  // feed cannot loop.
+  async function resolveConflicts(id: string): Promise<void> {
+    let current: PouchDB.Core.ExistingDocument<CouchDoc> & { _conflicts?: string[] }
+    try {
+      current = await localDB.get<CouchDoc>(id, { conflicts: true })
+    } catch {
+      return  // doc gone (e.g. deleted) — nothing to resolve
+    }
+    const conflictRevs = current._conflicts
+    if (!conflictRevs || conflictRevs.length === 0) return  // termination guard
+
+    // Gather all competing revisions (the current winner + every conflict rev).
+    const revs: (PouchDB.Core.ExistingDocument<CouchDoc>)[] = [current]
+    for (const rev of conflictRevs) {
+      try {
+        revs.push(await localDB.get<CouchDoc>(id, { rev }))
+      } catch { /* rev already compacted away — skip */ }
+    }
+
+    // Newest modifiedAt wins; a missing modifiedAt is treated as the oldest.
+    const ts = (d: CouchDoc): number => {
+      const m = d.modifiedAt
+      return m ? Date.parse(m) || 0 : 0
+    }
+    let winner = revs[0]!
+    for (const d of revs) {
+      if (ts(d) > ts(winner)) winner = d
+    }
+
+    // Merge every loser's items into the winner so no task disappears.
+    let merged: PouchDB.Core.ExistingDocument<CouchDoc> = winner
+    for (const loser of revs) {
+      if (loser._rev === winner._rev) continue
+      merged = mergeChecklistDocs(merged, loser)
+    }
+
+    // Put the merged winner (keeps the winner's _rev so it supersedes in place),
+    // then delete each losing rev. Update the rev cache to mirror existing code.
+    try {
+      const put = await localDB.put(merged)
+      revCache.set(id, put.rev)
+    } catch {
+      return  // lost a race; the next change event will retry
+    }
+    for (const rev of conflictRevs) {
+      try {
+        await localDB.remove(id, rev)
+      } catch { /* already gone */ }
+    }
   }
 
   // ── Changes feed ────────────────────────────────────────────────────────────
@@ -156,6 +238,10 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
         const idx = checklists.value.findIndex(c => c.id === change.id)
         if (idx >= 0) checklists.value[idx] = cl
         else checklists.value.push(cl)
+        // Resolve any replication conflict on this doc. If none exists this is a
+        // cheap no-op get; if it does, the merged put re-enters here and finds
+        // _conflicts empty, so this cannot loop.
+        void resolveConflicts(change.id)
       }
     })
   }

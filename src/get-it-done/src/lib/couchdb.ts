@@ -1,5 +1,5 @@
 import PouchDB from 'pouchdb-browser'
-import type { Checklist, TrackMode } from '../types'
+import type { Checklist, ChecklistItem, ChecklistNode, TrackMode } from '../types'
 
 export const COUCH_URL = (import.meta.env.VITE_COUCH_URL as string | undefined) ?? 'http://localhost:5984'
 export const DB_NAME = 'get-it-done'
@@ -29,7 +29,55 @@ export function docToChecklist(doc: PouchDB.Core.ExistingDocument<CouchDoc>): Ch
     snoozeUntil: doc.snoozeUntil, snoozedAt: doc.snoozedAt,
     deadline: doc.deadline, reminders: doc.reminders,
     comment: doc.comment, url: doc.url,
+    modifiedAt: doc.modifiedAt,
   }
+}
+
+// ── Conflict merge (pure) ─────────────────────────────────────────────────────
+
+// Local tree traversal — lib/couchdb.ts must NOT import from composables/
+// (cycle risk), so we re-implement the walkNodes-style descent here.
+function collectItemIds(nodes: ChecklistNode[], out: Set<string>): void {
+  for (const node of nodes) {
+    if (node.type === 'item') out.add(node.id)
+    else collectItemIds(node.children, out)
+  }
+}
+
+function collectItems(nodes: ChecklistNode[], out: ChecklistItem[]): void {
+  for (const node of nodes) {
+    if (node.type === 'item') out.push(node)
+    else collectItems(node.children, out)
+  }
+}
+
+// Pure document-level merge for sync conflict resolution.
+//
+// The winner is chosen by the caller (newest modifiedAt). All top-level fields
+// come from the winner — field-level changes are last-write-wins. The items
+// array is merged so a task can never vanish: every item id present anywhere in
+// the winner's tree keeps the WINNER's version; any item that exists ONLY in the
+// loser is appended (flattened) to the end of the winner's top-level items array.
+// Group structure of the winner is preserved untouched.
+//
+// Pure: depends only on its arguments, performs no I/O and no store access.
+export function mergeChecklistDocs<T extends Pick<Checklist, 'items'>>(winner: T, loser: T): T {
+  const winnerIds = new Set<string>()
+  collectItemIds(winner.items, winnerIds)
+
+  const loserItems: ChecklistItem[] = []
+  collectItems(loser.items, loserItems)
+
+  const orphans: ChecklistItem[] = []
+  const seen = new Set<string>()
+  for (const item of loserItems) {
+    if (winnerIds.has(item.id) || seen.has(item.id)) continue
+    seen.add(item.id)
+    orphans.push(item)
+  }
+
+  if (orphans.length === 0) return winner
+  return { ...winner, items: [...winner.items, ...orphans] }
 }
 
 // ── Local PouchDB (IndexedDB) ─────────────────────────────────────────────────

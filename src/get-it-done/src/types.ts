@@ -74,6 +74,8 @@ export interface Checklist {
   reminders?: string[]
   comment?: string
   url?: string
+  // Last-write-wins timestamp for sync conflict resolution (full ISO)
+  modifiedAt?: string
 }
 
 /** Flattened reference to a tracked task (item or whole checklist) used in Tasks views */
