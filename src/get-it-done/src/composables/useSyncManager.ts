@@ -39,7 +39,11 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
     }
   }
 
-  async function upsertChecklist(c: Checklist): Promise<void> {
+  // Persists a single checklist to PouchDB. Reads the rev cache synchronously, so
+  // it must only ever run one-at-a-time per doc — see the upsertChecklist queue
+  // below, which serializes calls so this read always happens after the previous
+  // put updated the rev cache.
+  async function putChecklist(c: Checklist): Promise<void> {
     const doc = checklistToDoc(c)
     const rev = revCache.get(c.id)
     try {
@@ -67,10 +71,44 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
       : 'Could not save a new item to local storage. It may not survive a page reload.'
   }
 
+  // Per-id coalescing write queue. At most one put is in flight per doc; any
+  // mutations arriving while a put is in flight collapse into exactly one trailing
+  // put that carries the latest object reference. This removes the self-inflicted
+  // 409 bursts that happened when callers fired several puts on the same doc
+  // synchronously (each reading a stale rev). It adds no time-based delay — writes
+  // still hit disk promptly for the offline-first case.
+  const pendingWrite = new Map<string, { checklist: Checklist; promise: Promise<void>; queued: boolean }>()
+
+  async function upsertChecklist(c: Checklist): Promise<void> {
+    const entry = pendingWrite.get(c.id)
+    if (entry) {
+      // A write for this doc is in flight: remember the latest object (the changes
+      // feed may have replaced the array element with a new reference) and mark a
+      // follow-up so exactly one trailing put runs after the current one settles.
+      entry.checklist = c
+      entry.queued = true
+      return entry.promise
+    }
+    const newEntry: { checklist: Checklist; promise: Promise<void>; queued: boolean } =
+      { checklist: c, queued: false, promise: Promise.resolve() }
+    newEntry.promise = (async () => {
+      await putChecklist(newEntry.checklist)
+      while (newEntry.queued) {
+        newEntry.queued = false
+        await putChecklist(newEntry.checklist)
+      }
+      pendingWrite.delete(c.id)
+    })()
+    pendingWrite.set(c.id, newEntry)
+    return newEntry.promise
+  }
+
   function clearWriteError(): void {
     writeError.value = null
   }
 
+  // Deletes are rare and id-disjoint from upserts in practice, so they intentionally
+  // bypass the per-id upsert queue above.
   async function removeFromLocal(id: string): Promise<void> {
     const rev = revCache.get(id)
     try {
