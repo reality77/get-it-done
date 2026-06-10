@@ -109,14 +109,12 @@ function onSnoozeCancel(): void {
 }
 
 function backlogActions(taskRef: TrackedItemRef) {
-  const actions = makeStatusActions(taskRef, {
+  return makeStatusActions(taskRef, {
     onActivate: (id) => store.activateItem(id),
     onSnooze: (id, date) => store.snoozeItem(id, date),
     onSomeday: (id) => store.sendItemToSomeday(id),
-    onDelete: (id) => store.removeItem(id),
+    onDelete: taskRef.isChecklistTask ? null : (id) => store.removeItem(id),
   })
-  if (taskRef.isChecklistTask) return actions.filter(a => a.label !== 'Delete')
-  return actions
 }
 
 function addToWeek(taskRef: TrackedItemRef): void {

@@ -242,7 +242,7 @@ function openItemUrl(): void {
           :class="compact ? 'py-2 px-3' : 'py-3 px-3'">
           <div class="flex flex-col gap-2">
             <div v-if="item.comment" class="flex flex-row gap-2 items-center text-fg-3">
-              <span class="inline-block grow" v-html="item.comment.replace(/\n/g, '<br/>')"></span>
+              <span class="inline-block grow whitespace-pre-line">{{ item.comment }}</span>
             </div>
 
             <div v-if="item.url" class="flex flex-row gap-2 items-center text-primary">
