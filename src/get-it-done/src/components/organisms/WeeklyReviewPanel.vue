@@ -46,12 +46,11 @@ function reviewSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
 
 function reviewSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return {
-    hint: 'Add to week',
+    hint: '↩ Activate',
     bgClass: 'bg-success',
     onTrigger: () => {
       const id = refToId(taskRef)
       store.activateItem(id)
-      store.toggleItemWeekPlan(id)
       dismissFromPanel(taskRef.item.id)
     },
   }
@@ -74,7 +73,7 @@ function cardActions(taskRef: TrackedItemRef): ButtonActionDef[] {
     </div>
     <p class="text-xs text-fg-4 mb-4">
       {{ visible.length > 0 ? `${visible.length} task${visible.length === 1 ? '' : 's'} to review` : 'All reviewed' }}
-      · swipe left to add to week, right to defer
+      · swipe left to activate, right to defer
     </p>
 
     <div v-if="visible.length > 0" class="space-y-1 mb-4">

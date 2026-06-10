@@ -94,7 +94,6 @@ onMounted(async () => {
   checklistStore.ensureStandaloneChecklist()
   checklistStore.processDueSnoozed()       // now runs on real data (#4)
   checklistStore.refreshDayPlanIfStale()  // idem
-  checklistStore.refreshWeekPlanIfStale()
   const result = await authStore.checkSession()
   if (authStore.isAuthenticated) {
     startKeepAlive()

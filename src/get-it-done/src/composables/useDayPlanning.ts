@@ -236,12 +236,6 @@ export function useDayPlanning(
     })
   })
 
-  const weekPlanItems = computed(() =>
-    trackedItems.value.filter(r =>
-      !r.item.done && r.item.selectedForWeek && (r.item.status ?? 'active') === 'active'
-    )
-  )
-
   const itemsByPriority = computed(() => ({
     urgent:    activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'urgent'),
     important: activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'important'),
@@ -380,29 +374,6 @@ export function useDayPlanning(
     }
   }
 
-  function refreshWeekPlanIfStale(): void {
-    const thisMonday = getMondayDateString()
-    if (planMeta.weekPlanDate && planMeta.weekPlanDate !== thisMonday) {
-      for (const cl of checklists.value) {
-        let changed = false
-        if (cl.trackMode === 'items') {
-          walkNodes(cl.items, n => {
-            if (n.type === 'item' && n.selectedForWeek) {
-              n.selectedForWeek = false
-              changed = true
-            }
-          })
-        } else if (cl.trackMode === 'checklist' && cl.selectedForWeek) {
-          cl.selectedForWeek = false
-          changed = true
-        }
-        if (changed) void upsertChecklist(cl)
-      }
-      planMeta.weekPlanDate = null
-      planMetaStore.persistPlanMeta()
-    }
-  }
-
   function processDueSnoozed(): void {
     const today = todayDateString()
     for (const cl of checklists.value) {
@@ -507,24 +478,6 @@ export function useDayPlanning(
       })
   }
 
-  function toggleItemWeekPlan(ref: ChecklistItemId): void {
-    const cl = getChecklist(ref.checklistId)
-    if (!cl) return
-
-    if (cl.trackMode === 'checklist' && ref.itemId === ref.checklistId) {
-      if ((cl.status ?? 'active') !== 'active') return
-      cl.selectedForWeek = !cl.selectedForWeek
-    } else {
-      const item = findItemDeep(cl.items, ref.itemId)
-      if (!item || (item.status ?? 'active') !== 'active') return
-      item.selectedForWeek = !item.selectedForWeek
-    }
-
-    if (!planMeta.weekPlanDate) planMeta.weekPlanDate = getMondayDateString()
-    planMetaStore.persistPlanMeta()
-    void upsertChecklist(cl)
-  }
-
   // ── Item task-tracking mutations ────────────────────────────────────────────
 
   function withChecklist(id: string, fn: (cl: Checklist) => void): void {
@@ -612,7 +565,6 @@ export function useDayPlanning(
     trackedItems,
     activeTrackedItems,
     dayPlanItems,
-    weekPlanItems,
     snoozedItems,
     somedayItems,
     dueSnoozedItems,
@@ -625,12 +577,10 @@ export function useDayPlanning(
     toggleItemDayPlan,
     setDayPlan,
     refreshDayPlanIfStale,
-    refreshWeekPlanIfStale,
     processDueSnoozed,
     completeWeeklyReview,
     suggestDayPlan,
     suggestWeekPlan,
-    toggleItemWeekPlan,
     setItemPriority,
     setItemEffort,
     snoozeItem,

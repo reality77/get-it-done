@@ -116,11 +116,10 @@ function backlogActions(taskRef: TrackedItemRef) {
 function addToWeek(taskRef: TrackedItemRef): void {
   const id = refToId(taskRef)
   store.activateItem(id)
-  store.toggleItemWeekPlan(id)
 }
 
 function snoozedSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
-  return { hint: 'Add to week', bgClass: 'bg-success', onTrigger: () => addToWeek(taskRef) }
+  return { hint: '↩ Activate', bgClass: 'bg-success', onTrigger: () => addToWeek(taskRef) }
 }
 
 function snoozedSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
@@ -128,7 +127,7 @@ function snoozedSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
 }
 
 function somedaySwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
-  return { hint: 'Add to week', bgClass: 'bg-success', onTrigger: () => addToWeek(taskRef) }
+  return { hint: '↩ Activate', bgClass: 'bg-success', onTrigger: () => addToWeek(taskRef) }
 }
 
 function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {

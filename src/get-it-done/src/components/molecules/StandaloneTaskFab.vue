@@ -79,7 +79,7 @@ function submit(): void {
       store.toggleItemDayPlan(ref)
       break
     case 'week':
-      store.toggleItemWeekPlan(ref)
+      // new items are active by default — visible in the Week tab
       break
     case 'next-week':
       store.snoozeItem(ref, getSnoozeOptions()[0]!.date)
