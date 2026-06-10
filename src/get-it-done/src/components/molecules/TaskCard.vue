@@ -13,6 +13,7 @@ import EffortBadge from './EffortBadge.vue'
 import DeadlineBar from '../atoms/DeadlineBar.vue'
 import VCard from '../atoms/VCard.vue'
 import VButton from '../atoms/VButton.vue'
+import AppCheckbox from '../atoms/AppCheckbox.vue'
 
 const props = defineProps<{
   item: ChecklistItem
@@ -167,6 +168,13 @@ function openItemUrl(): void {
 
         <!-- Title row -->
         <div class="flex items-start gap-2">
+          <AppCheckbox
+            v-if="showCheckbox !== false"
+            :model-value="item.done"
+            class="mt-0.5 shrink-0"
+            @click.stop
+            @update:model-value="isChecklistTask ? onChecklistDone?.() : store.toggleItem({ checklistId, itemId: item.id })"
+          />
           <input v-if="isEditing" v-focus v-model="editTitle"
             class="flex-1 bg-transparent border-b border-border focus:border-primary outline-none text-fg py-0.5 transition-colors"
             :class="compact ? 'text-sm' : 'text-base'" @keydown="onKeydown" @blur="confirmEdit" @click.stop />
