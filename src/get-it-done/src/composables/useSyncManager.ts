@@ -1,9 +1,10 @@
 import { ref } from 'vue'
 import type { Ref } from 'vue'
-import type { Checklist } from '../types'
+import type { Checklist, PlanMeta } from '../types'
 import { localDB, createRemoteDB, checklistToDoc, docToChecklist, mergeChecklistDocs } from '../lib/couchdb'
 import type { CouchDoc } from '../lib/couchdb'
 import { useAuthStore } from '../stores/auth'
+import { usePlanMetaStore, PLAN_META_DOC_ID } from '../stores/planMeta'
 import { migrateNodes } from './useTreeHelpers'
 import { SYNC_INITIAL_RETRY_MS, SYNC_MAX_RETRY_MS } from '../config/constants'
 
@@ -144,7 +145,9 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
     const result = await localDB.allDocs<CouchDoc>({ include_docs: true })
     const ids: string[] = []
     checklists.value = result.rows
-      .filter(row => row.doc)
+      // The reserved plan-meta doc is not a checklist — the planMeta store loads
+      // it itself on init; docToChecklist must never run on it.
+      .filter(row => row.doc && row.id !== PLAN_META_DOC_ID)
       .map(row => {
         revCache.set(row.id, row.doc!._rev)
         const doc = row.doc!
@@ -170,6 +173,10 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
   // but that second pass finds no _conflicts and returns without writing — so the
   // feed cannot loop.
   async function resolveConflicts(id: string): Promise<void> {
+    // The plan-meta doc has no items array, so the checklist merge below would
+    // corrupt it. Its fields reconcile field-level in the planMeta store instead;
+    // a lingering losing revision there is harmless.
+    if (id === PLAN_META_DOC_ID) return
     let current: PouchDB.Core.ExistingDocument<CouchDoc> & { _conflicts?: string[] }
     try {
       current = await localDB.get<CouchDoc>(id, { conflicts: true })
@@ -229,6 +236,15 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
       include_docs: true,
     })
     .on('change', (change) => {
+      // The reserved plan-meta doc is not a checklist: route it to the planMeta
+      // store (obtained lazily here, mirroring useAuthStore in startSync) so a
+      // review completed on another device updates this one within seconds.
+      if (change.id === PLAN_META_DOC_ID) {
+        if (!change.deleted && change.doc) {
+          usePlanMetaStore().applyRemoteDoc(change.doc as unknown as PlanMeta & { _rev: string })
+        }
+        return
+      }
       if (change.deleted) {
         checklists.value = checklists.value.filter(c => c.id !== change.id)
         revCache.delete(change.id)

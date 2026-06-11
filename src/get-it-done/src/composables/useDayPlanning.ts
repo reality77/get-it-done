@@ -318,7 +318,6 @@ export function useDayPlanning(
     }
 
     if (!planMeta.dayPlanDate) planMeta.dayPlanDate = todayDateString()
-    planMetaStore.persistPlanMeta()
     void upsertChecklist(cl)
   }
 
@@ -349,7 +348,6 @@ export function useDayPlanning(
       if (changed) void upsertChecklist(cl)
     }
     planMeta.dayPlanDate = todayDateString()
-    planMetaStore.persistPlanMeta()
   }
 
   function refreshDayPlanIfStale(): void {
@@ -370,7 +368,6 @@ export function useDayPlanning(
         if (changed) void upsertChecklist(cl)
       }
       planMeta.dayPlanDate = null
-      planMetaStore.persistPlanMeta()
     }
   }
 
@@ -402,7 +399,6 @@ export function useDayPlanning(
 
   function completeWeeklyReview(): void {
     planMeta.lastReviewedAt = new Date().toISOString()
-    planMetaStore.persistPlanMeta()
   }
 
   // ── Suggest algorithm ───────────────────────────────────────────────────────
