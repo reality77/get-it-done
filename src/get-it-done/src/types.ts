@@ -72,6 +72,14 @@ export interface Checklist {
   snoozedAt?: string | null
   deadline?: string | null
   reminders?: string[]
+  comment?: string
+  url?: string
+  // Last-write-wins timestamp for sync conflict resolution (full ISO)
+  modifiedAt?: string
+  // Ids of items (and items inside deleted groups) explicitly removed by the user;
+  // consulted by the conflict merge so concurrent edits on other devices don't
+  // resurrect them. Capped — oldest dropped first.
+  deletedItemIds?: string[]
 }
 
 /** Flattened reference to a tracked task (item or whole checklist) used in Tasks views */

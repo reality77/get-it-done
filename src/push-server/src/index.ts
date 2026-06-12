@@ -1,6 +1,6 @@
 import Fastify, { type FastifyRequest, type FastifyReply } from 'fastify'
 import cors from '@fastify/cors'
-import { ensureSubsDb, ensureFiredRemindersDb, validateSession, saveSubscription, deleteSubscription } from './couch.js'
+import { ensureSubsDb, ensureFiredRemindersDb, validateSession, saveSubscription, deleteSubscription, isUserAllowed } from './couch.js'
 import type { PushSubscription } from './couch.js'
 import { startScheduler } from './scheduler.js'
 
@@ -61,6 +61,10 @@ async function requireAuth(request: FastifyRequest, reply: FastifyReply): Promis
     await reply.status(401).send({ error: 'Unauthorized' })
     return
   }
+  if (!isUserAllowed(userId)) {
+    await reply.status(403).send({ error: 'Forbidden' })
+    return
+  }
   request.userId = userId
 }
 
@@ -69,15 +73,30 @@ async function requireAuth(request: FastifyRequest, reply: FastifyReply): Promis
 interface SubscribeBody {
   subscription: PushSubscription
   dailyReminderTime?: string | null
+  timezone?: string | null
 }
 
 interface UnsubscribeBody {
   endpoint: string
 }
 
+// Reject a bad IANA timezone by storing null (legacy fallback) rather than
+// failing the subscribe — buggy/legacy clients must still be able to subscribe.
+function sanitizeTimezone(timezone: string | null, request: FastifyRequest): string | null {
+  if (timezone == null) return null
+  try {
+    new Intl.DateTimeFormat(undefined, { timeZone: timezone })
+    return timezone
+  } catch {
+    request.log.warn({ timezone }, 'Invalid timezone on subscribe; storing null')
+    return null
+  }
+}
+
 async function handleSubscribe(request: FastifyRequest<{ Body: SubscribeBody }>, reply: FastifyReply): Promise<FastifyReply> {
-  const { subscription, dailyReminderTime } = request.body
-  await saveSubscription(request.userId, subscription, dailyReminderTime ?? null)
+  const { subscription, dailyReminderTime, timezone } = request.body
+  const safeTimezone = sanitizeTimezone(timezone ?? null, request)
+  await saveSubscription(request.userId, subscription, dailyReminderTime ?? null, safeTimezone)
   return reply.status(201).send({ ok: true })
 }
 
@@ -125,6 +144,9 @@ app.setNotFoundHandler((request, reply) => {
 const PORT = Number(process.env.PORT ?? 3000)
 
 async function start(): Promise<void> {
+  if (!process.env.COUCH_PASSWORD) {
+    app.log.warn('COUCH_PASSWORD is not set — server will boot with blank CouchDB credentials')
+  }
   await ensureSubsDb()
   await ensureFiredRemindersDb()
   startScheduler()

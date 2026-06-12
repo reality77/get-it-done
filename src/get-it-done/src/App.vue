@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import type { ChecklistKind } from './types'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useChecklistStore } from './stores/checklists'
 import { useAuthStore } from './stores/auth'
 import TabBar from './components/organisms/TabBar.vue'
-import ActiveView from './components/templates/ActiveView.vue'
+import ChecklistsView from './components/templates/ChecklistsView.vue'
 import DayView from './components/organisms/DayView.vue'
 import WeekView from './components/organisms/WeekView.vue'
 import BacklogView from './components/organisms/BacklogView.vue'
@@ -17,8 +16,6 @@ import { storeToRefs } from 'pinia'
 
 const activeTab = ref<'today' | 'week' | 'backlog' | 'checklists'>('today')
 const notificationsOpen = ref(false)
-
-const newlyCreatedId = ref<string | null>(null)
 
 const authStore = useAuthStore()
 const checklistStore = useChecklistStore()
@@ -53,7 +50,6 @@ function stopKeepAlive(): void {
   }
 }
 const {
-  activeChecklists,
   syncStatus,
   writeError,
   weeklyReviewDue,
@@ -63,12 +59,6 @@ const {
   itemsByPriority,
   dismissedKeys,
 } = storeToRefs(checklistStore)
-
-const {
-  createChecklist,
-  deleteChecklist,
-  archiveChecklist,
-} = checklistStore
 
 const reviewDismissed = ref(false)
 
@@ -91,10 +81,15 @@ async function handleVisibilityChange(): Promise<void> {
 
 onMounted(async () => {
   await checklistStore.loadLocal()        // data available offline, before auth (#8)
+  // Order matters but is safe to keep: ensureStandaloneChecklist() may create a
+  // fresh rev-1 standalone doc locally before first sync. When replication later
+  // pulls the existing remote standalone doc, the two revision trees collide. The
+  // Phase-2 conflict resolver (resolveConflicts, fired from the changes feed) merges
+  // the item arrays by id, so any tasks added here pre-login survive the merge.
+  // Do not "optimize" this ordering away — the merge is what makes it correct.
   checklistStore.ensureStandaloneChecklist()
   checklistStore.processDueSnoozed()       // now runs on real data (#4)
   checklistStore.refreshDayPlanIfStale()  // idem
-  checklistStore.refreshWeekPlanIfStale()
   const result = await authStore.checkSession()
   if (authStore.isAuthenticated) {
     startKeepAlive()
@@ -122,13 +117,6 @@ watch(() => authStore.isAuthenticated, async (authed, wasAuthed) => {
     if (wasAuthed) loginPrompted.value = true  // session expired during use
   }
 })
-
-async function handleCreateChecklist(title: string, kind: ChecklistKind): Promise<void> {
-    const created = createChecklist(kind, title, [])
-    newlyCreatedId.value = created.id
-    await nextTick()
-    newlyCreatedId.value = null
-}
 
 function handleCompleteReview(): void {
   checklistStore.completeWeeklyReview()
@@ -214,13 +202,7 @@ const syncStatusTitles: Record<string, string> = {
     />
 
     <div v-else-if="activeTab === 'checklists'" class="flex-1 overflow-y-auto pb-20 md:pb-0">
-      <ActiveView
-        :checklists="activeChecklists"
-        :focus-checklist-id="newlyCreatedId"
-        @delete="deleteChecklist"
-        @archive="archiveChecklist"
-        @create="(name) => handleCreateChecklist(name, 'one-time')"
-      />
+      <ChecklistsView />
     </div>
   </main>
 

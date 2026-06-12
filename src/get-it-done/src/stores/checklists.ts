@@ -305,16 +305,40 @@ export const useChecklistStore = defineStore('checklists', () => {
   function updateItemText({ checklistId, itemId }: ChecklistItemId, text: string): void {
     const checklist = getChecklist(checklistId)
     if (!checklist) return
+    if (checklist.trackMode === 'checklist' && itemId === checklistId) {
+      if (checklist.runLabel != null) checklist.runLabel = text
+      else checklist.title = text
+      void sync.upsertChecklist(checklist)
+      return
+    }
     const item = findItemDeep(checklist.items, itemId)
     if (!item) return
     item.text = text
     void sync.upsertChecklist(checklist)
   }
 
+  // Max number of deletion tombstones retained per checklist (bounds doc growth;
+  // a resurrection after 200 subsequent deletions is acceptable).
+  const MAX_DELETED_ITEM_IDS = 200
+
+  // Append explicitly-deleted item ids so the conflict merge won't resurrect them.
+  // Dedups and caps the list, dropping the oldest ids first.
+  function recordDeletedItems(cl: Checklist, ids: string[]): void {
+    if (ids.length === 0) return
+    const merged = [...(cl.deletedItemIds ?? []), ...ids]
+    const deduped = [...new Set(merged)]
+    cl.deletedItemIds =
+      deduped.length > MAX_DELETED_ITEM_IDS
+        ? deduped.slice(deduped.length - MAX_DELETED_ITEM_IDS)
+        : deduped
+  }
+
   function removeItem({ checklistId, itemId }: ChecklistItemId): void {
     const checklist = getChecklist(checklistId)
     if (!checklist) return
+    if (checklist.trackMode === 'checklist' && itemId === checklistId) return
     checklist.items = removeNodeDeep(checklist.items, itemId)
+    recordDeletedItems(checklist, [itemId])
     void sync.upsertChecklist(checklist)
   }
 
@@ -349,6 +373,11 @@ export const useChecklistStore = defineStore('checklists', () => {
   function updateItemComment({ checklistId, itemId }: ChecklistItemId, comment: string): void {
     const checklist = getChecklist(checklistId)
     if (!checklist) return
+    if (checklist.trackMode === 'checklist' && itemId === checklistId) {
+      checklist.comment = comment || undefined
+      void sync.upsertChecklist(checklist)
+      return
+    }
     const item = findItemDeep(checklist.items, itemId)
     if (!item) return
     item.comment = comment || undefined
@@ -358,6 +387,11 @@ export const useChecklistStore = defineStore('checklists', () => {
   function updateItemUrl({ checklistId, itemId }: ChecklistItemId, url: string): void {
     const checklist = getChecklist(checklistId)
     if (!checklist) return
+    if (checklist.trackMode === 'checklist' && itemId === checklistId) {
+      checklist.url = url || undefined
+      void sync.upsertChecklist(checklist)
+      return
+    }
     const item = findItemDeep(checklist.items, itemId)
     if (!item) return
     item.url = url || undefined
@@ -408,7 +442,13 @@ export const useChecklistStore = defineStore('checklists', () => {
   function removeGroup(checklistId: string, groupId: string): void {
     const checklist = getChecklist(checklistId)
     if (!checklist) return
+    const group = findGroupDeep(checklist.items, groupId)
+    const removedItemIds: string[] = []
+    if (group) {
+      walkNodes(group.children, n => { if (n.type === 'item') removedItemIds.push(n.id) })
+    }
     checklist.items = removeNodeDeep(checklist.items, groupId)
+    recordDeletedItems(checklist, removedItemIds)
     void sync.upsertChecklist(checklist)
   }
 
@@ -455,7 +495,6 @@ export const useChecklistStore = defineStore('checklists', () => {
     trackedItems: dayPlanning.trackedItems,
     activeTrackedItems: dayPlanning.activeTrackedItems,
     dayPlanItems: dayPlanning.dayPlanItems,
-    weekPlanItems: dayPlanning.weekPlanItems,
     snoozedItems: dayPlanning.snoozedItems,
     somedayItems: dayPlanning.somedayItems,
     dueSnoozedItems: dayPlanning.dueSnoozedItems,
@@ -494,10 +533,8 @@ export const useChecklistStore = defineStore('checklists', () => {
     activateItem: dayPlanning.activateItem,
     sendItemToSomeday: dayPlanning.sendItemToSomeday,
     toggleItemDayPlan: dayPlanning.toggleItemDayPlan,
-    toggleItemWeekPlan: dayPlanning.toggleItemWeekPlan,
     setDayPlan: dayPlanning.setDayPlan,
     refreshDayPlanIfStale: dayPlanning.refreshDayPlanIfStale,
-    refreshWeekPlanIfStale: dayPlanning.refreshWeekPlanIfStale,
     processDueSnoozed: dayPlanning.processDueSnoozed,
     completeWeeklyReview: dayPlanning.completeWeeklyReview,
     suggestDayPlan: dayPlanning.suggestDayPlan,

@@ -5,7 +5,7 @@ import type { ChecklistItem, SwipeActionDef, ButtonActionDef } from '../../types
 import { useSwipeAction } from '../../composables/useSwipeAction'
 import { useEditableField } from '../../composables/useEditableField'
 import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
-import { walkNodes } from '../../composables/useTreeHelpers'
+import { walkNodes, parseLocalDate } from '../../composables/useTreeHelpers'
 import { useChecklistStore } from '../../stores/checklists'
 import TaskCardActions from './TaskCardActions.vue'
 import TaskCardMobileSheet from './TaskCardMobileSheet.vue'
@@ -13,6 +13,7 @@ import EffortBadge from './EffortBadge.vue'
 import DeadlineBar from '../atoms/DeadlineBar.vue'
 import VCard from '../atoms/VCard.vue'
 import VButton from '../atoms/VButton.vue'
+import AppCheckbox from '../atoms/AppCheckbox.vue'
 
 const props = defineProps<{
   item: ChecklistItem
@@ -99,8 +100,7 @@ const priorityBarClass = computed(() => {
 function dateBadge(raw: string): { label: string; danger: boolean } {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const d = new Date(raw)
-  d.setHours(0, 0, 0, 0)
+  const d = parseLocalDate(raw)
   return {
     label: d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
     danger: d.getTime() <= today.getTime(),
@@ -167,6 +167,13 @@ function openItemUrl(): void {
 
         <!-- Title row -->
         <div class="flex items-start gap-2">
+          <AppCheckbox
+            v-if="showCheckbox !== false"
+            :model-value="item.done"
+            class="mt-0.5 shrink-0"
+            @click.stop
+            @update:model-value="isChecklistTask ? onChecklistDone?.() : store.toggleItem({ checklistId, itemId: item.id })"
+          />
           <input v-if="isEditing" v-focus v-model="editTitle"
             class="flex-1 bg-transparent border-b border-border focus:border-primary outline-none text-fg py-0.5 transition-colors"
             :class="compact ? 'text-sm' : 'text-base'" @keydown="onKeydown" @blur="confirmEdit" @click.stop />
@@ -242,7 +249,7 @@ function openItemUrl(): void {
           :class="compact ? 'py-2 px-3' : 'py-3 px-3'">
           <div class="flex flex-col gap-2">
             <div v-if="item.comment" class="flex flex-row gap-2 items-center text-fg-3">
-              <span class="inline-block grow" v-html="item.comment.replace(/\n/g, '<br/>')"></span>
+              <span class="inline-block grow whitespace-pre-line">{{ item.comment }}</span>
             </div>
 
             <div v-if="item.url" class="flex flex-row gap-2 items-center text-primary">

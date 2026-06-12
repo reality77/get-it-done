@@ -8,6 +8,20 @@ const SUBS_DB   = 'push_subscriptions'
 const DATA_DB   = 'get-it-done'
 const FIRED_DB  = 'push_fired_reminders'
 
+// ── Allowlist: restrict push subscriptions to specific CouchDB users ──────────
+// Default is 'admin' (single-account deployment). Set ALLOWED_USERS=user1,user2
+// to grant additional accounts. Parsed once here so every code path (auth gate
+// and every sender via getAllSubscriptions) shares a single source of truth.
+
+const allowedUsers = (process.env.ALLOWED_USERS ?? 'admin')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+
+export function isUserAllowed(userId: string): boolean {
+  return allowedUsers.includes(userId)
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface PushSubscription {
@@ -21,6 +35,7 @@ export interface SubscriptionDoc {
   userId: string
   subscription: PushSubscription
   dailyReminderTime: string | null
+  timezone: string | null
   createdAt: string
   updatedAt: string
 }
@@ -31,6 +46,7 @@ interface ChecklistItem {
   type: 'item'
   id: string
   text: string
+  done?: boolean
   status?: 'active' | 'snoozed' | 'someday'
   snoozeUntil?: string | null
   reminders?: string[]
@@ -43,6 +59,15 @@ interface ChecklistGroup {
 
 interface ChecklistDoc {
   _id: string
+  title?: string
+  runLabel?: string | null
+  kind?: string
+  archived?: boolean
+  trackMode?: string
+  status?: 'active' | 'snoozed' | 'someday'
+  snoozeUntil?: string | null
+  reminders?: string[]
+  done?: never
   items?: ChecklistNode[]
 }
 
@@ -102,6 +127,7 @@ export async function saveSubscription(
   userId: string,
   subscription: PushSubscription,
   dailyReminderTime: string | null,
+  timezone: string | null,
 ): Promise<void> {
   const _id = subId(userId, subscription.endpoint)
   const existing = await couchFetch<SubscriptionDoc>(`/${SUBS_DB}/${_id}`).catch(() => null)
@@ -111,6 +137,7 @@ export async function saveSubscription(
     userId,
     subscription,
     dailyReminderTime,
+    timezone: timezone ?? existing?.timezone ?? null,
     createdAt: existing?.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }
@@ -128,7 +155,9 @@ export async function getAllSubscriptions(): Promise<SubscriptionDoc[]> {
   const result = await couchFetch<{ rows: Array<{ doc: SubscriptionDoc }> }>(
     `/${SUBS_DB}/_all_docs?include_docs=true`,
   )
-  return result.rows.map(r => r.doc).filter(Boolean)
+  // Single choke point: drop docs for users no longer on the allowlist so stale
+  // subscriptions of revoked users never receive a push, no matter the sender.
+  return result.rows.map(r => r.doc).filter(doc => doc && isUserAllowed(doc.userId))
 }
 
 // ── Snooze scanner ────────────────────────────────────────────────────────────
@@ -139,10 +168,17 @@ export async function findDueSnoozedItems(today: string): Promise<{ text: string
   )
   const due: { text: string }[] = []
   for (const { doc } of result.rows) {
-    if (!doc?.items) continue
-    for (const item of flattenItems(doc.items)) {
-      if (item.status === 'snoozed' && item.snoozeUntil && item.snoozeUntil <= today) {
-        due.push({ text: item.text })
+    if (!doc || doc.archived || doc.kind === 'template') continue
+    if (doc.trackMode === 'checklist') {
+      if (doc.status === 'snoozed' && doc.snoozeUntil && doc.snoozeUntil <= today) {
+        due.push({ text: doc.runLabel ?? doc.title ?? 'Checklist' })
+      }
+    } else {
+      if (!doc.items) continue
+      for (const item of flattenItems(doc.items)) {
+        if (item.status === 'snoozed' && item.snoozeUntil && item.snoozeUntil <= today) {
+          due.push({ text: item.text })
+        }
       }
     }
   }
@@ -167,13 +203,26 @@ export async function findDueTaskReminders(
   )
   const due: DueReminder[] = []
   for (const { id: checklistId, doc } of result.rows) {
-    if (!doc?.items) continue
-    for (const item of flattenItems(doc.items)) {
-      if (!item.reminders?.length) continue
-      for (const reminderAt of item.reminders) {
-        const t = new Date(reminderAt)
-        if (t >= windowStart && t < windowEnd) {
-          due.push({ checklistId, itemId: item.id, text: item.text, reminderAt })
+    if (!doc || doc.archived || doc.kind === 'template') continue
+    if (doc.trackMode === 'checklist') {
+      if (doc.reminders?.length) {
+        for (const reminderAt of doc.reminders) {
+          const t = new Date(reminderAt)
+          if (t >= windowStart && t < windowEnd) {
+            due.push({ checklistId, itemId: checklistId, text: doc.runLabel ?? doc.title ?? 'Checklist', reminderAt })
+          }
+        }
+      }
+    } else {
+      if (!doc.items) continue
+      for (const item of flattenItems(doc.items)) {
+        if (item.done) continue
+        if (!item.reminders?.length) continue
+        for (const reminderAt of item.reminders) {
+          const t = new Date(reminderAt)
+          if (t >= windowStart && t < windowEnd) {
+            due.push({ checklistId, itemId: item.id, text: item.text, reminderAt })
+          }
         }
       }
     }

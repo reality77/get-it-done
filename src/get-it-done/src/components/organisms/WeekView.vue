@@ -91,19 +91,11 @@ function weekSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
 
 function weekActions(taskRef: TrackedItemRef) {
   if (mode.value !== 'planning') return undefined
-  if (taskRef.isChecklistTask) {
-    return makeSnoozeSomedayDeleteActions(
-      taskRef,
-      (id, date) => store.snoozeItem(id, date),
-      (id) => store.sendItemToSomeday(id),
-      () => { /* checklist tasks not individually deletable */ },
-    ).filter(a => a.label !== 'Delete')
-  }
   return makeSnoozeSomedayDeleteActions(
     taskRef,
     (id, date) => store.snoozeItem(id, date),
     (id) => store.sendItemToSomeday(id),
-    (id) => store.removeItem(id),
+    taskRef.isChecklistTask ? null : (id) => store.removeItem(id),
   )
 }
 

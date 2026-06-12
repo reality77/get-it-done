@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import type { TrackedItemRef, SwipeActionDef } from '../../types'
 import { makeStatusActions, refToId } from '../../composables/useTaskActions'
+import { parseLocalDate } from '../../composables/useTreeHelpers'
 import { useChecklistStore } from '../../stores/checklists'
 import TaskCard from '../molecules/TaskCard.vue'
 import MobilePlanningSheet from '../molecules/MobilePlanningSheet.vue'
@@ -24,11 +25,6 @@ const props = defineProps<{
 }>()
 
 const activeFilter = ref<BacklogFilter>('all')
-
-function parseLocalDate(dateStr: string): Date {
-  const [y = '0', m = '1', d = '1'] = dateStr.split('-')
-  return new Date(+y, +m - 1, +d)
-}
 
 function getWeekBoundaries() {
   const today = new Date()
@@ -109,24 +105,21 @@ function onSnoozeCancel(): void {
 }
 
 function backlogActions(taskRef: TrackedItemRef) {
-  const actions = makeStatusActions(taskRef, {
+  return makeStatusActions(taskRef, {
     onActivate: (id) => store.activateItem(id),
     onSnooze: (id, date) => store.snoozeItem(id, date),
     onSomeday: (id) => store.sendItemToSomeday(id),
-    onDelete: (id) => store.removeItem(id),
+    onDelete: taskRef.isChecklistTask ? null : (id) => store.removeItem(id),
   })
-  if (taskRef.isChecklistTask) return actions.filter(a => a.label !== 'Delete')
-  return actions
 }
 
 function addToWeek(taskRef: TrackedItemRef): void {
   const id = refToId(taskRef)
   store.activateItem(id)
-  store.toggleItemWeekPlan(id)
 }
 
 function snoozedSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
-  return { hint: 'Add to week', bgClass: 'bg-success', onTrigger: () => addToWeek(taskRef) }
+  return { hint: '↩ Activate', bgClass: 'bg-success', onTrigger: () => addToWeek(taskRef) }
 }
 
 function snoozedSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
@@ -134,7 +127,7 @@ function snoozedSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
 }
 
 function somedaySwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
-  return { hint: 'Add to week', bgClass: 'bg-success', onTrigger: () => addToWeek(taskRef) }
+  return { hint: '↩ Activate', bgClass: 'bg-success', onTrigger: () => addToWeek(taskRef) }
 }
 
 function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
@@ -142,7 +135,7 @@ function somedaySwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
 }
 
 function formatSnoozeDate(raw: string): string {
-  return new Date(raw).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+  return parseLocalDate(raw).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 }
 </script>
 

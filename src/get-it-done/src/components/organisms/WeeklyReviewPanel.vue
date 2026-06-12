@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import type { TrackedItemRef, SwipeActionDef, ButtonActionDef } from '../../types'
 import { makeStatusActions, refToId } from '../../composables/useTaskActions'
+import { toLocalDateString } from '../../composables/useTreeHelpers'
 import { useChecklistStore } from '../../stores/checklists'
 import TaskCard from '../molecules/TaskCard.vue'
 import VButton from '../atoms/VButton.vue'
@@ -37,7 +38,7 @@ function reviewSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
     onTrigger: () => {
       const d = new Date()
       d.setDate(d.getDate() + ((1 + 7 - d.getDay()) % 7 || 7))
-      store.snoozeItem(refToId(taskRef), d.toISOString().slice(0, 10))
+      store.snoozeItem(refToId(taskRef), toLocalDateString(d))
       dismissFromPanel(taskRef.item.id)
     },
   }
@@ -45,12 +46,11 @@ function reviewSwipeRight(taskRef: TrackedItemRef): SwipeActionDef {
 
 function reviewSwipeLeft(taskRef: TrackedItemRef): SwipeActionDef {
   return {
-    hint: 'Add to week',
+    hint: '↩ Activate',
     bgClass: 'bg-success',
     onTrigger: () => {
       const id = refToId(taskRef)
       store.activateItem(id)
-      store.toggleItemWeekPlan(id)
       dismissFromPanel(taskRef.item.id)
     },
   }
@@ -73,7 +73,7 @@ function cardActions(taskRef: TrackedItemRef): ButtonActionDef[] {
     </div>
     <p class="text-xs text-fg-4 mb-4">
       {{ visible.length > 0 ? `${visible.length} task${visible.length === 1 ? '' : 's'} to review` : 'All reviewed' }}
-      · swipe left to add to week, right to defer
+      · swipe left to activate, right to defer
     </p>
 
     <div v-if="visible.length > 0" class="space-y-1 mb-4">

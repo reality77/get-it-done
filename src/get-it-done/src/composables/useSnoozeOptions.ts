@@ -1,3 +1,5 @@
+import { toLocalDateString, parseLocalDate, todayDateString } from './useTreeHelpers'
+
 export interface SnoozeOption {
   label: string
   date: string
@@ -8,13 +10,13 @@ function nextMondayDate(weeksAhead: number): string {
   const dayOfWeek = d.getDay()
   const daysUntilMonday = dayOfWeek === 1 ? 7 : ((8 - dayOfWeek) % 7 || 7)
   d.setDate(d.getDate() + daysUntilMonday + (weeksAhead - 1) * 7)
-  return d.toISOString().slice(0, 10)
+  return toLocalDateString(d)
 }
 
 function addMonthsToToday(months: number): string {
   const d = new Date()
   d.setMonth(d.getMonth() + months)
-  return d.toISOString().slice(0, 10)
+  return toLocalDateString(d)
 }
 
 export function getSnoozeOptions(): SnoozeOption[] {
@@ -29,19 +31,19 @@ export function getSnoozeOptions(): SnoozeOption[] {
 }
 
 export function getDeadlineSnoozeOptions(deadline: string): SnoozeOption[] {
-  const todayStr = new Date().toISOString().slice(0, 10)
-  const dl = new Date(deadline.slice(0, 10))
+  const todayStr = todayDateString()
+  const dl = parseLocalDate(deadline)
 
   const subtractDays = (days: number): string => {
     const d = new Date(dl)
     d.setDate(d.getDate() - days)
-    return d.toISOString().slice(0, 10)
+    return toLocalDateString(d)
   }
 
   const subtractMonths = (months: number): string => {
     const d = new Date(dl)
     d.setMonth(d.getMonth() - months)
-    return d.toISOString().slice(0, 10)
+    return toLocalDateString(d)
   }
 
   const candidates: SnoozeOption[] = [
