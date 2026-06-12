@@ -1,6 +1,6 @@
 import Fastify, { type FastifyRequest, type FastifyReply } from 'fastify'
 import cors from '@fastify/cors'
-import { ensureSubsDb, ensureFiredRemindersDb, validateSession, saveSubscription, deleteSubscription } from './couch.js'
+import { ensureSubsDb, ensureFiredRemindersDb, validateSession, saveSubscription, deleteSubscription, isUserAllowed } from './couch.js'
 import type { PushSubscription } from './couch.js'
 import { startScheduler } from './scheduler.js'
 
@@ -14,15 +14,6 @@ const allowedOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
   .filter(Boolean)
 
 app.log.info({ allowedOrigins }, 'Configured CORS origins')
-
-// ── Allowlist: restrict push subscriptions to specific CouchDB users ──────────
-// Default is 'admin' (single-account deployment). Set ALLOWED_USERS=user1,user2
-// to grant additional accounts. See README.md for design rationale.
-
-const allowedUsers = (process.env.ALLOWED_USERS ?? 'admin')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean)
 
 app.addHook('onRequest', async (request) => {
   app.log.info(
@@ -70,7 +61,7 @@ async function requireAuth(request: FastifyRequest, reply: FastifyReply): Promis
     await reply.status(401).send({ error: 'Unauthorized' })
     return
   }
-  if (!allowedUsers.includes(userId)) {
+  if (!isUserAllowed(userId)) {
     await reply.status(403).send({ error: 'Forbidden' })
     return
   }
@@ -89,9 +80,23 @@ interface UnsubscribeBody {
   endpoint: string
 }
 
+// Reject a bad IANA timezone by storing null (legacy fallback) rather than
+// failing the subscribe — buggy/legacy clients must still be able to subscribe.
+function sanitizeTimezone(timezone: string | null, request: FastifyRequest): string | null {
+  if (timezone == null) return null
+  try {
+    new Intl.DateTimeFormat(undefined, { timeZone: timezone })
+    return timezone
+  } catch {
+    request.log.warn({ timezone }, 'Invalid timezone on subscribe; storing null')
+    return null
+  }
+}
+
 async function handleSubscribe(request: FastifyRequest<{ Body: SubscribeBody }>, reply: FastifyReply): Promise<FastifyReply> {
   const { subscription, dailyReminderTime, timezone } = request.body
-  await saveSubscription(request.userId, subscription, dailyReminderTime ?? null, timezone ?? null)
+  const safeTimezone = sanitizeTimezone(timezone ?? null, request)
+  await saveSubscription(request.userId, subscription, dailyReminderTime ?? null, safeTimezone)
   return reply.status(201).send({ ok: true })
 }
 

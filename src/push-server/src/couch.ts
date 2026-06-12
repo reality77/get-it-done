@@ -8,6 +8,20 @@ const SUBS_DB   = 'push_subscriptions'
 const DATA_DB   = 'get-it-done'
 const FIRED_DB  = 'push_fired_reminders'
 
+// ── Allowlist: restrict push subscriptions to specific CouchDB users ──────────
+// Default is 'admin' (single-account deployment). Set ALLOWED_USERS=user1,user2
+// to grant additional accounts. Parsed once here so every code path (auth gate
+// and every sender via getAllSubscriptions) shares a single source of truth.
+
+const allowedUsers = (process.env.ALLOWED_USERS ?? 'admin')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+
+export function isUserAllowed(userId: string): boolean {
+  return allowedUsers.includes(userId)
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface PushSubscription {
@@ -141,7 +155,9 @@ export async function getAllSubscriptions(): Promise<SubscriptionDoc[]> {
   const result = await couchFetch<{ rows: Array<{ doc: SubscriptionDoc }> }>(
     `/${SUBS_DB}/_all_docs?include_docs=true`,
   )
-  return result.rows.map(r => r.doc).filter(Boolean)
+  // Single choke point: drop docs for users no longer on the allowlist so stale
+  // subscriptions of revoked users never receive a push, no matter the sender.
+  return result.rows.map(r => r.doc).filter(doc => doc && isUserAllowed(doc.userId))
 }
 
 // ── Snooze scanner ────────────────────────────────────────────────────────────

@@ -34,11 +34,6 @@ export async function sendToAll(payload: PushPayload): Promise<void> {
   await Promise.all(subs.map(s => sendOne(s, payload)))
 }
 
-export async function sendToUser(userId: string, payload: PushPayload): Promise<void> {
-  const all = await getAllSubscriptions()
-  await Promise.all(all.filter(s => s.userId === userId).map(s => sendOne(s, payload)))
-}
-
 export async function sendToSubscriptions(subs: SubscriptionDoc[], payload: PushPayload): Promise<void> {
   await Promise.all(subs.map(s => sendOne(s, payload)))
 }
