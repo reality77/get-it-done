@@ -317,11 +317,28 @@ export const useChecklistStore = defineStore('checklists', () => {
     void sync.upsertChecklist(checklist)
   }
 
+  // Max number of deletion tombstones retained per checklist (bounds doc growth;
+  // a resurrection after 200 subsequent deletions is acceptable).
+  const MAX_DELETED_ITEM_IDS = 200
+
+  // Append explicitly-deleted item ids so the conflict merge won't resurrect them.
+  // Dedups and caps the list, dropping the oldest ids first.
+  function recordDeletedItems(cl: Checklist, ids: string[]): void {
+    if (ids.length === 0) return
+    const merged = [...(cl.deletedItemIds ?? []), ...ids]
+    const deduped = [...new Set(merged)]
+    cl.deletedItemIds =
+      deduped.length > MAX_DELETED_ITEM_IDS
+        ? deduped.slice(deduped.length - MAX_DELETED_ITEM_IDS)
+        : deduped
+  }
+
   function removeItem({ checklistId, itemId }: ChecklistItemId): void {
     const checklist = getChecklist(checklistId)
     if (!checklist) return
     if (checklist.trackMode === 'checklist' && itemId === checklistId) return
     checklist.items = removeNodeDeep(checklist.items, itemId)
+    recordDeletedItems(checklist, [itemId])
     void sync.upsertChecklist(checklist)
   }
 
@@ -425,7 +442,13 @@ export const useChecklistStore = defineStore('checklists', () => {
   function removeGroup(checklistId: string, groupId: string): void {
     const checklist = getChecklist(checklistId)
     if (!checklist) return
+    const group = findGroupDeep(checklist.items, groupId)
+    const removedItemIds: string[] = []
+    if (group) {
+      walkNodes(group.children, n => { if (n.type === 'item') removedItemIds.push(n.id) })
+    }
     checklist.items = removeNodeDeep(checklist.items, groupId)
+    recordDeletedItems(checklist, removedItemIds)
     void sync.upsertChecklist(checklist)
   }
 

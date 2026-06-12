@@ -30,6 +30,7 @@ export function docToChecklist(doc: PouchDB.Core.ExistingDocument<CouchDoc>): Ch
     deadline: doc.deadline, reminders: doc.reminders,
     comment: doc.comment, url: doc.url,
     modifiedAt: doc.modifiedAt,
+    deletedItemIds: doc.deletedItemIds,
   }
 }
 
@@ -60,10 +61,20 @@ function collectItems(nodes: ChecklistNode[], out: ChecklistItem[]): void {
 // loser is appended (flattened) to the end of the winner's top-level items array.
 // Group structure of the winner is preserved untouched.
 //
+// Deletion tombstones (deletedItemIds) guard against resurrection: an item that
+// exists only in the loser but was explicitly deleted on EITHER side is dropped
+// rather than recovered as an orphan. The merged tombstone set is the union of
+// both sides so it survives repeated merges.
+//
 // Pure: depends only on its arguments, performs no I/O and no store access.
-export function mergeChecklistDocs<T extends Pick<Checklist, 'items'>>(winner: T, loser: T): T {
+export function mergeChecklistDocs<T extends Pick<Checklist, 'items' | 'deletedItemIds'>>(winner: T, loser: T): T {
   const winnerIds = new Set<string>()
   collectItemIds(winner.items, winnerIds)
+
+  const tombstones = new Set<string>([
+    ...(winner.deletedItemIds ?? []),
+    ...(loser.deletedItemIds ?? []),
+  ])
 
   const loserItems: ChecklistItem[] = []
   collectItems(loser.items, loserItems)
@@ -71,13 +82,15 @@ export function mergeChecklistDocs<T extends Pick<Checklist, 'items'>>(winner: T
   const orphans: ChecklistItem[] = []
   const seen = new Set<string>()
   for (const item of loserItems) {
-    if (winnerIds.has(item.id) || seen.has(item.id)) continue
+    if (winnerIds.has(item.id) || seen.has(item.id) || tombstones.has(item.id)) continue
     seen.add(item.id)
     orphans.push(item)
   }
 
-  if (orphans.length === 0) return winner
-  return { ...winner, items: [...winner.items, ...orphans] }
+  const mergedTombstones = tombstones.size > 0 ? [...tombstones] : undefined
+
+  if (orphans.length === 0 && mergedTombstones === winner.deletedItemIds) return winner
+  return { ...winner, items: [...winner.items, ...orphans], deletedItemIds: mergedTombstones }
 }
 
 // ── Local PouchDB (IndexedDB) ─────────────────────────────────────────────────
