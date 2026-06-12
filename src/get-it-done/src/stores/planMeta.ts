@@ -55,13 +55,17 @@ export const usePlanMetaStore = defineStore('planMeta', () => {
       planMeta.value.lastReviewedAt = mergedReview
       changed = true
     }
-    // dayPlanDate / weekPlanDate: prefer the doc's value when present.
-    if (doc.dayPlanDate != null && doc.dayPlanDate !== planMeta.value.dayPlanDate) {
+    // dayPlanDate: adopt the incoming date only when it is non-null AND strictly
+    // later (lexicographic, YYYY-MM-DD) than what we hold — the later date is the
+    // fresher plan. Using a deterministic max (rather than prefer-incoming) makes
+    // the merge commutative/idempotent: two devices holding different dates both
+    // converge to the later one instead of oscillating in a period-2 swap.
+    // weekPlanDate is intentionally not merged — see persistToDB.
+    if (
+      doc.dayPlanDate != null &&
+      (planMeta.value.dayPlanDate == null || doc.dayPlanDate > planMeta.value.dayPlanDate)
+    ) {
       planMeta.value.dayPlanDate = doc.dayPlanDate
-      changed = true
-    }
-    if (doc.weekPlanDate != null && doc.weekPlanDate !== planMeta.value.weekPlanDate) {
-      planMeta.value.weekPlanDate = doc.weekPlanDate
       changed = true
     }
     return changed
@@ -98,11 +102,14 @@ export const usePlanMetaStore = defineStore('planMeta', () => {
   }
 
   async function persistToDB(): Promise<void> {
+    // weekPlanDate is intentionally omitted: the week-plan feature was removed
+    // (issue 012), so the field is vestigial. Syncing it would ping-pong stale
+    // per-device values (pre-sync localStorage seeds) between devices forever.
+    // PlanMeta still types it as optional, so an absent field is valid.
     const body: PlanMetaDoc = {
       _id: PLAN_META_DOC_ID,
       lastReviewedAt: planMeta.value.lastReviewedAt,
       dayPlanDate: planMeta.value.dayPlanDate,
-      weekPlanDate: planMeta.value.weekPlanDate ?? null,
     }
     try {
       const res = await metaDB.put(docRev ? { ...body, _rev: docRev } : body)

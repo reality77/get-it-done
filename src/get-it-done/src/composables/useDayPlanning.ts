@@ -353,6 +353,7 @@ export function useDayPlanning(
   function refreshDayPlanIfStale(): void {
     if (planMeta.dayPlanDate && planMeta.dayPlanDate !== todayDateString()) {
       for (const cl of checklists.value) {
+        if (cl.archived || cl.kind === 'template') continue
         let changed = false
         if (cl.trackMode === 'items') {
           walkNodes(cl.items, n => {
