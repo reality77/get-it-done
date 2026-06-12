@@ -10,6 +10,13 @@ import { SYNC_INITIAL_RETRY_MS, SYNC_MAX_RETRY_MS } from '../config/constants'
 
 export type SyncStatus = 'synced' | 'syncing' | 'offline' | 'pending' | 'unauthorized'
 
+// True for any reserved (non-checklist) doc id that must skip checklist-shaped
+// handling (docToChecklist, item merge, conflict resolution). Any future reserved
+// doc id must be added here so every call site stays in sync.
+function isReservedDocId(id: string): boolean {
+  return id === PLAN_META_DOC_ID
+}
+
 export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<string, string>) {
   const syncStatus = ref<SyncStatus>('offline')
   const writeError = ref<string | null>(null)
@@ -93,6 +100,11 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
   // 409 bursts that happened when callers fired several puts on the same doc
   // synchronously (each reading a stale rev). It adds no time-based delay — writes
   // still hit disk promptly for the offline-first case.
+  //
+  // Durability: the single shared promise returned to a coalesced (second) caller
+  // resolves only after the trailing put completes — the async chain awaits every
+  // queued put and deletes the entry last — so awaiting upsertChecklist guarantees
+  // the caller's mutation has been persisted, not merely enqueued.
   const pendingWrite = new Map<string, { checklist: Checklist; promise: Promise<void>; queued: boolean }>()
 
   async function upsertChecklist(c: Checklist): Promise<void> {
@@ -123,17 +135,21 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
     writeError.value = null
   }
 
-  // Deletes are rare and id-disjoint from upserts in practice, so they intentionally
-  // bypass the per-id upsert queue above.
+  // Deletes coordinate with the per-id upsert queue above so a delete racing an
+  // in-flight or queued put can't silently fail (409 swallowed while the doc
+  // survives) or be undone by a trailing put recreating the doc. We drop any
+  // queued trailing write (the doc is going away — dropping it is correct), wait
+  // for the in-flight put to settle, then remove the doc fetched fresh rather than
+  // trusting a possibly-stale revCache rev.
   async function removeFromLocal(id: string): Promise<void> {
-    const rev = revCache.get(id)
+    const entry = pendingWrite.get(id)
+    if (entry) {
+      entry.queued = false           // cancel any trailing put — the doc is being deleted
+      await entry.promise.catch(() => { /* in-flight put may have failed; we delete anyway */ })
+    }
     try {
-      if (rev) {
-        await localDB.remove(id, rev)
-      } else {
-        const doc = await localDB.get(id)
-        await localDB.remove(doc)
-      }
+      const doc = await localDB.get(id)
+      await localDB.remove(doc)
       revCache.delete(id)
     } catch { /* already gone */ }
   }
@@ -147,7 +163,7 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
     checklists.value = result.rows
       // The reserved plan-meta doc is not a checklist — the planMeta store loads
       // it itself on init; docToChecklist must never run on it.
-      .filter(row => row.doc && row.id !== PLAN_META_DOC_ID)
+      .filter(row => row.doc && !isReservedDocId(row.id))
       .map(row => {
         revCache.set(row.id, row.doc!._rev)
         const doc = row.doc!
@@ -155,28 +171,40 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
         return { ...docToChecklist(doc), items: migrateNodes(doc.items as unknown[]) }
       })
     localLoaded = true
-    // Resolve any conflicts left by a prior offline sync. Each resolved put fires
-    // the changes feed, which refreshes the in-memory copy with the merged result.
-    for (const id of ids) await resolveConflicts(id)
+    // Resolve any conflicts left by a prior offline sync, in parallel. Each resolved
+    // put fires the changes feed, which refreshes the in-memory copy with the merged
+    // result. Running these concurrently avoids serializing one get per doc on every
+    // startup; resolveConflicts is independent per id so there is no cross-talk.
+    await Promise.all(ids.map(id => resolveConflicts(id)))
   }
 
   // ── Conflict resolution ───────────────────────────────────────────────────────
 
   // Resolves CouchDB replication conflicts for a single doc. Replication can leave
   // multiple competing revisions on the same id; PouchDB picks a deterministic
-  // winner but the losing revs linger forever and their changes vanish from view.
-  // We pick the revision with the newest modifiedAt (missing = oldest), merge the
-  // items arrays so no task is lost, put the merged winner, then delete the losers.
+  // winner (`current` from get(..,{conflicts:true})) but the losing revs linger
+  // forever and their changes vanish from view. We pick the CONTENT with the newest
+  // modifiedAt (missing = oldest) and merge every loser's items in so no task is
+  // lost — but we always write that merged content onto the DETERMINISTIC winner's
+  // branch (current._rev), regardless of whose content won, then delete the losers.
   //
-  // Termination: this writes at most one new revision and then removes the losing
-  // revs, leaving _conflicts empty. The resulting put re-triggers the changes feed,
-  // but that second pass finds no _conflicts and returns without writing — so the
-  // feed cannot loop.
+  // Why put onto current._rev rather than the content winner's rev: a put extends
+  // the branch of the rev it carries. If we put onto a losing conflict rev, the new
+  // revision lands on a branch that is still not the visible winner, current's
+  // branch survives untouched, _conflicts stays non-empty, and the merged content
+  // is frequently invisible. Putting onto current._rev guarantees the merged result
+  // becomes the visible doc.
+  //
+  // Termination: the single put lands on the visible winner's branch and the removes
+  // tombstone every conflict rev, leaving _conflicts empty. The put re-triggers the
+  // changes feed, but that echoed change now carries no _conflicts, so the handler's
+  // guard (and this function's own get) finds nothing to resolve — the feed cannot
+  // loop.
   async function resolveConflicts(id: string): Promise<void> {
-    // The plan-meta doc has no items array, so the checklist merge below would
-    // corrupt it. Its fields reconcile field-level in the planMeta store instead;
-    // a lingering losing revision there is harmless.
-    if (id === PLAN_META_DOC_ID) return
+    // Reserved (non-checklist) docs like plan-meta have no items array, so the
+    // checklist merge below would corrupt them. Their fields reconcile field-level
+    // in their own store instead; a lingering losing revision there is harmless.
+    if (isReservedDocId(id)) return
     let current: PouchDB.Core.ExistingDocument<CouchDoc> & { _conflicts?: string[] }
     try {
       current = await localDB.get<CouchDoc>(id, { conflicts: true })
@@ -211,10 +239,20 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
       merged = mergeChecklistDocs(merged, loser)
     }
 
-    // Put the merged winner (keeps the winner's _rev so it supersedes in place),
-    // then delete each losing rev. Update the rev cache to mirror existing code.
+    // Put the merged content onto the deterministic winner's branch (current._rev)
+    // so the result is the visible doc, then delete each losing rev to empty
+    // _conflicts. Restamp modifiedAt to now so a concurrently racing putChecklist
+    // 409-retry sees this merged doc as newer (existingTs > prevTs) and takes its
+    // merge-aware branch instead of clobbering the merge. Update the rev cache to
+    // mirror existing code.
+    const payload: PouchDB.Core.Document<CouchDoc> & { _rev: string } = {
+      ...merged,
+      _id: id,
+      _rev: current._rev,
+      modifiedAt: new Date().toISOString(),
+    }
     try {
-      const put = await localDB.put(merged)
+      const put = await localDB.put(payload)
       revCache.set(id, put.rev)
     } catch {
       return  // lost a race; the next change event will retry
@@ -234,12 +272,15 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
       since: lastSeq,
       live: true,
       include_docs: true,
+      // Surface _conflicts on the delivered doc so we only pay for resolveConflicts
+      // when a change actually has conflicts, not on every local write echo.
+      conflicts: true,
     })
     .on('change', (change) => {
       // The reserved plan-meta doc is not a checklist: route it to the planMeta
       // store (obtained lazily here, mirroring useAuthStore in startSync) so a
       // review completed on another device updates this one within seconds.
-      if (change.id === PLAN_META_DOC_ID) {
+      if (isReservedDocId(change.id)) {
         if (!change.deleted && change.doc) {
           usePlanMetaStore().applyRemoteDoc(change.doc as unknown as PlanMeta & { _rev: string })
         }
@@ -254,10 +295,15 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
         const idx = checklists.value.findIndex(c => c.id === change.id)
         if (idx >= 0) checklists.value[idx] = cl
         else checklists.value.push(cl)
-        // Resolve any replication conflict on this doc. If none exists this is a
-        // cheap no-op get; if it does, the merged put re-enters here and finds
-        // _conflicts empty, so this cannot loop.
-        void resolveConflicts(change.id)
+        // Only resolve when the delivered doc actually carries conflicts — the
+        // {conflicts:true} feed option puts a _conflicts array on the doc when (and
+        // only when) competing leaves exist, so the common write-echo path skips the
+        // conflicts:true get entirely. resolveConflicts still re-validates with its
+        // own get; if it does merge, the resulting put re-enters here with _conflicts
+        // empty, so this cannot loop.
+        // PouchDB's changes-doc typings don't surface _conflicts, hence the assertion.
+        const docConflicts = (change.doc as { _conflicts?: string[] })._conflicts
+        if (docConflicts && docConflicts.length > 0) void resolveConflicts(change.id)
       }
     })
   }
