@@ -21,6 +21,7 @@ export interface SubscriptionDoc {
   userId: string
   subscription: PushSubscription
   dailyReminderTime: string | null
+  timezone: string | null
   createdAt: string
   updatedAt: string
 }
@@ -112,6 +113,7 @@ export async function saveSubscription(
   userId: string,
   subscription: PushSubscription,
   dailyReminderTime: string | null,
+  timezone: string | null,
 ): Promise<void> {
   const _id = subId(userId, subscription.endpoint)
   const existing = await couchFetch<SubscriptionDoc>(`/${SUBS_DB}/${_id}`).catch(() => null)
@@ -121,6 +123,7 @@ export async function saveSubscription(
     userId,
     subscription,
     dailyReminderTime,
+    timezone: timezone ?? existing?.timezone ?? null,
     createdAt: existing?.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }

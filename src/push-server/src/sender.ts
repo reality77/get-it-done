@@ -39,10 +39,14 @@ export async function sendToUser(userId: string, payload: PushPayload): Promise<
   await Promise.all(all.filter(s => s.userId === userId).map(s => sendOne(s, payload)))
 }
 
+export async function sendToSubscriptions(subs: SubscriptionDoc[], payload: PushPayload): Promise<void> {
+  await Promise.all(subs.map(s => sendOne(s, payload)))
+}
+
 export async function sendToSubscription(sub: PushSubscription, payload: PushPayload): Promise<void> {
   const fake: SubscriptionDoc = {
     _id: '', userId: '', subscription: sub,
-    dailyReminderTime: null, createdAt: '', updatedAt: '',
+    dailyReminderTime: null, timezone: null, createdAt: '', updatedAt: '',
   }
   await sendOne(fake, payload)
 }

@@ -21,7 +21,11 @@ async function postSubscription(sub: PushSubscription, reminderTime: string | nu
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subscription: sub.toJSON(), dailyReminderTime: reminderTime || null }),
+    body: JSON.stringify({
+      subscription: sub.toJSON(),
+      dailyReminderTime: reminderTime || null,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    }),
   })
   if (!res.ok) throw new Error(`Server error ${res.status}`)
 }

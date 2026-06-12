@@ -82,6 +82,7 @@ async function requireAuth(request: FastifyRequest, reply: FastifyReply): Promis
 interface SubscribeBody {
   subscription: PushSubscription
   dailyReminderTime?: string | null
+  timezone?: string | null
 }
 
 interface UnsubscribeBody {
@@ -89,8 +90,8 @@ interface UnsubscribeBody {
 }
 
 async function handleSubscribe(request: FastifyRequest<{ Body: SubscribeBody }>, reply: FastifyReply): Promise<FastifyReply> {
-  const { subscription, dailyReminderTime } = request.body
-  await saveSubscription(request.userId, subscription, dailyReminderTime ?? null)
+  const { subscription, dailyReminderTime, timezone } = request.body
+  await saveSubscription(request.userId, subscription, dailyReminderTime ?? null, timezone ?? null)
   return reply.status(201).send({ ok: true })
 }
 
