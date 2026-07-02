@@ -29,7 +29,7 @@ No lint or test commands are configured yet.
 
 ### State — Pinia stores (`src/stores/`)
 
-- **`checklists.ts`** (`useChecklistStore`) — primary store; manages checklists, items, groups, task-tracking, day planning, snooze, weekly review, and PouchDB↔CouchDB sync
+- **`checklists.ts`** (`useChecklistStore`) — primary store; manages checklists, items, groups, task-tracking, day planning, snooze, and PouchDB↔CouchDB sync
 - **`auth.ts`** (`useAuthStore`) — CouchDB `/_session` login/logout/checkSession; reads `VITE_COUCH_USER` (default `admin`)
 
 ### Types (`src/types.ts`)
@@ -50,7 +50,7 @@ Key interfaces: `Checklist`, `ChecklistItem`, `ChecklistItemGroup`, `ChecklistNo
 
 - **atoms/** — `AppButton`, `AppInput`, `AppCheckbox`, `AppBadge`, `TaskStatusDot`
 - **molecules/** — `ItemRow`, `TabItem`, `TaskCard`, `ItemGroup`, `PriorityBadge`, `EffortBadge`, `KindBadge`, `SnoozeMenu`, `DayPlanBar`, `TrackButton`, `MobilePlanningSheet`
-- **organisms/** — `ChecklistCard`, `ArchiveCard`, `TabBar`, `DayView`, `WeekView`, `BacklogView`, `WeeklyReviewPanel`, `PasswordPrompt`
+- **organisms/** — `ChecklistCard`, `ArchiveCard`, `TabBar`, `DayView`, `WeekView`, `BacklogView`, `PasswordPrompt`
 - **templates/** — `ActiveView`, `TemplatesView`, `ArchiveView`, `TasksView`
 
 ### Composables (`src/composables/`)
@@ -66,7 +66,6 @@ Tailwind CSS v4 — `@import "tailwindcss"` in `src/style.css`, no config file n
 - **Checklist kinds:** `one-time` (auto-archives when 100% done), `template` (reusable), `run` (template instance, labeled "Title — Run #N")
 - **Task tracking:** opt-in per checklist; unlocks priority, effort, status, snooze, day-plan selection, `completedAt` timestamp
 - **Day planning:** `selectedForToday` flag + scoring algorithm (priority × effort + randomization); resets on date change
-- **Weekly review:** triggers on Mondays, stale snoozes (14+ days), or 7+ days since last review
 - **Sync:** PouchDB (IndexedDB locally) ↔ CouchDB (remote); live two-way replication with exponential-backoff retry (5s–60s); `SyncStatus`: `'synced' | 'syncing' | 'offline' | 'pending' | 'unauthorized'`
 - **Offline-first:** app loads local data before auth; works offline with `pending` sync status
 

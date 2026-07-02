@@ -7,7 +7,6 @@ import ChecklistsView from './components/templates/ChecklistsView.vue'
 import DayView from './components/organisms/DayView.vue'
 import WeekView from './components/organisms/WeekView.vue'
 import BacklogView from './components/organisms/BacklogView.vue'
-import WeeklyReviewPanel from './components/organisms/WeeklyReviewPanel.vue'
 import PasswordPrompt from './components/organisms/PasswordPrompt.vue'
 import BottomNavBar from './components/organisms/BottomNavBar.vue'
 import NotificationSettings from './components/organisms/NotificationSettings.vue'
@@ -52,19 +51,12 @@ function stopKeepAlive(): void {
 const {
   syncStatus,
   writeError,
-  weeklyReviewDue,
   dayPlanItems,
   snoozedItems,
   somedayItems,
   itemsByPriority,
   dismissedKeys,
 } = storeToRefs(checklistStore)
-
-const reviewDismissed = ref(false)
-
-watch(weeklyReviewDue, (due) => {
-  if (due) reviewDismissed.value = false
-})
 
 async function handleVisibilityChange(): Promise<void> {
   if (typeof document === 'undefined') return
@@ -118,11 +110,6 @@ watch(() => authStore.isAuthenticated, async (authed, wasAuthed) => {
   }
 })
 
-function handleCompleteReview(): void {
-  checklistStore.completeWeeklyReview()
-  reviewDismissed.value = true
-}
-
 const syncStatusClasses: Record<string, string> = {
   synced:       'bg-green-500',
   syncing:      'bg-primary animate-pulse',
@@ -171,18 +158,10 @@ const syncStatusTitles: Record<string, string> = {
   <TabBar
     class="shrink-0"
     :activeTab="activeTab"
-    :weekly-review-due="weeklyReviewDue"
     @change="activeTab = $event"
   />
 
   <main class="flex-1 overflow-hidden flex flex-col min-h-0">
-    <WeeklyReviewPanel
-      v-if="activeTab !== 'checklists' && weeklyReviewDue && !reviewDismissed"
-      class="shrink-0"
-      @complete-review="handleCompleteReview"
-      @dismiss="reviewDismissed = true"
-    />
-
     <div v-if="activeTab === 'today'" class="flex-1 overflow-y-auto pb-20 md:pb-0">
       <DayView :items="dayPlanItems" />
     </div>
@@ -208,7 +187,6 @@ const syncStatusTitles: Record<string, string> = {
 
   <BottomNavBar
     :activeTab="activeTab"
-    :weekly-review-due="weeklyReviewDue"
     @change="activeTab = $event"
   />
 

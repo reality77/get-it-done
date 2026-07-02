@@ -1,7 +1,6 @@
 <script setup lang="ts">
 defineProps<{
   activeTab: 'today' | 'week' | 'backlog' | 'checklists'
-  weeklyReviewDue?: boolean
 }>()
 
 defineEmits<{
@@ -48,10 +47,6 @@ defineEmits<{
           <line x1="3" y1="10" x2="21" y2="10"/>
           <line x1="3" y1="15" x2="21" y2="15"/>
         </svg>
-        <span
-          v-if="weeklyReviewDue"
-          class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary"
-        />
       </div>
       <span class="text-[10px] font-medium leading-none">Week</span>
     </button>

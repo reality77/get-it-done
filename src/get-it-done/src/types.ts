@@ -11,7 +11,6 @@ export type TaskView     = 'day' | 'week' | 'backlog'
 // ── Planning metadata (persisted globally) ────────────────────────────────────
 
 export interface PlanMeta {
-  lastReviewedAt: string | null  // ISO timestamp of last weekly review
   dayPlanDate: string | null     // YYYY-MM-DD — which day the current plan is for
   weekPlanDate?: string | null   // YYYY-MM-DD of the Monday that started the current week plan
 }

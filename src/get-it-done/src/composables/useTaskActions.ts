@@ -29,7 +29,7 @@ export function makeSnoozeSomedayDeleteActions(
 
 /**
  * Status-aware actions: activate (when snoozed/someday), snooze, optional someday, delete.
- * Used by BacklogView (with onSomeday) and WeeklyReviewPanel (without onSomeday).
+ * Used by BacklogView (with onSomeday).
  * Pass `null` for `onDelete` to omit the delete button (e.g. for checklist tasks).
  */
 export function makeStatusActions(
