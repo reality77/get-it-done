@@ -49,7 +49,9 @@ async function runDailyReminders(subs: SubscriptionDoc[], now: Date): Promise<vo
   await sendToSubscriptions(recipients, {
     title: 'Plan your day',
     body: 'Your tasks are waiting — take a moment to plan.',
-    url: '/get-it-done/#day',
+    url: '/get-it-done/',
+    actions: [{ action: 'open', title: 'Plan now' }],
+    actionUrls: { open: '/get-it-done/' },
   })
 }
 
@@ -79,7 +81,13 @@ async function runSnoozeCheck(subs: SubscriptionDoc[], now: Date): Promise<void>
           : `${due.length} snoozed tasks are ready for your review.`
 
         const recipients = subs.filter((s: SubscriptionDoc) => (s.timezone ?? null) === tz)
-        await sendToSubscriptions(recipients, { title, body, url: '/get-it-done/#day' })
+        await sendToSubscriptions(recipients, {
+          title,
+          body,
+          url: '/get-it-done/',
+          actions: [{ action: 'review', title: 'Review tasks' }],
+          actionUrls: { review: '/get-it-done/' },
+        })
       }
 
       // Mark done only after the scan (and send, if any) succeeded.
@@ -99,7 +107,13 @@ async function runTaskReminders(now: Date): Promise<void> {
   const due = await findDueTaskReminders(windowStart, now)
   for (const { checklistId, itemId, text, reminderAt } of due) {
     if (await isReminderFired(checklistId, itemId, reminderAt)) continue
-    await sendToAll({ title: '⏰ Reminder', body: text, url: '/get-it-done/#day' })
+    await sendToAll({
+      title: '⏰ Reminder',
+      body: text,
+      url: `/get-it-done/#complete:${checklistId}`,
+      actions: [{ action: 'complete', title: 'Mark done' }],
+      actionUrls: { complete: `/get-it-done/#complete:${checklistId}` },
+    })
     await markReminderFired(checklistId, itemId, reminderAt)
   }
 }

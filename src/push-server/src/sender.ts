@@ -7,6 +7,7 @@ export interface PushPayload {
   body: string
   url: string
   actions?: { action: string; title: string }[]
+  actionUrls?: Record<string, string>
 }
 
 webpush.setVapidDetails(

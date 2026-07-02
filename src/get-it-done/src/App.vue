@@ -15,6 +15,16 @@ import { storeToRefs } from 'pinia'
 
 const activeTab = ref<'today' | 'week' | 'backlog' | 'checklists'>('today')
 const notificationsOpen = ref(false)
+const pendingCompletionId = ref<string | null>(null)
+
+function handleHash(): void {
+  const match = window.location.hash.match(/^#complete:(.+)$/)
+  if (match) {
+    activeTab.value = 'today'
+    pendingCompletionId.value = decodeURIComponent(match[1] ?? '')
+    history.replaceState(null, '', window.location.pathname + window.location.search)
+  }
+}
 
 const authStore = useAuthStore()
 const checklistStore = useChecklistStore()
@@ -89,10 +99,13 @@ onMounted(async () => {
   } else if (result.status === 'expired') {
     loginPrompted.value = true
   }
+  handleHash()
+  window.addEventListener('hashchange', handleHash)
   document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onUnmounted(() => {
+  window.removeEventListener('hashchange', handleHash)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
   stopKeepAlive()
   checklistStore.unsubscribeRealtime()
@@ -163,7 +176,11 @@ const syncStatusTitles: Record<string, string> = {
 
   <main class="flex-1 overflow-hidden flex flex-col min-h-0">
     <div v-if="activeTab === 'today'" class="flex-1 overflow-y-auto pb-20 md:pb-0">
-      <DayView :items="dayPlanItems" />
+      <DayView
+        :items="dayPlanItems"
+        :initial-completion-id="pendingCompletionId"
+        @completion-opened="pendingCompletionId = null"
+      />
     </div>
 
     <div v-else-if="activeTab === 'week'" class="flex-1 overflow-y-auto pb-20 md:pb-0">

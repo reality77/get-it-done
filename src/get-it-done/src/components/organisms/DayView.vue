@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import type { TrackedItemRef, SwipeActionDef } from '../../types'
 import { makeSnoozeSomedayDeleteActions, refToId } from '../../composables/useTaskActions'
 import { useChecklistStore } from '../../stores/checklists'
@@ -10,7 +10,10 @@ import ChecklistCompletionModal from '../molecules/ChecklistCompletionModal.vue'
 
 const props = defineProps<{
   items: TrackedItemRef[]
+  initialCompletionId?: string | null
 }>()
+
+const emit = defineEmits<{ completionOpened: [] }>()
 
 const store = useChecklistStore()
 
@@ -36,6 +39,20 @@ function onModalArchive(): void {
 function onModalClose(): void {
   completionModalChecklistId.value = null
 }
+
+onMounted(() => {
+  if (props.initialCompletionId) {
+    completionModalChecklistId.value = props.initialCompletionId
+    emit('completionOpened')
+  }
+})
+
+watch(() => props.initialCompletionId, (id) => {
+  if (id) {
+    completionModalChecklistId.value = id
+    emit('completionOpened')
+  }
+})
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 function dayActions(taskRef: TrackedItemRef) {
