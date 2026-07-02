@@ -3,7 +3,6 @@ import TabItem from '../molecules/TabItem.vue'
 
 defineProps<{
   activeTab: 'today' | 'week' | 'backlog' | 'checklists'
-  weeklyReviewDue?: boolean
 }>()
 
 defineEmits<{
@@ -14,7 +13,7 @@ defineEmits<{
 <template>
   <div class="hidden md:flex gap-6 border-b border-hairline mb-6">
     <TabItem label="Today" :active="activeTab === 'today'" @select="$emit('change', 'today')" />
-    <TabItem label="Week" :active="activeTab === 'week'" :dot="weeklyReviewDue" @select="$emit('change', 'week')" />
+    <TabItem label="Week" :active="activeTab === 'week'" @select="$emit('change', 'week')" />
     <TabItem label="Backlog" :active="activeTab === 'backlog'" @select="$emit('change', 'backlog')" />
     <TabItem label="Checklists" :active="activeTab === 'checklists'" @select="$emit('change', 'checklists')" />
   </div>

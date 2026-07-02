@@ -253,7 +253,6 @@ The reminder push payload:
 |---------|-------|------|-----|
 | Snooze expired | `"Snooze ended: {task title}"` | `"This task is ready for you"` | `/get-it-done/#day` |
 | Daily planning | `"Plan your day"` | `"N tasks are waiting in your Day view"` | `/get-it-done/#day` |
-| Weekly review | `"Weekly review ready"` | `"Take a moment to review your backlog"` | `/get-it-done/#backlog` |
 
 ---
 

@@ -497,10 +497,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     dayPlanItems: dayPlanning.dayPlanItems,
     snoozedItems: dayPlanning.snoozedItems,
     somedayItems: dayPlanning.somedayItems,
-    dueSnoozedItems: dayPlanning.dueSnoozedItems,
-    staleSnoozedItems: dayPlanning.staleSnoozedItems,
     itemsByPriority: dayPlanning.itemsByPriority,
-    weeklyReviewDue: dayPlanning.weeklyReviewDue,
     isDayPlanFresh: dayPlanning.isDayPlanFresh,
     dismissedKeys: dayPlanning.dismissedKeys,
     // Checklist CRUD
@@ -536,9 +533,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     setDayPlan: dayPlanning.setDayPlan,
     refreshDayPlanIfStale: dayPlanning.refreshDayPlanIfStale,
     processDueSnoozed: dayPlanning.processDueSnoozed,
-    completeWeeklyReview: dayPlanning.completeWeeklyReview,
     suggestDayPlan: dayPlanning.suggestDayPlan,
-    suggestWeekPlan: dayPlanning.suggestWeekPlan,
     clearDayPlan: dayPlanning.clearDayPlan,
     // Convenience: run suggestion algorithm and apply the result in one call
     applyDayPlanSuggestion(): void {

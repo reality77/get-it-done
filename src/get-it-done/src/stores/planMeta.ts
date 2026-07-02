@@ -13,10 +13,10 @@ export const PLAN_META_DOC_ID = 'plan-meta'
 function loadPlanMeta(): PlanMeta {
   try {
     const raw = localStorage.getItem(PLAN_META_KEY)
-    if (!raw) return { lastReviewedAt: null, dayPlanDate: null }
+    if (!raw) return { dayPlanDate: null }
     return JSON.parse(raw) as PlanMeta
   } catch {
-    return { lastReviewedAt: null, dayPlanDate: null }
+    return { dayPlanDate: null }
   }
 }
 
@@ -36,25 +36,12 @@ export const usePlanMetaStore = defineStore('planMeta', () => {
   // without an extra get round-trip in the common case.
   let docRev: string | undefined
 
-  // Lexicographic max of two nullable ISO timestamps; null is treated as oldest.
-  function newer(a: string | null | undefined, b: string | null | undefined): string | null {
-    if (a == null) return b ?? null
-    if (b == null) return a
-    return a >= b ? a : b
-  }
-
   // Merge an incoming plan-meta doc (from local get on init, or from the changes
   // feed on remote update) into the reactive state. Only assigns when a field
   // actually changes value, so an identical doc does NOT trigger the deep watcher
   // → persist → put → changes-feed loop. Returns true if anything changed.
   function applyDoc(doc: PlanMeta): boolean {
     let changed = false
-    // lastReviewedAt: keep the lexicographically newest of the two.
-    const mergedReview = newer(planMeta.value.lastReviewedAt, doc.lastReviewedAt)
-    if (mergedReview !== planMeta.value.lastReviewedAt) {
-      planMeta.value.lastReviewedAt = mergedReview
-      changed = true
-    }
     // dayPlanDate: adopt the incoming date only when it is non-null AND strictly
     // later (lexicographic, YYYY-MM-DD) than what we hold — the later date is the
     // fresher plan. Using a deterministic max (rather than prefer-incoming) makes
@@ -87,7 +74,7 @@ export const usePlanMetaStore = defineStore('planMeta', () => {
 
   // Called by the changes feed when a newer plan-meta doc replicates in from
   // another device. Updates the _rev cache and merges fields in place (only on
-  // real change), so weeklyReviewDue / isDayPlanFresh recompute automatically.
+  // real change), so isDayPlanFresh recomputes automatically.
   function applyRemoteDoc(doc: PlanMeta & { _rev: string }): void {
     docRev = doc._rev
     applyDoc(doc)
@@ -108,7 +95,6 @@ export const usePlanMetaStore = defineStore('planMeta', () => {
     // PlanMeta still types it as optional, so an absent field is valid.
     const body: PlanMetaDoc = {
       _id: PLAN_META_DOC_ID,
-      lastReviewedAt: planMeta.value.lastReviewedAt,
       dayPlanDate: planMeta.value.dayPlanDate,
     }
     try {

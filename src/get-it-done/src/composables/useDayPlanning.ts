@@ -24,8 +24,6 @@ import {
   DAY_PLAN_EFFORT_BUDGET,
   DAY_PLAN_DEADLINE_BONUSES,
   DAY_PLAN_DISMISS_DURATION_MS,
-  STALE_SNOOZE_DAYS,
-  WEEKLY_REVIEW_INTERVAL_DAYS,
 } from '../config/constants'
 
 // ── Module-level pure helpers ────────────────────────────────────────────────
@@ -38,14 +36,6 @@ function itemKey(checklistId: string, itemId: string): string {
 
 const completedToday = (iso: string | null | undefined, today: string): boolean =>
   iso != null && toLocalDateString(new Date(iso)) === today
-
-function getMondayDateString(): string {
-  const d = new Date()
-  const day = d.getDay()
-  const daysToMonday = day === 0 ? -6 : 1 - day
-  d.setDate(d.getDate() + daysToMonday)
-  return toLocalDateString(d)
-}
 
 function deadlineBonus(deadline: string | null | undefined, today: string, effort: TaskEffort): number {
   if (!deadline) return 0
@@ -220,42 +210,11 @@ export function useDayPlanning(
     trackedItems.value.filter(r => (r.item.status ?? 'active') === 'someday')
   )
 
-  const dueSnoozedItems = computed(() => {
-    const today = todayDateString()
-    return trackedItems.value.filter(r =>
-      (r.item.status ?? 'active') === 'snoozed' && r.item.snoozeUntil != null && r.item.snoozeUntil <= today
-    )
-  })
-
-  const staleSnoozedItems = computed(() => {
-    const cutoff = new Date()
-    cutoff.setDate(cutoff.getDate() - STALE_SNOOZE_DAYS)
-    return trackedItems.value.filter(r => {
-      if ((r.item.status ?? 'active') !== 'snoozed' || !r.item.snoozedAt) return false
-      return new Date(r.item.snoozedAt) < cutoff
-    })
-  })
-
   const itemsByPriority = computed(() => ({
     urgent:    activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'urgent'),
     important: activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'important'),
     secondary: activeTrackedItems.value.filter(r => (r.item.priority ?? 'important') === 'secondary'),
   }))
-
-  // ── Weekly review computed ──────────────────────────────────────────────────
-
-  const weeklyReviewDue = computed((): boolean => {
-    if (trackedItems.value.length === 0) return false
-    const today = new Date()
-    const isMonday = today.getDay() === 1
-    const hasStaleSnoozed = staleSnoozedItems.value.length > 0
-    const lastReview = planMeta.lastReviewedAt
-    const cutoff = new Date(today)
-    cutoff.setDate(cutoff.getDate() - WEEKLY_REVIEW_INTERVAL_DAYS)
-    const overdueReview = !lastReview || new Date(lastReview) < cutoff
-    const reviewedThisWeek = lastReview != null && lastReview.substring(0, 10) >= getMondayDateString()
-    return (isMonday && !reviewedThisWeek) || hasStaleSnoozed || overdueReview
-  })
 
   const isDayPlanFresh = computed(() =>
     planMeta.dayPlanDate === todayDateString()
@@ -398,10 +357,6 @@ export function useDayPlanning(
     }
   }
 
-  function completeWeeklyReview(): void {
-    planMeta.lastReviewedAt = new Date().toISOString()
-  }
-
   // ── Suggest algorithm ───────────────────────────────────────────────────────
 
   function suggestDayPlan(): Array<ChecklistItemId> {
@@ -460,19 +415,6 @@ export function useDayPlanning(
     }
 
     return [...kept, ...mandatory, ...additions]
-  }
-
-  function suggestWeekPlan(): TrackedItemRef[] {
-    return trackedItems.value
-      .filter(r => (r.item.status ?? 'active') === 'snoozed')
-      .sort((a, b) => {
-        const aDate = a.item.snoozeUntil ?? '9999-99-99'
-        const bDate = b.item.snoozeUntil ?? '9999-99-99'
-        if (aDate !== bDate) return aDate < bDate ? -1 : 1
-        const aPri = PRIORITY_ORDER[a.item.priority ?? 'important'] ?? 1
-        const bPri = PRIORITY_ORDER[b.item.priority ?? 'important'] ?? 1
-        return aPri - bPri
-      })
   }
 
   // ── Item task-tracking mutations ────────────────────────────────────────────
@@ -564,10 +506,7 @@ export function useDayPlanning(
     dayPlanItems,
     snoozedItems,
     somedayItems,
-    dueSnoozedItems,
-    staleSnoozedItems,
     itemsByPriority,
-    weeklyReviewDue,
     isDayPlanFresh,
     dismissedKeys,
     clearDayPlan,
@@ -575,9 +514,7 @@ export function useDayPlanning(
     setDayPlan,
     refreshDayPlanIfStale,
     processDueSnoozed,
-    completeWeeklyReview,
     suggestDayPlan,
-    suggestWeekPlan,
     setItemPriority,
     setItemEffort,
     snoozeItem,
