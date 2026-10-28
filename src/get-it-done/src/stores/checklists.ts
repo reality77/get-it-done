@@ -475,7 +475,9 @@ export const useChecklistStore = defineStore('checklists', () => {
       defaultEffort: 'medium',
     }
     checklists.value.push(checklist)
-    void sync.upsertChecklist(checklist)
+    // No modifiedAt: this empty bootstrap doc must lose LWW against the real
+    // standalone doc replicated from another device (its items are still merged).
+    void sync.upsertChecklist(checklist, { touch: false })
   }
 
   // ── Public API ──────────────────────────────────────────────────────────────

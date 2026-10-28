@@ -51,12 +51,19 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
   // it must only ever run one-at-a-time per doc — see the upsertChecklist queue
   // below, which serializes calls so this read always happens after the previous
   // put updated the rev cache.
-  async function putChecklist(c: Checklist): Promise<void> {
+  //
+  // `touch` = false persists without bumping modifiedAt. Automatic maintenance
+  // writes (snooze wake-up, stale day-plan reset, standalone bootstrap) run at
+  // startup on whatever the device has locally — possibly weeks-old data, before
+  // replication has pulled anything. Stamping them "now" would make that stale
+  // content win LWW conflict resolution against real edits made on another
+  // device in the meantime (e.g. resurrecting checklists archived elsewhere).
+  async function putChecklist(c: Checklist, touch: boolean): Promise<void> {
     // Single write choke point: stamp the LWW timestamp here so every persisted
-    // revision carries a fresh modifiedAt used by conflict resolution. Capture the
+    // user edit carries a fresh modifiedAt used by conflict resolution. Capture the
     // previous value first — the 409 branch needs it to detect a cross-device edit.
     const prevModifiedAt = c.modifiedAt
-    c.modifiedAt = new Date().toISOString()
+    if (touch) c.modifiedAt = new Date().toISOString()
     const doc = checklistToDoc(c)
     const rev = revCache.get(c.id)
     try {
@@ -105,25 +112,30 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
   // resolves only after the trailing put completes — the async chain awaits every
   // queued put and deletes the entry last — so awaiting upsertChecklist guarantees
   // the caller's mutation has been persisted, not merely enqueued.
-  const pendingWrite = new Map<string, { checklist: Checklist; promise: Promise<void>; queued: boolean }>()
+  //
+  // A coalesced trailing put touches modifiedAt if ANY of the merged callers asked
+  // for it, so a user edit is never downgraded to a maintenance write.
+  type PendingEntry = { checklist: Checklist; promise: Promise<void>; queued: boolean; touch: boolean }
+  const pendingWrite = new Map<string, PendingEntry>()
 
-  async function upsertChecklist(c: Checklist): Promise<void> {
+  async function upsertChecklist(c: Checklist, opts: { touch?: boolean } = {}): Promise<void> {
+    const touch = opts.touch ?? true
     const entry = pendingWrite.get(c.id)
     if (entry) {
       // A write for this doc is in flight: remember the latest object (the changes
       // feed may have replaced the array element with a new reference) and mark a
       // follow-up so exactly one trailing put runs after the current one settles.
       entry.checklist = c
+      entry.touch = entry.queued ? entry.touch || touch : touch
       entry.queued = true
       return entry.promise
     }
-    const newEntry: { checklist: Checklist; promise: Promise<void>; queued: boolean } =
-      { checklist: c, queued: false, promise: Promise.resolve() }
+    const newEntry: PendingEntry = { checklist: c, queued: false, touch, promise: Promise.resolve() }
     newEntry.promise = (async () => {
-      await putChecklist(newEntry.checklist)
+      await putChecklist(newEntry.checklist, newEntry.touch)
       while (newEntry.queued) {
         newEntry.queued = false
-        await putChecklist(newEntry.checklist)
+        await putChecklist(newEntry.checklist, newEntry.touch)
       }
       pendingWrite.delete(c.id)
     })()

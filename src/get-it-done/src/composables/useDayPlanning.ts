@@ -67,7 +67,7 @@ function effortUnits(r: TrackedItemRef): number {
 
 export function useDayPlanning(
   checklists: Ref<Checklist[]>,
-  upsertChecklist: (c: Checklist) => Promise<void>,
+  upsertChecklist: (c: Checklist, opts?: { touch?: boolean }) => Promise<void>,
 ) {
   const planMetaStore = usePlanMetaStore()
   const planMeta = planMetaStore.planMeta
@@ -325,7 +325,7 @@ export function useDayPlanning(
           cl.selectedForToday = false
           changed = true
         }
-        if (changed) void upsertChecklist(cl)
+        if (changed) void upsertChecklist(cl, { touch: false })  // maintenance: don't win LWW
       }
       planMeta.dayPlanDate = null
     }
@@ -353,7 +353,7 @@ export function useDayPlanning(
         changed = true
       }
 
-      if (changed) void upsertChecklist(cl)
+      if (changed) void upsertChecklist(cl, { touch: false })  // maintenance: don't win LWW
     }
   }
 
