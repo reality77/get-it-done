@@ -2,7 +2,9 @@
 import { ref, computed } from 'vue'
 import type { ChecklistItem, ChecklistItemId, TaskPriority, TaskEffort } from '../../types'
 import { useChecklistStore } from '../../stores/checklists'
+import { countDone, countItems } from '../../composables/useTreeHelpers'
 import VSegmented from '../atoms/VSegmented.vue'
+import ChecklistTree from './ChecklistTree.vue'
 
 const props = defineProps<{
   item: ChecklistItem
@@ -15,7 +17,18 @@ const props = defineProps<{
 const store = useChecklistStore()
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
-const activeTab = ref<'details' | 'actions'>('details')
+const activeTab = ref<'details' | 'actions' | 'checklist'>('details')
+
+const tabOptions = computed(() => [
+  { value: 'details', label: 'Details' },
+  { value: 'actions', label: 'Actions' },
+  ...(props.isChecklistTask ? [{ value: 'checklist', label: 'Checklist' }] : []),
+])
+
+// Live checklist backing a checklist task (undefined for regular tasks).
+const checklist = computed(() =>
+  props.isChecklistTask ? store.getChecklist(props.itemId.checklistId) : undefined
+)
 
 // ── Title editing ─────────────────────────────────────────────────────────────
 const pendingText = ref(props.item.text)
@@ -266,7 +279,7 @@ function deleteItem(): void {
   <!-- Tab selector -->
   <VSegmented
     v-model="activeTab"
-    :options="[{ value: 'details', label: 'Details' }, { value: 'actions', label: 'Actions' }]"
+    :options="tabOptions"
     class="mb-3"
   />
 
@@ -510,5 +523,19 @@ function deleteItem(): void {
       >Delete task</button>
 
     </div>
+  </template>
+
+  <!-- ── Checklist tab (checklist tasks only) ───────────────────────────────── -->
+  <template v-if="activeTab === 'checklist' && checklist">
+    <div class="flex items-center justify-between px-1 pb-2 mb-1 border-b border-hairline">
+      <span class="text-sm font-medium text-fg truncate">{{ checklist.title }}</span>
+      <span class="shrink-0 text-xs text-fg-3">{{ countDone(checklist.items) }}/{{ countItems(checklist.items) }}</span>
+    </div>
+    <ChecklistTree
+      v-if="checklist.items.length"
+      :nodes="checklist.items"
+      :checklist-id="checklist.id"
+    />
+    <p v-else class="text-xs text-fg-4 py-2 px-1">This checklist is empty.</p>
   </template>
 </template>
