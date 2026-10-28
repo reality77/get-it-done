@@ -57,6 +57,18 @@ export function findGroupDeep(nodes: ChecklistNode[], groupId: string): Checklis
   return undefined
 }
 
+/** Titles of the groups enclosing an item, outermost first ([] at root, undefined if not found). */
+export function findItemGroupPath(nodes: ChecklistNode[], itemId: string): string[] | undefined {
+  for (const node of nodes) {
+    if (node.type === 'item' && node.id === itemId) return []
+    if (node.type === 'group') {
+      const path = findItemGroupPath(node.children, itemId)
+      if (path) return [node.title, ...path]
+    }
+  }
+  return undefined
+}
+
 export function removeNodeDeep(nodes: ChecklistNode[], targetId: string): ChecklistNode[] {
   return nodes
     .filter(n => n.id !== targetId)

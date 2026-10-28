@@ -5,7 +5,7 @@ import type { ChecklistItem, SwipeActionDef, ButtonActionDef } from '../../types
 import { useSwipeAction } from '../../composables/useSwipeAction'
 import { useEditableField } from '../../composables/useEditableField'
 import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
-import { walkNodes, parseLocalDate } from '../../composables/useTreeHelpers'
+import { walkNodes, parseLocalDate, findItemGroupPath } from '../../composables/useTreeHelpers'
 import { useChecklistStore } from '../../stores/checklists'
 import TaskCardActions from './TaskCardActions.vue'
 import TaskCardMobileSheet from './TaskCardMobileSheet.vue'
@@ -132,6 +132,14 @@ const checkListItems = computed(() => {
   return items
 })
 
+// ── Breadcrumb: checklist › group › sub-group ────────────────────────────────
+const breadcrumb = computed(() => {
+  if (props.isChecklistTask) return props.checklistTitle
+  const checklist = store.getChecklist(props.checklistId)
+  const groups = checklist ? findItemGroupPath(checklist.items, props.item.id) ?? [] : []
+  return [props.checklistTitle, ...groups.filter(Boolean)].join(' › ')
+})
+
 function openItemUrl(): void {
   if (!props.item.url) return
   window.open(props.item.url, '_blank', 'noopener,noreferrer')
@@ -198,7 +206,7 @@ function openItemUrl(): void {
         <div class="flex items-center gap-1.5 mt-1.5 min-w-0">
           <!-- Checklist title -->
           <span v-if="showChecklistTitle !== undefined ? showChecklistTitle : true"
-            class="text-xs text-fg-3 flex-1 truncate min-w-0">{{ checklistTitle }}</span>
+            class="text-xs text-fg-3 flex-1 truncate min-w-0" :title="breadcrumb">{{ breadcrumb }}</span>
           <span v-else class="flex-1" />
 
           <!-- Meta icons & badges -->
