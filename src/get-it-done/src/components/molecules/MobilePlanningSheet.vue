@@ -224,7 +224,7 @@ const urlSummary = computed(() =>
 )
 
 // ── Confirm ───────────────────────────────────────────────────────────────────
-function saveEdits(): void {
+function confirm(): void {
   if (pendingPriority.value !== undefined && pendingPriority.value !== props.item.priority) {
     store.setItemPriority(props.itemId, pendingPriority.value)
   }
@@ -254,10 +254,6 @@ function saveEdits(): void {
   if (trimmedUrl !== (props.item.url ?? '')) {
     store.updateItemUrl(props.itemId, trimmedUrl)
   }
-}
-
-function confirm(): void {
-  saveEdits()
   props.close()
 }
 
@@ -274,15 +270,10 @@ function completeTask(): void {
 }
 
 // ── Checklist tab ─────────────────────────────────────────────────────────────
-// Ticking the last open item auto-archives the checklist, which removes this task
-// from its list and unmounts the sheet — save pending edits and close cleanly first.
+// Checklist tasks don't auto-archive on the last tick (see toggleItem), so the sheet
+// stays open; completion goes through the Actions tab's Complete flow.
 function toggleChecklistItem(node: ChecklistItem): void {
-  const cl = checklist.value
-  if (!cl) return
-  const completes = !node.done && countItems(cl.items) - countDone(cl.items) === 1
-  if (completes) saveEdits()
-  store.toggleItem({ checklistId: cl.id, itemId: node.id })
-  if (completes) props.close()
+  store.toggleItem({ checklistId: props.itemId.checklistId, itemId: node.id })
 }
 
 function deleteItem(): void {

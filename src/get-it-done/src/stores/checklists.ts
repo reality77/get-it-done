@@ -266,8 +266,10 @@ export const useChecklistStore = defineStore('checklists', () => {
         }
       }
     }
+    // A checklist tracked as a single task stays open until the task itself is completed.
     if (
       checklist.kind !== 'template' &&
+      checklist.trackMode !== 'checklist' &&
       checklist.id !== STANDALONE_CHECKLIST_ID &&
       countItems(checklist.items) > 0 &&
       countDone(checklist.items) === countItems(checklist.items)
