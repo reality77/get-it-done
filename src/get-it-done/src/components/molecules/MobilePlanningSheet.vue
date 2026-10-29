@@ -224,7 +224,7 @@ const urlSummary = computed(() =>
 )
 
 // ── Confirm ───────────────────────────────────────────────────────────────────
-function confirm(): void {
+function saveEdits(): void {
   if (pendingPriority.value !== undefined && pendingPriority.value !== props.item.priority) {
     store.setItemPriority(props.itemId, pendingPriority.value)
   }
@@ -254,6 +254,10 @@ function confirm(): void {
   if (trimmedUrl !== (props.item.url ?? '')) {
     store.updateItemUrl(props.itemId, trimmedUrl)
   }
+}
+
+function confirm(): void {
+  saveEdits()
   props.close()
 }
 
@@ -267,6 +271,18 @@ function completeTask(): void {
     store.toggleItem(props.itemId)
   }
   props.close()
+}
+
+// ── Checklist tab ─────────────────────────────────────────────────────────────
+// Ticking the last open item auto-archives the checklist, which removes this task
+// from its list and unmounts the sheet — save pending edits and close cleanly first.
+function toggleChecklistItem(node: ChecklistItem): void {
+  const cl = checklist.value
+  if (!cl) return
+  const completes = !node.done && countItems(cl.items) - countDone(cl.items) === 1
+  if (completes) saveEdits()
+  store.toggleItem({ checklistId: cl.id, itemId: node.id })
+  if (completes) props.close()
 }
 
 function deleteItem(): void {
@@ -534,7 +550,7 @@ function deleteItem(): void {
     <ChecklistTree
       v-if="checklist.items.length"
       :nodes="checklist.items"
-      :checklist-id="checklist.id"
+      @toggle-item="toggleChecklistItem"
     />
     <p v-else class="text-xs text-fg-4 py-2 px-1">This checklist is empty.</p>
   </template>

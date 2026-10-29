@@ -1,19 +1,20 @@
 <script setup lang="ts">
 import { reactive } from 'vue'
-import type { ChecklistNode } from '../../types'
+import type { ChecklistItem, ChecklistNode } from '../../types'
 import { countDone, countItems } from '../../composables/useTreeHelpers'
-import { useChecklistStore } from '../../stores/checklists'
 import AppCheckbox from '../atoms/AppCheckbox.vue'
 
 // Self-reference: Vue 3 resolves <ChecklistTree> by this file's name automatically.
 
 defineProps<{
   nodes: ChecklistNode[]
-  checklistId: string
   depth?: number
 }>()
 
-const store = useChecklistStore()
+// The parent owns the mutation so it can react when a toggle completes the checklist.
+const emit = defineEmits<{
+  'toggle-item': [item: ChecklistItem]
+}>()
 
 // Local expand/collapse state — viewing a checklist from a task shouldn't
 // persist (and sync) a collapse change on the checklist itself.
@@ -35,7 +36,7 @@ function toggleCollapsed(groupId: string, persisted: boolean): void {
       <div v-if="node.type === 'item'" class="flex items-center gap-2 py-1.5 pl-1">
         <AppCheckbox
           :model-value="node.done"
-          @update:model-value="store.toggleItem({ checklistId, itemId: node.id })"
+          @update:model-value="emit('toggle-item', node)"
         />
         <span
           class="flex-1 text-sm wrap-break-word leading-snug"
@@ -56,8 +57,8 @@ function toggleCollapsed(groupId: string, persisted: boolean): void {
         <ChecklistTree
           v-if="!isCollapsed(node.id, node.collapsed) && node.children.length"
           :nodes="node.children"
-          :checklist-id="checklistId"
           :depth="(depth ?? 0) + 1"
+          @toggle-item="emit('toggle-item', $event)"
         />
       </template>
     </li>
