@@ -140,6 +140,21 @@ export function clearLockedSelections(cl: Checklist): boolean {
   return changed
 }
 
+// ── Search ────────────────────────────────────────────────────────────────────
+
+/** Lowercase and strip accents so "Été" matches "ete". */
+export function normalizeSearch(text: string): string {
+  return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim()
+}
+
+/** True if any item text or group title contains the (already normalized) query. */
+export function nodesMatchSearch(nodes: ChecklistNode[], query: string): boolean {
+  return nodes.some(n =>
+    normalizeSearch(n.type === 'item' ? n.text : n.title).includes(query)
+    || (n.type === 'group' && nodesMatchSearch(n.children, query))
+  )
+}
+
 // ── Counters ──────────────────────────────────────────────────────────────────
 
 export function countItems(nodes: ChecklistNode[]): number {

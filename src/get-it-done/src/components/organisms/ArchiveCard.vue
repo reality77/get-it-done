@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { Checklist, ChecklistItem, ChecklistNode } from '../../types'
 import KindBadge from '../molecules/KindBadge.vue'
 import VButton from '../atoms/VButton.vue'
 
 const props = defineProps<{
   checklist: Checklist
+  forceExpanded?: boolean
 }>()
 
 defineEmits<{
@@ -13,7 +14,10 @@ defineEmits<{
   (e: 'delete', checklistId: string): void
 }>()
 
-const isExpanded = ref(false)
+const isExpanded = ref(props.forceExpanded ?? false)
+
+// Expanded while a filter matches one of the items; collapses back when it no longer does.
+watch(() => props.forceExpanded, (force) => { isExpanded.value = !!force })
 
 function flattenItems(nodes: ChecklistNode[]): ChecklistItem[] {
   const result: ChecklistItem[] = []

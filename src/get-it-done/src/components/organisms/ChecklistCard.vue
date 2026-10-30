@@ -14,6 +14,7 @@ import TrackButton from '../molecules/TrackButton.vue'
 const props = defineProps<{
   checklist: Checklist
   autoFocusAddItem?: boolean
+  forceExpanded?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -27,7 +28,10 @@ const {
   updateGroupTitle, toggleGroupCollapsed, removeGroup, setOrdered,
 } = useChecklistStore()
 
-const isExpanded = ref(true)
+const isExpanded = ref(props.forceExpanded ?? false)
+
+// Expanded while a filter matches one of the items; collapses back when it no longer does.
+watch(() => props.forceExpanded, (force) => { isExpanded.value = !!force })
 
 // ── Ordered checklist ─────────────────────────────────────────────────────────
 const order = computed(() => props.checklist.ordered ? computeOrderedView(props.checklist.items) : null)
