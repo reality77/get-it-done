@@ -12,8 +12,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'archive', checklistId: string): void
-  (e: 'delete', checklistId: string): void
 }>()
 
 const { enableTracking, enableChecklistTracking, disableTracking, setOrdered } = useChecklistStore()
@@ -71,19 +69,7 @@ const ordered = computed({
   set: (v: boolean) => setOrdered(props.checklist.id, v),
 })
 
-// ── Delete (two taps) ─────────────────────────────────────────────────────────
-const confirmDelete = ref(false)
-
-function onDelete(): void {
-  if (!confirmDelete.value) { confirmDelete.value = true; return }
-  emit('delete', props.checklist.id)
-  emit('close')
-}
-
-watch(() => props.open, () => {
-  pendingMode.value = null
-  confirmDelete.value = false
-})
+watch(() => props.open, () => { pendingMode.value = null })
 </script>
 
 <template>
@@ -144,24 +130,6 @@ watch(() => props.open, () => {
 
         <!-- Ordered -->
         <VToggle v-model="ordered" label="Ordered steps" />
-
-        <!-- Actions -->
-        <div class="flex gap-2 pt-1">
-          <button
-            v-if="!isTemplate"
-            class="flex-1 h-11 rounded-xl bg-bg-2 text-sm font-medium text-fg-2 hover:bg-bg-3 transition-colors"
-            @click="emit('archive', checklist.id); emit('close')"
-          >
-            Archive
-          </button>
-          <button
-            class="flex-1 h-11 rounded-xl text-sm font-medium transition-colors"
-            :class="confirmDelete ? 'bg-danger text-white' : 'bg-bg-2 text-danger hover:bg-bg-3'"
-            @click="onDelete"
-          >
-            {{ confirmDelete ? (isTemplate ? 'Delete + runs?' : 'Sure?') : 'Delete' }}
-          </button>
-        </div>
       </div>
     </div>
   </Teleport>
