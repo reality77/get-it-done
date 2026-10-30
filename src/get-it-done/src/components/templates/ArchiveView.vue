@@ -4,6 +4,8 @@ import ArchiveCard from '../organisms/ArchiveCard.vue'
 
 defineProps<{
   checklists: Checklist[]
+  expandedIds?: Set<string>
+  filtering?: boolean
 }>()
 
 defineEmits<{
@@ -14,7 +16,11 @@ defineEmits<{
 
 <template>
   <div>
-    <p v-if="checklists.length === 0" class="text-center text-fg-4 py-12">
+    <p v-if="checklists.length === 0 && filtering" class="text-center text-fg-4 py-12">
+      No match.
+    </p>
+
+    <p v-else-if="checklists.length === 0" class="text-center text-fg-4 py-12">
       Nothing archived yet.
     </p>
 
@@ -23,6 +29,7 @@ defineEmits<{
         v-for="checklist in checklists"
         :key="checklist.id"
         :checklist="checklist"
+        :force-expanded="expandedIds?.has(checklist.id) ?? false"
         @unarchive="(cId) => $emit('unarchive', cId)"
         @delete="(cId) => $emit('delete', cId)"
       />
