@@ -4,16 +4,15 @@ import { storeToRefs } from 'pinia'
 import type { Checklist } from '../../types'
 import { useChecklistStore } from '../../stores/checklists'
 import { normalizeSearch, nodesMatchSearch } from '../../composables/useTreeHelpers'
-import VSegmented from '../atoms/VSegmented.vue'
 import ChecklistFilterBar from '../molecules/ChecklistFilterBar.vue'
 import ActiveView from './ActiveView.vue'
-import TemplatesView from './TemplatesView.vue'
-import ArchiveView from './ArchiveView.vue'
 
 const store = useChecklistStore()
-const { activeChecklists, templates, archivedChecklists } = storeToRefs(store)
+const { activeChecklists, archivedChecklists } = storeToRefs(store)
 
-const section = ref<'active' | 'templates' | 'archive'>('active')
+// Archived one-time checklists only (runs stay hidden), shown on demand.
+const showArchived = ref(false)
+const archivedOneTime = computed(() => archivedChecklists.value.filter(c => c.kind === 'one-time'))
 
 // ── Filter ────────────────────────────────────────────────────────────────────
 const query = ref('')
@@ -23,7 +22,7 @@ const normalizedQuery = computed(() => normalizeSearch(query.value))
 const itemMatchIds = computed(() => {
   const ids = new Set<string>()
   if (!normalizedQuery.value) return ids
-  for (const list of [activeChecklists.value, templates.value, archivedChecklists.value]) {
+  for (const list of [activeChecklists.value, archivedOneTime.value]) {
     for (const c of list) {
       if (nodesMatchSearch(c.items, normalizedQuery.value)) ids.add(c.id)
     }
@@ -41,8 +40,7 @@ function applyFilter(checklists: Checklist[]): Checklist[] {
 }
 
 const filteredActive = computed(() => applyFilter(activeChecklists.value))
-const filteredTemplates = computed(() => applyFilter(templates.value))
-const filteredArchived = computed(() => applyFilter(archivedChecklists.value))
+const filteredArchived = computed(() => showArchived.value ? applyFilter(archivedOneTime.value) : [])
 
 // ── Create ────────────────────────────────────────────────────────────────────
 const newlyCreatedId = ref<string | null>(null)
@@ -54,8 +52,7 @@ async function flashFocus(id: string): Promise<void> {
 }
 
 async function handleCreate(name: string): Promise<void> {
-  const kind = section.value === 'templates' ? 'template' : 'one-time'
-  const created = store.createChecklist(kind, name, [])
+  const created = store.createChecklist('one-time', name, [])
   query.value = ''
   await flashFocus(created.id)
 }
@@ -63,50 +60,22 @@ async function handleCreate(name: string): Promise<void> {
 
 <template>
   <div>
-    <VSegmented
-      v-model="section"
-      :options="[
-        { value: 'active', label: 'Active' },
-        { value: 'templates', label: 'Templates' },
-        { value: 'archive', label: 'Archive' },
-      ]"
-      class="mb-4"
-    />
-
     <ChecklistFilterBar
       v-model="query"
-      :can-create="section !== 'archive'"
-      :placeholder="section === 'archive' ? 'Filter archive…' : section === 'templates' ? 'Filter or create a template…' : 'Filter or create a checklist…'"
+      v-model:show-archived="showArchived"
+      placeholder="Filter or create a checklist…"
       @create="handleCreate"
     />
 
     <ActiveView
-      v-if="section === 'active'"
       :checklists="filteredActive"
+      :archived="filteredArchived"
       :filtering="!!normalizedQuery"
       :expanded-ids="itemMatchIds"
       :focus-checklist-id="newlyCreatedId"
       @delete="store.deleteChecklist"
       @archive="store.archiveChecklist"
-    />
-
-    <TemplatesView
-      v-else-if="section === 'templates'"
-      :templates="filteredTemplates"
-      :filtering="!!normalizedQuery"
-      :expanded-ids="itemMatchIds"
-      :focus-checklist-id="newlyCreatedId"
-      @delete="store.deleteChecklist"
-      @run="store.runTemplate"
-    />
-
-    <ArchiveView
-      v-else
-      :checklists="filteredArchived"
-      :filtering="!!normalizedQuery"
-      :expanded-ids="itemMatchIds"
       @unarchive="store.unarchiveChecklist"
-      @delete="store.deleteChecklist"
     />
   </div>
 </template>

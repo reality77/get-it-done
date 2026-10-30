@@ -4,7 +4,6 @@ import VButton from '../atoms/VButton.vue'
 
 defineProps<{
   placeholder?: string
-  canCreate?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -12,6 +11,7 @@ const emit = defineEmits<{
 }>()
 
 const query = defineModel<string>({ default: '' })
+const showArchived = defineModel<boolean>('showArchived', { default: false })
 
 function confirm(): void {
   const name = query.value.trim()
@@ -24,7 +24,7 @@ function onKeydown(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <form @submit.prevent="canCreate && confirm()" class="flex items-center gap-2 w-full mb-4">
+  <form @submit.prevent="confirm" class="flex items-center gap-2 w-full mb-4">
     <VField
       v-model="query"
       type="search"
@@ -32,8 +32,19 @@ function onKeydown(event: KeyboardEvent): void {
       class="flex-1 min-w-0"
       @keydown="onKeydown"
     />
+    <button
+      type="button"
+      class="shrink-0 w-[42px] h-[42px] flex items-center justify-center rounded-2 border transition-colors"
+      :class="showArchived
+        ? 'bg-primary/20 border-primary text-primary'
+        : 'bg-bg-1 border-border text-fg-3 hover:border-border-strong'"
+      :aria-pressed="showArchived"
+      :title="showArchived ? 'Hide archived checklists' : 'Show archived checklists'"
+      @click="showArchived = !showArchived"
+    >
+      🗄
+    </button>
     <VButton
-      v-if="canCreate"
       variant="primary"
       type="submit"
       class="shrink-0"
