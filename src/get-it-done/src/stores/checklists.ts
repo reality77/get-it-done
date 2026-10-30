@@ -15,6 +15,7 @@ import {
   walkNodes,
   findItemDeep,
   findGroupDeep,
+  clearLockedSelections,
   removeNodeDeep,
   cloneNodes,
   countItems,
@@ -154,6 +155,7 @@ export const useChecklistStore = defineStore('checklists', () => {
       archivedAt: null,
       templateId,
       runLabel: `${template.title} — Run #${runCount + 1}`,
+      ordered: template.ordered,
       trackMode: 'none',
       defaultPriority: 'important',
       defaultEffort: 'medium',
@@ -161,6 +163,14 @@ export const useChecklistStore = defineStore('checklists', () => {
     checklists.value.push(run)
     void sync.upsertChecklist(run)
     return run
+  }
+
+  function setOrdered(id: string, ordered: boolean): void {
+    const checklist = getChecklist(id)
+    if (!checklist) return
+    checklist.ordered = ordered
+    clearLockedSelections(checklist)
+    void sync.upsertChecklist(checklist)
   }
 
   // ── Task tracking: enable / disable ────────────────────────────────────────
@@ -265,6 +275,8 @@ export const useChecklistStore = defineStore('checklists', () => {
           checklist.archivedAt = null
         }
       }
+      // Unticking may lock this item (or move the next step back) in an ordered checklist
+      clearLockedSelections(checklist)
     }
     if (
       checklist.kind !== 'template' &&
@@ -509,6 +521,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     archiveChecklist,
     unarchiveChecklist,
     runTemplate,
+    setOrdered,
     // Item CRUD
     toggleItem,
     addItem,

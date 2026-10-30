@@ -4,7 +4,7 @@ import type { Checklist } from '../../types'
 import { useSwipeAction } from '../../composables/useSwipeAction'
 import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
 import { useChecklistStore } from '../../stores/checklists'
-import { countItems, countDone } from '../../composables/useTreeHelpers'
+import { countItems, countDone, computeOrderedView } from '../../composables/useTreeHelpers'
 import KindBadge from '../molecules/KindBadge.vue'
 import VButton from '../atoms/VButton.vue'
 import ItemRow from '../molecules/ItemRow.vue'
@@ -24,10 +24,17 @@ const emit = defineEmits<{
 
 const {
   toggleItem, addItem, updateItemText, removeItem, addGroup,
-  updateGroupTitle, toggleGroupCollapsed, removeGroup,
+  updateGroupTitle, toggleGroupCollapsed, removeGroup, setOrdered,
 } = useChecklistStore()
 
 const isExpanded = ref(true)
+
+// ── Ordered checklist ─────────────────────────────────────────────────────────
+const order = computed(() => props.checklist.ordered ? computeOrderedView(props.checklist.items) : null)
+
+function toggleOrdered(): void {
+  setOrdered(props.checklist.id, !props.checklist.ordered)
+}
 
 // ── Item rows ─────────────────────────────────────────────────────────────────
 const itemRowRefs = ref<InstanceType<typeof ItemRow>[]>([])
@@ -176,6 +183,18 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
 
       <!-- Actions -->
       <div class="flex items-center gap-3 shrink-0">
+        <!-- Ordered toggle -->
+        <button
+          v-if="!checklist.archived"
+          class="text-xs px-2 py-0.5 rounded-full border transition-colors cursor-pointer"
+          :class="checklist.ordered
+            ? 'bg-primary/20 border-primary text-primary'
+            : 'border-border text-fg-4 hover:border-border-strong hover:text-fg-2'"
+          :title="checklist.ordered ? 'Ordered — click to make unordered' : 'Make ordered (tasks unlock one step after another)'"
+          @click="toggleOrdered"
+        >
+          1→2
+        </button>
         <!-- Track as tasks toggle -->
         <TrackButton :checklist="checklist" />
         <VButton
@@ -218,6 +237,8 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
           ref="itemRowRefs"
           :item="node"
           :tracked="checklist.trackMode === 'items'"
+          :step="order?.steps.get(node.id)"
+          :is-next-step="order?.nextItemId === node.id"
           @toggle="toggleItem({ checklistId: checklist.id, itemId: node.id })"
           @update-text="(text) => updateItemText({ checklistId: checklist.id, itemId: node.id }, text)"
           @remove="removeItem({ checklistId: checklist.id, itemId: node.id })"
@@ -228,6 +249,7 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
           :group="node"
           :checklist-id="checklist.id"
           :tracked="checklist.trackMode === 'items'"
+          :order="order"
           @toggle-item="onToggleItem"
           @update-item-text="onUpdateItemText"
           @remove-item="onRemoveItem"

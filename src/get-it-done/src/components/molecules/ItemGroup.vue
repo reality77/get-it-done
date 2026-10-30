@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import type { ChecklistItemGroup } from '../../types'
+import type { OrderedView } from '../../composables/useTreeHelpers'
 import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
 import GroupHeader from './GroupHeader.vue'
 import ItemRow from './ItemRow.vue'
@@ -11,6 +12,8 @@ const props = defineProps<{
   group: ChecklistItemGroup
   checklistId: string
   tracked?: boolean
+  /** Ordered-checklist state; null/undefined for unordered checklists */
+  order?: OrderedView | null
 }>()
 
 const emit = defineEmits<{
@@ -111,6 +114,8 @@ function forwardRemoveGroup(cid: string, gid: string): void { emit('remove-group
           ref="itemRowRefs"
           :item="node"
           :tracked="tracked"
+          :step="order?.steps.get(node.id)"
+          :is-next-step="order?.nextItemId === node.id"
           @toggle="emit('toggle-item', checklistId, node.id)"
           @update-text="(text) => emit('update-item-text', checklistId, node.id, text)"
           @remove="emit('remove-item', checklistId, node.id)"
@@ -122,6 +127,7 @@ function forwardRemoveGroup(cid: string, gid: string): void { emit('remove-group
           :group="node"
           :checklist-id="checklistId"
           :tracked="tracked"
+          :order="order"
           @toggle-item="forwardToggleItem"
           @update-item-text="forwardUpdateItemText"
           @remove-item="forwardRemoveItem"

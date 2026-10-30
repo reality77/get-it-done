@@ -1,4 +1,5 @@
 import type {
+  Checklist,
   ChecklistItem,
   ChecklistItemGroup,
   ChecklistNode,
@@ -92,6 +93,51 @@ export function cloneNodes(nodes: ChecklistNode[]): ChecklistNode[] {
       children: cloneNodes(n.children),
     }
   })
+}
+
+// ── Ordered checklists ────────────────────────────────────────────────────────
+
+export interface OrderedView {
+  /** 1-based step number of each item, in depth-first order */
+  steps: Map<string, number>
+  /** Items up to and including the next undone one — whose tasks are unlocked */
+  unlockedIds: Set<string>
+  /** First undone item, or null when every item is done */
+  nextItemId: string | null
+}
+
+export function computeOrderedView(nodes: ChecklistNode[]): OrderedView {
+  const steps = new Map<string, number>()
+  const unlockedIds = new Set<string>()
+  let nextItemId: string | null = null
+  walkNodes(nodes, n => {
+    if (n.type !== 'item') return
+    steps.set(n.id, steps.size + 1)
+    if (nextItemId === null) {
+      unlockedIds.add(n.id)
+      if (!n.done) nextItemId = n.id
+    }
+  })
+  return { steps, unlockedIds, nextItemId }
+}
+
+/**
+ * Drop day/week selections of locked steps (undone items past the next one) of
+ * an ordered checklist. Returns true when something changed.
+ */
+export function clearLockedSelections(cl: Checklist): boolean {
+  if (!cl.ordered || cl.trackMode !== 'items') return false
+  const { unlockedIds } = computeOrderedView(cl.items)
+  let changed = false
+  walkNodes(cl.items, n => {
+    if (n.type !== 'item' || n.done || unlockedIds.has(n.id)) return
+    if (n.selectedForToday || n.selectedForWeek) {
+      n.selectedForToday = false
+      n.selectedForWeek = false
+      changed = true
+    }
+  })
+  return changed
 }
 
 // ── Counters ──────────────────────────────────────────────────────────────────

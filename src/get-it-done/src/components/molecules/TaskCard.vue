@@ -5,7 +5,7 @@ import type { ChecklistItem, SwipeActionDef, ButtonActionDef } from '../../types
 import { useSwipeAction } from '../../composables/useSwipeAction'
 import { useEditableField } from '../../composables/useEditableField'
 import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
-import { walkNodes, parseLocalDate, findItemGroupPath } from '../../composables/useTreeHelpers'
+import { walkNodes, parseLocalDate, findItemGroupPath, computeOrderedView } from '../../composables/useTreeHelpers'
 import { useChecklistStore } from '../../stores/checklists'
 import TaskCardActions from './TaskCardActions.vue'
 import TaskCardMobileSheet from './TaskCardMobileSheet.vue'
@@ -140,6 +140,14 @@ const breadcrumb = computed(() => {
   return [props.checklistTitle, ...groups.filter(Boolean)].join(' › ')
 })
 
+// ── Step number (items of an ordered checklist) ──────────────────────────────
+const step = computed(() => {
+  if (props.isChecklistTask) return undefined
+  const checklist = store.getChecklist(props.checklistId)
+  if (!checklist?.ordered) return undefined
+  return computeOrderedView(checklist.items).steps.get(props.item.id)
+})
+
 function openItemUrl(): void {
   if (!props.item.url) return
   window.open(props.item.url, '_blank', 'noopener,noreferrer')
@@ -185,7 +193,11 @@ function openItemUrl(): void {
           <input v-if="isEditing" v-focus v-model="editTitle"
             class="flex-1 bg-transparent border-b border-border focus:border-primary outline-none text-fg py-0.5 transition-colors"
             :class="compact ? 'text-sm' : 'text-base'" @keydown="onKeydown" @blur="confirmEdit" @click.stop />
-          <span v-else class="flex-1 wrap-break-word leading-snug" :class="[
+          <span v-if="!isEditing && step !== undefined"
+            class="shrink-0 tabular-nums leading-snug"
+            :class="[compact ? 'text-sm' : 'text-base', item.done ? 'text-fg-4' : 'text-primary font-semibold']"
+            title="Step in ordered checklist">{{ step }}.</span>
+          <span v-if="!isEditing" class="flex-1 wrap-break-word leading-snug" :class="[
             compact ? 'text-sm' : 'text-base font-medium',
             item.done ? 'line-through text-fg-4' : 'text-fg',
           ]" @dblclick.stop="startEdit()">{{ item.text }}</span>

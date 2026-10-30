@@ -17,6 +17,7 @@ import {
   parseLocalDate,
   countItems,
   countDone,
+  computeOrderedView,
 } from './useTreeHelpers'
 import {
   DAY_PLAN_PRIORITY_SCORES,
@@ -97,8 +98,11 @@ export function useDayPlanning(
 
       if (cl.trackMode === 'items') {
         if (cl.archived) continue
+        // Ordered checklists only expose undone tasks up to the next step
+        // (done ones always count, even when ticked out of order)
+        const unlockedIds = cl.ordered ? computeOrderedView(cl.items).unlockedIds : null
         walkNodes(cl.items, n => {
-          if (n.type === 'item') result.push({ item: n, checklistId: cl.id, checklistTitle: title })
+          if (n.type === 'item' && (n.done || !unlockedIds || unlockedIds.has(n.id))) result.push({ item: n, checklistId: cl.id, checklistTitle: title })
         })
       } else if (cl.trackMode === 'checklist') {
         const total = countItems(cl.items)
@@ -268,6 +272,8 @@ export function useDayPlanning(
     } else {
       const item = findItemDeep(cl.items, ref.itemId)
       if (!item || (item.status ?? 'active') !== 'active') return
+      // Steps past the next undone one of an ordered checklist can't be planned
+      if (!item.selectedForToday && cl.ordered && !computeOrderedView(cl.items).unlockedIds.has(item.id)) return
       if (item.selectedForToday) {
         dismissedUntil[key] = Date.now() + DAY_PLAN_DISMISS_DURATION_MS
       } else {
@@ -287,9 +293,11 @@ export function useDayPlanning(
       let changed = false
 
       if (cl.trackMode === 'items') {
+        // Locked steps of an ordered checklist are never selected (and get cleared)
+        const unlockedIds = cl.ordered ? computeOrderedView(cl.items).unlockedIds : null
         walkNodes(cl.items, n => {
           if (n.type === 'item') {
-            const selected = keySet.has(itemKey(cl.id, n.id))
+            const selected = keySet.has(itemKey(cl.id, n.id)) && (!unlockedIds || unlockedIds.has(n.id))
             if (n.selectedForToday !== selected) {
               n.selectedForToday = selected
               changed = true
