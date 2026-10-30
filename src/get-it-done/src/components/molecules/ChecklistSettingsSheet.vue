@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { Checklist, TrackMode } from '../../types'
+import type { Checklist, TaskPriority, TaskEffort, TrackMode } from '../../types'
 import { useChecklistStore } from '../../stores/checklists'
 import VSegmented from '../atoms/VSegmented.vue'
 import VToggle from '../atoms/VToggle.vue'
@@ -30,11 +30,15 @@ const modeOptions = [
 // Leaving or switching an existing mode clears task fields → confirm first.
 const pendingMode = ref<TrackMode | null>(null)
 
-function applyMode(mode: TrackMode): void {
-  const { id, defaultPriority, defaultEffort } = props.checklist
+function applyMode(
+  mode: TrackMode,
+  priority: TaskPriority = props.checklist.defaultPriority,
+  effort: TaskEffort = props.checklist.defaultEffort,
+): void {
+  const { id } = props.checklist
   if (mode === 'none') disableTracking(id)
-  else if (mode === 'items') enableTracking(id, defaultPriority, defaultEffort)
-  else enableChecklistTracking(id, defaultPriority, defaultEffort)
+  else if (mode === 'items') enableTracking(id, priority, effort)
+  else enableChecklistTracking(id, priority, effort)
   pendingMode.value = null
 }
 
@@ -44,6 +48,22 @@ function selectMode(value: string | number): void {
   else if (props.checklist.trackMode === 'none') applyMode(mode)
   else pendingMode.value = mode
 }
+
+// Re-applying the current mode only updates the defaults; existing tasks keep their values.
+const priorityOptions: { value: TaskPriority; icon: string; active: string }[] = [
+  { value: 'urgent', icon: '🔴', active: 'bg-danger/20 border-danger' },
+  { value: 'important', icon: '🟡', active: 'bg-warning/20 border-warning' },
+  { value: 'secondary', icon: '⚪', active: 'bg-bg-3 border-border-strong' },
+]
+
+const effortOptions: { value: TaskEffort; active: string }[] = [
+  { value: 'small', active: 'bg-success/20 border-success text-success' },
+  { value: 'medium', active: 'bg-info/20 border-info text-info' },
+  { value: 'large', active: 'bg-secondary/20 border-secondary text-secondary' },
+]
+
+const chipClass = 'flex-1 h-9 rounded-lg border text-sm font-bold transition-colors'
+const chipInactive = 'bg-bg-2 border-border text-fg-3'
 
 // ── Ordered ───────────────────────────────────────────────────────────────────
 const ordered = computed({
@@ -87,6 +107,29 @@ watch(() => props.open, () => {
             <span class="flex-1">Clears current task settings.</span>
             <button class="px-2 py-1 text-fg-3" @click="pendingMode = null">Cancel</button>
             <button class="px-2 py-1 rounded-md bg-warning text-bg-0 font-semibold" @click="applyMode(pendingMode)">OK</button>
+          </div>
+
+          <!-- Default importance · effort -->
+          <div v-else-if="checklist.trackMode !== 'none'" class="flex items-center gap-1.5">
+            <button
+              v-for="opt in priorityOptions"
+              :key="opt.value"
+              :class="[chipClass, checklist.defaultPriority === opt.value ? opt.active : chipInactive]"
+              :title="opt.value"
+              @click="applyMode(checklist.trackMode, opt.value)"
+            >
+              {{ opt.icon }}
+            </button>
+            <span class="w-px h-6 bg-border mx-1 shrink-0" />
+            <button
+              v-for="opt in effortOptions"
+              :key="opt.value"
+              :class="[chipClass, checklist.defaultEffort === opt.value ? opt.active : chipInactive]"
+              :title="opt.value"
+              @click="applyMode(checklist.trackMode, undefined, opt.value)"
+            >
+              {{ opt.value[0]!.toUpperCase() }}
+            </button>
           </div>
         </div>
 
