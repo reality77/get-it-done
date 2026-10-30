@@ -99,31 +99,25 @@ export function cloneNodes(nodes: ChecklistNode[]): ChecklistNode[] {
 export interface OrderedView {
   /** 1-based step number of each item, in depth-first order */
   steps: Map<string, number>
-  /** Nodes (items and groups) up to and including the next undone item */
-  visibleIds: Set<string>
+  /** Items up to and including the next undone one — whose tasks are unlocked */
+  unlockedIds: Set<string>
   /** First undone item, or null when every item is done */
   nextItemId: string | null
-  /** Number of items after the next step */
-  hiddenCount: number
 }
 
 export function computeOrderedView(nodes: ChecklistNode[]): OrderedView {
   const steps = new Map<string, number>()
-  const visibleIds = new Set<string>()
+  const unlockedIds = new Set<string>()
   let nextItemId: string | null = null
-  let hiddenCount = 0
-  // Depth-first pre-order: a group precedes its children, so a group holding
-  // the next step is always visible.
   walkNodes(nodes, n => {
-    if (n.type === 'item') steps.set(n.id, steps.size + 1)
+    if (n.type !== 'item') return
+    steps.set(n.id, steps.size + 1)
     if (nextItemId === null) {
-      visibleIds.add(n.id)
-      if (n.type === 'item' && !n.done) nextItemId = n.id
-    } else if (n.type === 'item') {
-      hiddenCount++
+      unlockedIds.add(n.id)
+      if (!n.done) nextItemId = n.id
     }
   })
-  return { steps, visibleIds, nextItemId, hiddenCount }
+  return { steps, unlockedIds, nextItemId }
 }
 
 // ── Counters ──────────────────────────────────────────────────────────────────

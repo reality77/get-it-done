@@ -5,7 +5,6 @@ import { useSwipeAction } from '../../composables/useSwipeAction'
 import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
 import { useChecklistStore } from '../../stores/checklists'
 import { countItems, countDone, computeOrderedView } from '../../composables/useTreeHelpers'
-import type { ChecklistNode } from '../../types'
 import KindBadge from '../molecules/KindBadge.vue'
 import VButton from '../atoms/VButton.vue'
 import ItemRow from '../molecules/ItemRow.vue'
@@ -32,16 +31,9 @@ const isExpanded = ref(true)
 
 // ── Ordered checklist ─────────────────────────────────────────────────────────
 const order = computed(() => props.checklist.ordered ? computeOrderedView(props.checklist.items) : null)
-// Temporarily show steps after the next one (e.g. while adding items)
-const revealAll = ref(false)
-
-function isShown(node: ChecklistNode): boolean {
-  return !order.value || revealAll.value || order.value.visibleIds.has(node.id)
-}
 
 function toggleOrdered(): void {
   setOrdered(props.checklist.id, !props.checklist.ordered)
-  revealAll.value = false
 }
 
 // ── Item rows ─────────────────────────────────────────────────────────────────
@@ -65,7 +57,6 @@ function confirmAddItem(): void {
   const text = newItemText.value.trim()
   if (!text) { cancelAddItem(); return }
   addItem(props.checklist.id, text)
-  revealAll.value = true
   newItemText.value = ''
 }
 
@@ -96,7 +87,6 @@ function confirmAddGroup(): void {
   const title = newGroupTitle.value.trim()
   if (!title) { cancelAddGroup(); return }
   addGroup(props.checklist.id, title)
-  revealAll.value = true
   newGroupTitle.value = ''
 }
 
@@ -118,14 +108,6 @@ function onUpdateItemText(checklistId: string, itemId: string, text: string): vo
 }
 function onRemoveItem(checklistId: string, itemId: string): void {
   removeItem({ checklistId, itemId })
-}
-function onAddItem(checklistId: string, text: string, groupId: string): void {
-  addItem(checklistId, text, groupId)
-  revealAll.value = true
-}
-function onAddGroup(checklistId: string, title: string, parentGroupId: string): void {
-  addGroup(checklistId, title, parentGroupId)
-  revealAll.value = true
 }
 
 // ── Misc ──────────────────────────────────────────────────────────────────────
@@ -208,7 +190,7 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
           :class="checklist.ordered
             ? 'bg-primary/20 border-primary text-primary'
             : 'border-border text-fg-4 hover:border-border-strong hover:text-fg-2'"
-          :title="checklist.ordered ? 'Ordered — click to make unordered' : 'Make ordered (one step after another)'"
+          :title="checklist.ordered ? 'Ordered — click to make unordered' : 'Make ordered (tasks unlock one step after another)'"
           @click="toggleOrdered"
         >
           1→2
@@ -249,7 +231,7 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
 
     <!-- Body -->
     <div v-if="isExpanded" class="mt-3 pl-5">
-      <template v-for="node in checklist.items.filter(isShown)" :key="node.id">
+      <template v-for="node in checklist.items" :key="node.id">
         <ItemRow
           v-if="node.type === 'item'"
           ref="itemRowRefs"
@@ -268,28 +250,16 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
           :checklist-id="checklist.id"
           :tracked="checklist.trackMode === 'items'"
           :order="order"
-          :reveal-all="revealAll"
           @toggle-item="onToggleItem"
           @update-item-text="onUpdateItemText"
           @remove-item="onRemoveItem"
-          @add-item="onAddItem"
-          @add-group="onAddGroup"
+          @add-item="addItem"
+          @add-group="addGroup"
           @update-group-title="updateGroupTitle"
           @toggle-group-collapsed="toggleGroupCollapsed"
           @remove-group="removeGroup"
         />
       </template>
-
-      <!-- Upcoming steps of an ordered checklist -->
-      <button
-        v-if="order && order.hiddenCount > 0"
-        class="text-xs text-fg-4 hover:text-fg-2 transition-colors mt-1"
-        @click="revealAll = !revealAll"
-      >
-        {{ revealAll
-          ? 'Hide upcoming steps'
-          : `+ ${order.hiddenCount} upcoming step${order.hiddenCount > 1 ? 's' : ''} hidden` }}
-      </button>
 
       <!-- Inline new-item input -->
       <div v-if="isAddingItem" class="flex items-center gap-2 py-1 mt-1">
