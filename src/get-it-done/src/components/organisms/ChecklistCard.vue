@@ -3,38 +3,58 @@ import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import type { Checklist } from '../../types'
 import { useSwipeAction } from '../../composables/useSwipeAction'
 import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
+import { useEditableField } from '../../composables/useEditableField'
 import { useChecklistStore } from '../../stores/checklists'
 import { countItems, countDone, computeOrderedView } from '../../composables/useTreeHelpers'
 import KindBadge from '../molecules/KindBadge.vue'
 import VButton from '../atoms/VButton.vue'
 import ItemRow from '../molecules/ItemRow.vue'
 import ItemGroup from '../molecules/ItemGroup.vue'
-import TrackButton from '../molecules/TrackButton.vue'
+import ChecklistSettingsSheet from '../molecules/ChecklistSettingsSheet.vue'
 
 const props = defineProps<{
   checklist: Checklist
   autoFocusAddItem?: boolean
+  forceExpanded?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'delete', checklistId: string): void
   (e: 'run', checklistId: string): void
   (e: 'archive', checklistId: string): void
+  (e: 'unarchive', checklistId: string): void
 }>()
 
 const {
   toggleItem, addItem, updateItemText, removeItem, addGroup,
-  updateGroupTitle, toggleGroupCollapsed, removeGroup, setOrdered,
+  updateGroupTitle, toggleGroupCollapsed, removeGroup, updateChecklist,
 } = useChecklistStore()
 
-const isExpanded = ref(true)
+const isExpanded = ref(props.forceExpanded ?? false)
+
+// Expanded while a filter matches one of the items; collapses back when it no longer does.
+watch(() => props.forceExpanded, (force) => { isExpanded.value = !!force })
 
 // ── Ordered checklist ─────────────────────────────────────────────────────────
 const order = computed(() => props.checklist.ordered ? computeOrderedView(props.checklist.items) : null)
 
-function toggleOrdered(): void {
-  setOrdered(props.checklist.id, !props.checklist.ordered)
-}
+// ── Settings sheet ────────────────────────────────────────────────────────────
+const settingsOpen = ref(false)
+
+// ── Rename (tap the title) ────────────────────────────────────────────────────
+// Runs display their run label, so that is what gets renamed.
+const {
+  isEditing: isEditingTitle, editText: titleText, startEdit: startTitleEdit,
+  confirmEdit: confirmTitle, cancelEdit: cancelTitle,
+} = useEditableField(
+  () => displayTitle.value,
+  (text) => {
+    // Skip no-op writes: they would bump modifiedAt and could win a sync conflict.
+    if (text === displayTitle.value) return
+    updateChecklist(props.checklist.id, props.checklist.runLabel != null ? { runLabel: text } : { title: text })
+  },
+)
+const onTitleKeydown = makeKeydownHandler(confirmTitle, cancelTitle)
 
 // ── Item rows ─────────────────────────────────────────────────────────────────
 const itemRowRefs = ref<InstanceType<typeof ItemRow>[]>([])
@@ -129,25 +149,44 @@ watch(isComplete, (val) => {
   }
 })
 
-// ── Swipe-to-archive (mobile) ────────────────────────────────────────────────
+// ── Swipe (mobile) ───────────────────────────────────────────────────────────
+// Active: left = archive. Archived: left = delete for good, right = restore.
+// An (un)archived card moves to the other list and is re-mounted, so reading
+// `archived` once here is enough.
 const cardHeaderEl = ref<HTMLElement | null>(null)
+const isArchived = props.checklist.archived
+const confirmingDelete = ref(false)
 
-const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgress } = useSwipeAction(cardHeaderEl, {
+const {
+  isSwiping: isCardSwiping, style: cardStyle, leftProgress, rightProgress,
+} = useSwipeAction(cardHeaderEl, {
   threshold: 100,
-  guard: () => props.checklist.kind !== 'template',
-  onLeft: () => emit('archive', props.checklist.id),
+  guard: () => props.checklist.kind !== 'template' && !isEditingTitle.value,
+  // Deleting is permanent and syncs everywhere, so the swipe only asks.
+  onLeft: () => isArchived ? (confirmingDelete.value = true) : emit('archive', props.checklist.id),
+  onRight: isArchived ? () => emit('unarchive', props.checklist.id) : undefined,
 })
 </script>
 
 <template>
   <div ref="cardEl" class="relative overflow-hidden rounded-xl">
-    <!-- Yellow archive hint revealed as card slides left -->
+    <!-- Hints revealed as the card slides -->
     <div
       v-if="checklist.kind !== 'template'"
-      class="absolute inset-0 bg-warning flex items-center justify-end px-4 pointer-events-none"
-      :style="{ opacity: archiveProgress * 0.9 }"
+      class="absolute inset-0 flex items-center justify-end px-4 pointer-events-none"
+      :class="isArchived ? 'bg-danger' : 'bg-warning'"
+      :style="{ opacity: leftProgress * 0.9 }"
     >
-      <span class="text-bg-0 text-sm font-medium">🗄 Archive</span>
+      <span class="text-sm font-medium" :class="isArchived ? 'text-white' : 'text-bg-0'">
+        {{ isArchived ? '🗑 Delete' : '🗄 Archive' }}
+      </span>
+    </div>
+    <div
+      v-if="isArchived"
+      class="absolute inset-0 bg-success flex items-center justify-start px-4 pointer-events-none"
+      :style="{ opacity: rightProgress * 0.9 }"
+    >
+      <span class="text-bg-0 text-sm font-medium">↩ Restore</span>
     </div>
 
   <!-- Sliding card content -->
@@ -169,7 +208,19 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
         {{ isExpanded ? '▾' : '▸' }}
       </button>
 
-      <span class="font-medium text-lg text-fg truncate flex-1">{{ displayTitle }}</span>
+      <input
+        v-if="isEditingTitle"
+        v-focus
+        v-model="titleText"
+        class="flex-1 min-w-0 bg-transparent border-b border-border focus:border-primary outline-none font-medium text-lg text-fg py-0.5"
+        @keydown="onTitleKeydown"
+        @blur="confirmTitle"
+      />
+      <span
+        v-else
+        class="font-medium text-lg text-fg truncate flex-1 cursor-text"
+        @click="startTitleEdit"
+      >{{ displayTitle }}</span>
 
       <span class="hidden sm:contents"><KindBadge :kind="checklist.kind" /></span>
 
@@ -182,41 +233,60 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
       </Transition>
 
       <!-- Actions -->
-      <div class="flex items-center gap-3 shrink-0">
-        <!-- Ordered toggle -->
-        <button
-          v-if="!checklist.archived"
-          class="text-xs px-2 py-0.5 rounded-full border transition-colors cursor-pointer"
-          :class="checklist.ordered
-            ? 'bg-primary/20 border-primary text-primary'
-            : 'border-border text-fg-4 hover:border-border-strong hover:text-fg-2'"
-          :title="checklist.ordered ? 'Ordered — click to make unordered' : 'Make ordered (tasks unlock one step after another)'"
-          @click="toggleOrdered"
-        >
-          1→2
-        </button>
-        <!-- Track as tasks toggle -->
-        <TrackButton :checklist="checklist" />
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Status hints (changed via the ⋯ sheet) -->
+        <span v-if="checklist.trackMode !== 'none'" class="text-xs text-primary" title="Tracked as tasks">◎</span>
+        <span v-if="checklist.ordered" class="text-xs text-primary" title="Ordered steps">1→2</span>
         <VButton
           v-if="checklist.kind === 'template'"
           variant="primary"
+          size="sm"
+          title="Start a run"
           @click="$emit('run', checklist.id)"
         >
           ▷
         </VButton>
-        <VButton
-          v-if="checklist.kind !== 'template'"
-          variant="ghost"
-          class="font-bold hidden sm:inline-flex"
-          title="Archive"
-          @click="$emit('archive', checklist.id)"
+        <!-- Desktop only; mobile archives by swiping. Wrapped because VButton's own inline-flex beats `hidden`. -->
+        <span v-if="isArchived" class="hidden sm:contents">
+          <VButton variant="ghost" size="sm" title="Restore" @click="$emit('unarchive', checklist.id)">↩</VButton>
+          <VButton variant="ghost" size="sm" title="Delete for good" @click="confirmingDelete = true">🗑</VButton>
+        </span>
+        <span v-else-if="checklist.kind !== 'template'" class="hidden sm:contents">
+          <VButton
+            variant="ghost"
+            size="sm"
+            title="Archive"
+            @click="$emit('archive', checklist.id)"
+          >
+            🗄
+          </VButton>
+        </span>
+        <button
+          class="w-9 h-9 -mr-2 flex items-center justify-center rounded-full text-fg-3 hover:text-fg hover:bg-bg-2 transition-colors text-xl leading-none"
+          title="Checklist settings"
+          aria-label="Checklist settings"
+          @click="settingsOpen = true"
         >
-          🗄
-        </VButton>
-        <VButton v-if="props.checklist.archived === true"
-          variant="danger" @click="$emit('delete', checklist.id)">Delete</VButton>
+          ⋯
+        </button>
       </div>
     </div>
+
+    <!-- Delete confirmation (archived only) -->
+    <div
+      v-if="confirmingDelete"
+      class="mt-3 flex items-center gap-2 rounded-lg bg-danger/10 border border-danger/30 px-3 py-2 text-sm"
+    >
+      <span class="flex-1 text-danger">Delete for good?</span>
+      <button class="px-3 py-1.5 rounded-md text-fg-2 hover:bg-bg-2" @click="confirmingDelete = false">Cancel</button>
+      <button class="px-3 py-1.5 rounded-md bg-danger text-white font-semibold" @click="$emit('delete', checklist.id)">Delete</button>
+    </div>
+
+    <ChecklistSettingsSheet
+      :checklist="checklist"
+      :open="settingsOpen"
+      @close="settingsOpen = false"
+    />
 
     <!-- Progress bar -->
     <div

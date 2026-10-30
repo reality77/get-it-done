@@ -1,17 +1,48 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
+import type { Checklist } from '../../types'
 import { useChecklistStore } from '../../stores/checklists'
-import VSegmented from '../atoms/VSegmented.vue'
+import { normalizeSearch, nodesMatchSearch } from '../../composables/useTreeHelpers'
+import ChecklistFilterBar from '../molecules/ChecklistFilterBar.vue'
 import ActiveView from './ActiveView.vue'
-import TemplatesView from './TemplatesView.vue'
-import ArchiveView from './ArchiveView.vue'
 
 const store = useChecklistStore()
-const { activeChecklists, templates, archivedChecklists } = storeToRefs(store)
+const { activeChecklists, archivedChecklists } = storeToRefs(store)
 
-const section = ref<'active' | 'templates' | 'archive'>('active')
+// Archived one-time checklists only (runs stay hidden), shown on demand.
+const showArchived = ref(false)
+const archivedOneTime = computed(() => archivedChecklists.value.filter(c => c.kind === 'one-time'))
 
+// ── Filter ────────────────────────────────────────────────────────────────────
+const query = ref('')
+const normalizedQuery = computed(() => normalizeSearch(query.value))
+
+// Checklists whose items match are expanded so the hit is visible.
+const itemMatchIds = computed(() => {
+  const ids = new Set<string>()
+  if (!normalizedQuery.value) return ids
+  for (const list of [activeChecklists.value, archivedOneTime.value]) {
+    for (const c of list) {
+      if (nodesMatchSearch(c.items, normalizedQuery.value)) ids.add(c.id)
+    }
+  }
+  return ids
+})
+
+function applyFilter(checklists: Checklist[]): Checklist[] {
+  const q = normalizedQuery.value
+  if (!q) return checklists
+  return checklists.filter(c =>
+    normalizeSearch(c.runLabel ? `${c.title} ${c.runLabel}` : c.title).includes(q)
+    || itemMatchIds.value.has(c.id)
+  )
+}
+
+const filteredActive = computed(() => applyFilter(activeChecklists.value))
+const filteredArchived = computed(() => showArchived.value ? applyFilter(archivedOneTime.value) : [])
+
+// ── Create ────────────────────────────────────────────────────────────────────
 const newlyCreatedId = ref<string | null>(null)
 
 async function flashFocus(id: string): Promise<void> {
@@ -20,52 +51,32 @@ async function flashFocus(id: string): Promise<void> {
   newlyCreatedId.value = null
 }
 
-async function handleCreateActive(name: string): Promise<void> {
+async function handleCreate(name: string): Promise<void> {
   const created = store.createChecklist('one-time', name, [])
-  await flashFocus(created.id)
-}
-
-async function handleCreateTemplate(name: string): Promise<void> {
-  const created = store.createChecklist('template', name, [])
+  query.value = ''
   await flashFocus(created.id)
 }
 </script>
 
 <template>
   <div>
-    <VSegmented
-      v-model="section"
-      :options="[
-        { value: 'active', label: 'Active' },
-        { value: 'templates', label: 'Templates' },
-        { value: 'archive', label: 'Archive' },
-      ]"
-      class="mb-4"
+    <ChecklistFilterBar
+      v-model="query"
+      v-model:show-archived="showArchived"
+      :has-matches="filteredActive.length + filteredArchived.length > 0"
+      placeholder="Filter or create a checklist…"
+      @create="handleCreate"
     />
 
     <ActiveView
-      v-if="section === 'active'"
-      :checklists="activeChecklists"
+      :checklists="filteredActive"
+      :archived="filteredArchived"
+      :filtering="!!normalizedQuery"
+      :expanded-ids="itemMatchIds"
       :focus-checklist-id="newlyCreatedId"
       @delete="store.deleteChecklist"
       @archive="store.archiveChecklist"
-      @create="handleCreateActive"
-    />
-
-    <TemplatesView
-      v-else-if="section === 'templates'"
-      :templates="templates"
-      :focus-checklist-id="newlyCreatedId"
-      @delete="store.deleteChecklist"
-      @run="store.runTemplate"
-      @create="handleCreateTemplate"
-    />
-
-    <ArchiveView
-      v-else
-      :checklists="archivedChecklists"
       @unarchive="store.unarchiveChecklist"
-      @delete="store.deleteChecklist"
     />
   </div>
 </template>
