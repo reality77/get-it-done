@@ -9,6 +9,10 @@ import AppCheckbox from '../atoms/AppCheckbox.vue'
 const props = defineProps<{
   item: ChecklistItem
   tracked?: boolean
+  /** Step number in an ordered checklist */
+  step?: number
+  /** True for the next undone step of an ordered checklist */
+  isNextStep?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -58,6 +62,12 @@ const { isSwiping, style: rowStyle, leftProgress: deleteProgress } = useSwipeAct
       :class="!isSwiping ? 'transition-transform duration-200' : ''"
       :style="rowStyle"
     >
+      <span
+        v-if="step !== undefined"
+        class="text-xs tabular-nums text-right min-w-5 shrink-0"
+        :class="isNextStep ? 'text-primary font-semibold' : 'text-fg-4'"
+      >{{ step }}.</span>
+
       <AppCheckbox :model-value="item.done" @update:model-value="$emit('toggle')" />
 
       <input
@@ -72,7 +82,7 @@ const { isSwiping, style: rowStyle, leftProgress: deleteProgress } = useSwipeAct
       <span
         v-else
         class="flex-1 cursor-text min-w-0 break-words"
-        :class="item.done ? 'line-through text-fg-4' : 'text-fg-2'"
+        :class="item.done ? 'line-through text-fg-4' : isNextStep ? 'text-fg' : 'text-fg-2'"
         @click="startEdit"
       >
         {{ item.text }}

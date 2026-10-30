@@ -17,6 +17,7 @@ import {
   parseLocalDate,
   countItems,
   countDone,
+  computeOrderedView,
 } from './useTreeHelpers'
 import {
   DAY_PLAN_PRIORITY_SCORES,
@@ -97,8 +98,10 @@ export function useDayPlanning(
 
       if (cl.trackMode === 'items') {
         if (cl.archived) continue
+        // Ordered checklists only expose steps up to the next undone one
+        const visibleIds = cl.ordered ? computeOrderedView(cl.items).visibleIds : null
         walkNodes(cl.items, n => {
-          if (n.type === 'item') result.push({ item: n, checklistId: cl.id, checklistTitle: title })
+          if (n.type === 'item' && (!visibleIds || visibleIds.has(n.id))) result.push({ item: n, checklistId: cl.id, checklistTitle: title })
         })
       } else if (cl.trackMode === 'checklist') {
         const total = countItems(cl.items)

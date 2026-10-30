@@ -57,6 +57,9 @@ export interface Checklist {
   archivedAt: string | null
   templateId: string | null
   runLabel: string | null
+  // Ordered checklist: items must be done in sequence; only steps up to the
+  // next undone item are shown
+  ordered?: boolean
   // Task-tracking fields
   trackMode: TrackMode
   defaultPriority: TaskPriority

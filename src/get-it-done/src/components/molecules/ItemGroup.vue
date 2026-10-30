@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
-import type { ChecklistItemGroup } from '../../types'
+import type { ChecklistItemGroup, ChecklistNode } from '../../types'
+import type { OrderedView } from '../../composables/useTreeHelpers'
 import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
 import GroupHeader from './GroupHeader.vue'
 import ItemRow from './ItemRow.vue'
@@ -11,7 +12,15 @@ const props = defineProps<{
   group: ChecklistItemGroup
   checklistId: string
   tracked?: boolean
+  /** Ordered-checklist state; null/undefined for unordered checklists */
+  order?: OrderedView | null
+  /** Show steps after the next one */
+  revealAll?: boolean
 }>()
+
+function isShown(node: ChecklistNode): boolean {
+  return !props.order || props.revealAll || props.order.visibleIds.has(node.id)
+}
 
 const emit = defineEmits<{
   (e: 'toggle-item', checklistId: string, itemId: string): void
@@ -105,12 +114,14 @@ function forwardRemoveGroup(cid: string, gid: string): void { emit('remove-group
 
     <!-- Children -->
     <div v-if="!group.collapsed" class="pl-4 border-l border-hairline ml-1.5">
-      <template v-for="node in group.children" :key="node.id">
+      <template v-for="node in group.children.filter(isShown)" :key="node.id">
         <ItemRow
           v-if="node.type === 'item'"
           ref="itemRowRefs"
           :item="node"
           :tracked="tracked"
+          :step="order?.steps.get(node.id)"
+          :is-next-step="order?.nextItemId === node.id"
           @toggle="emit('toggle-item', checklistId, node.id)"
           @update-text="(text) => emit('update-item-text', checklistId, node.id, text)"
           @remove="emit('remove-item', checklistId, node.id)"
@@ -122,6 +133,8 @@ function forwardRemoveGroup(cid: string, gid: string): void { emit('remove-group
           :group="node"
           :checklist-id="checklistId"
           :tracked="tracked"
+          :order="order"
+          :reveal-all="revealAll"
           @toggle-item="forwardToggleItem"
           @update-item-text="forwardUpdateItemText"
           @remove-item="forwardRemoveItem"

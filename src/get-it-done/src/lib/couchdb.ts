@@ -22,6 +22,7 @@ export function docToChecklist(doc: PouchDB.Core.ExistingDocument<CouchDoc>): Ch
     id: doc._id, kind: doc.kind, title: doc.title, items: doc.items,
     archived: doc.archived, createdAt: doc.createdAt, archivedAt: doc.archivedAt,
     templateId: doc.templateId, runLabel: doc.runLabel,
+    ordered: doc.ordered,
     trackMode,
     defaultPriority: doc.defaultPriority, defaultEffort: doc.defaultEffort,
     priority: doc.priority, effort: doc.effort, status: doc.status,
