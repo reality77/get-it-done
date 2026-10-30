@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Checklist } from '../../types'
 import ChecklistCard from '../organisms/ChecklistCard.vue'
-import ArchiveCard from '../organisms/ArchiveCard.vue'
 
 defineProps<{
   checklists: Checklist[]
@@ -46,13 +45,13 @@ defineEmits<{
     <template v-if="archived?.length">
       <p class="text-xs font-medium uppercase tracking-wide text-fg-4 mt-6 mb-2">Archived</p>
       <div class="space-y-3">
-        <ArchiveCard
+        <ChecklistCard
           v-for="checklist in archived"
           :key="checklist.id"
           :checklist="checklist"
           :force-expanded="expandedIds?.has(checklist.id) ?? false"
-          @unarchive="(cId) => $emit('unarchive', cId)"
-          @delete="(cId) => $emit('delete', cId)"
+          @unarchive="(cId: string) => $emit('unarchive', cId)"
+          @delete="(cId: string) => $emit('delete', cId)"
         />
       </div>
     </template>

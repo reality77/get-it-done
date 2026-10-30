@@ -22,6 +22,7 @@ const emit = defineEmits<{
   (e: 'delete', checklistId: string): void
   (e: 'run', checklistId: string): void
   (e: 'archive', checklistId: string): void
+  (e: 'unarchive', checklistId: string): void
 }>()
 
 const {
@@ -144,25 +145,42 @@ watch(isComplete, (val) => {
   }
 })
 
-// ── Swipe-to-archive (mobile) ────────────────────────────────────────────────
+// ── Swipe (mobile) ───────────────────────────────────────────────────────────
+// Active: left = archive. Archived: left = delete for good, right = restore.
+// An (un)archived card moves to the other list and is re-mounted, so reading
+// `archived` once here is enough.
 const cardHeaderEl = ref<HTMLElement | null>(null)
+const isArchived = props.checklist.archived
 
-const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgress } = useSwipeAction(cardHeaderEl, {
+const {
+  isSwiping: isCardSwiping, style: cardStyle, leftProgress, rightProgress,
+} = useSwipeAction(cardHeaderEl, {
   threshold: 100,
   guard: () => props.checklist.kind !== 'template' && !isEditingTitle.value,
-  onLeft: () => emit('archive', props.checklist.id),
+  onLeft: () => isArchived ? emit('delete', props.checklist.id) : emit('archive', props.checklist.id),
+  onRight: isArchived ? () => emit('unarchive', props.checklist.id) : undefined,
 })
 </script>
 
 <template>
   <div ref="cardEl" class="relative overflow-hidden rounded-xl">
-    <!-- Yellow archive hint revealed as card slides left -->
+    <!-- Hints revealed as the card slides -->
     <div
       v-if="checklist.kind !== 'template'"
-      class="absolute inset-0 bg-warning flex items-center justify-end px-4 pointer-events-none"
-      :style="{ opacity: archiveProgress * 0.9 }"
+      class="absolute inset-0 flex items-center justify-end px-4 pointer-events-none"
+      :class="isArchived ? 'bg-danger' : 'bg-warning'"
+      :style="{ opacity: leftProgress * 0.9 }"
     >
-      <span class="text-bg-0 text-sm font-medium">🗄 Archive</span>
+      <span class="text-sm font-medium" :class="isArchived ? 'text-white' : 'text-bg-0'">
+        {{ isArchived ? '🗑 Delete' : '🗄 Archive' }}
+      </span>
+    </div>
+    <div
+      v-if="isArchived"
+      class="absolute inset-0 bg-success flex items-center justify-start px-4 pointer-events-none"
+      :style="{ opacity: rightProgress * 0.9 }"
+    >
+      <span class="text-bg-0 text-sm font-medium">↩ Restore</span>
     </div>
 
   <!-- Sliding card content -->
@@ -223,7 +241,11 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
           ▷
         </VButton>
         <!-- Desktop only; mobile archives by swiping. Wrapped because VButton's own inline-flex beats `hidden`. -->
-        <span v-if="checklist.kind !== 'template'" class="hidden sm:contents">
+        <span v-if="isArchived" class="hidden sm:contents">
+          <VButton variant="ghost" size="sm" title="Restore" @click="$emit('unarchive', checklist.id)">↩</VButton>
+          <VButton variant="ghost" size="sm" title="Delete for good" @click="$emit('delete', checklist.id)">🗑</VButton>
+        </span>
+        <span v-else-if="checklist.kind !== 'template'" class="hidden sm:contents">
           <VButton
             variant="ghost"
             size="sm"
