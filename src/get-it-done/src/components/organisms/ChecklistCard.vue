@@ -9,7 +9,7 @@ import KindBadge from '../molecules/KindBadge.vue'
 import VButton from '../atoms/VButton.vue'
 import ItemRow from '../molecules/ItemRow.vue'
 import ItemGroup from '../molecules/ItemGroup.vue'
-import TrackButton from '../molecules/TrackButton.vue'
+import ChecklistSettingsSheet from '../molecules/ChecklistSettingsSheet.vue'
 
 const props = defineProps<{
   checklist: Checklist
@@ -25,7 +25,7 @@ const emit = defineEmits<{
 
 const {
   toggleItem, addItem, updateItemText, removeItem, addGroup,
-  updateGroupTitle, toggleGroupCollapsed, removeGroup, setOrdered,
+  updateGroupTitle, toggleGroupCollapsed, removeGroup,
 } = useChecklistStore()
 
 const isExpanded = ref(props.forceExpanded ?? false)
@@ -36,9 +36,14 @@ watch(() => props.forceExpanded, (force) => { isExpanded.value = !!force })
 // ── Ordered checklist ─────────────────────────────────────────────────────────
 const order = computed(() => props.checklist.ordered ? computeOrderedView(props.checklist.items) : null)
 
-function toggleOrdered(): void {
-  setOrdered(props.checklist.id, !props.checklist.ordered)
-}
+// ── Settings sheet ────────────────────────────────────────────────────────────
+const settingsOpen = ref(false)
+
+const trackLabel = computed(() =>
+  props.checklist.trackMode === 'items' ? 'Items'
+  : props.checklist.trackMode === 'checklist' ? 'List'
+  : null
+)
 
 // ── Item rows ─────────────────────────────────────────────────────────────────
 const itemRowRefs = ref<InstanceType<typeof ItemRow>[]>([])
@@ -186,41 +191,47 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
       </Transition>
 
       <!-- Actions -->
-      <div class="flex items-center gap-3 shrink-0">
-        <!-- Ordered toggle -->
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Read-only status; tapping opens the settings -->
         <button
-          v-if="!checklist.archived"
-          class="text-xs px-2 py-0.5 rounded-full border transition-colors cursor-pointer"
-          :class="checklist.ordered
-            ? 'bg-primary/20 border-primary text-primary'
-            : 'border-border text-fg-4 hover:border-border-strong hover:text-fg-2'"
-          :title="checklist.ordered ? 'Ordered — click to make unordered' : 'Make ordered (tasks unlock one step after another)'"
-          @click="toggleOrdered"
+          v-if="trackLabel || checklist.ordered"
+          class="flex items-center gap-1 text-xs text-primary"
+          title="Checklist settings"
+          @click="settingsOpen = true"
         >
-          1→2
+          <span v-if="trackLabel" class="px-1.5 py-0.5 rounded-full bg-primary/15">
+            ◎<span class="hidden sm:inline"> {{ trackLabel }}</span>
+          </span>
+          <span v-if="checklist.ordered" class="px-1.5 py-0.5 rounded-full bg-primary/15">1→2</span>
         </button>
-        <!-- Track as tasks toggle -->
-        <TrackButton :checklist="checklist" />
         <VButton
           v-if="checklist.kind === 'template'"
           variant="primary"
+          size="sm"
+          title="Start a run"
           @click="$emit('run', checklist.id)"
         >
           ▷
         </VButton>
-        <VButton
-          v-if="checklist.kind !== 'template'"
-          variant="ghost"
-          class="font-bold hidden sm:inline-flex"
-          title="Archive"
-          @click="$emit('archive', checklist.id)"
+        <button
+          class="w-9 h-9 -mr-2 flex items-center justify-center rounded-full text-fg-3 hover:text-fg hover:bg-bg-2 transition-colors text-xl leading-none"
+          title="Checklist settings"
+          aria-label="Checklist settings"
+          @click="settingsOpen = true"
         >
-          🗄
-        </VButton>
-        <VButton v-if="props.checklist.archived === true"
-          variant="danger" @click="$emit('delete', checklist.id)">Delete</VButton>
+          ⋯
+        </button>
       </div>
     </div>
+
+    <ChecklistSettingsSheet
+      :checklist="checklist"
+      :open="settingsOpen"
+      @close="settingsOpen = false"
+      @archive="(cId: string) => $emit('archive', cId)"
+      @run="(cId: string) => $emit('run', cId)"
+      @delete="(cId: string) => $emit('delete', cId)"
+    />
 
     <!-- Progress bar -->
     <div
