@@ -110,26 +110,35 @@ watch(() => props.open, () => {
           </div>
 
           <!-- Default importance · effort -->
-          <div v-else-if="checklist.trackMode !== 'none'" class="flex items-center gap-1.5">
-            <button
-              v-for="opt in priorityOptions"
-              :key="opt.value"
-              :class="[chipClass, checklist.defaultPriority === opt.value ? opt.active : chipInactive]"
-              :title="opt.value"
-              @click="applyMode(checklist.trackMode, opt.value)"
-            >
-              {{ opt.icon }}
-            </button>
-            <span class="w-px h-6 bg-border mx-1 shrink-0" />
-            <button
-              v-for="opt in effortOptions"
-              :key="opt.value"
-              :class="[chipClass, checklist.defaultEffort === opt.value ? opt.active : chipInactive]"
-              :title="opt.value"
-              @click="applyMode(checklist.trackMode, undefined, opt.value)"
-            >
-              {{ opt.value[0]!.toUpperCase() }}
-            </button>
+          <div v-else-if="checklist.trackMode !== 'none'" class="flex gap-3">
+            <div class="flex-1 space-y-1">
+              <p class="text-[11px] text-fg-4">Priority</p>
+              <div class="flex gap-1.5">
+                <button
+                  v-for="opt in priorityOptions"
+                  :key="opt.value"
+                  :class="[chipClass, checklist.defaultPriority === opt.value ? opt.active : chipInactive]"
+                  :title="opt.value"
+                  @click="applyMode(checklist.trackMode, opt.value)"
+                >
+                  {{ opt.icon }}
+                </button>
+              </div>
+            </div>
+            <div class="flex-1 space-y-1">
+              <p class="text-[11px] text-fg-4">Effort</p>
+              <div class="flex gap-1.5">
+                <button
+                  v-for="opt in effortOptions"
+                  :key="opt.value"
+                  :class="[chipClass, checklist.defaultEffort === opt.value ? opt.active : chipInactive]"
+                  :title="opt.value"
+                  @click="applyMode(checklist.trackMode, undefined, opt.value)"
+                >
+                  {{ opt.value[0]!.toUpperCase() }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
