@@ -271,6 +271,8 @@ export function useDayPlanning(
     } else {
       const item = findItemDeep(cl.items, ref.itemId)
       if (!item || (item.status ?? 'active') !== 'active') return
+      // Steps past the next undone one of an ordered checklist can't be planned
+      if (!item.selectedForToday && cl.ordered && !computeOrderedView(cl.items).unlockedIds.has(item.id)) return
       if (item.selectedForToday) {
         dismissedUntil[key] = Date.now() + DAY_PLAN_DISMISS_DURATION_MS
       } else {
@@ -290,9 +292,11 @@ export function useDayPlanning(
       let changed = false
 
       if (cl.trackMode === 'items') {
+        // Locked steps of an ordered checklist are never selected (and get cleared)
+        const unlockedIds = cl.ordered ? computeOrderedView(cl.items).unlockedIds : null
         walkNodes(cl.items, n => {
           if (n.type === 'item') {
-            const selected = keySet.has(itemKey(cl.id, n.id))
+            const selected = keySet.has(itemKey(cl.id, n.id)) && (!unlockedIds || unlockedIds.has(n.id))
             if (n.selectedForToday !== selected) {
               n.selectedForToday = selected
               changed = true
