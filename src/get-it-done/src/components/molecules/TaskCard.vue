@@ -145,9 +145,7 @@ const step = computed(() => {
   if (props.isChecklistTask) return undefined
   const checklist = store.getChecklist(props.checklistId)
   if (!checklist?.ordered) return undefined
-  const { steps } = computeOrderedView(checklist.items)
-  const n = steps.get(props.item.id)
-  return n === undefined ? undefined : { n, total: steps.size }
+  return computeOrderedView(checklist.items).steps.get(props.item.id)
 })
 
 function openItemUrl(): void {
@@ -198,7 +196,7 @@ function openItemUrl(): void {
           <span v-if="!isEditing && step !== undefined"
             class="shrink-0 tabular-nums leading-snug text-primary font-semibold"
             :class="compact ? 'text-sm' : 'text-base'"
-            title="Step in ordered checklist">{{ step.n }}/{{ step.total }}</span>
+            title="Step in ordered checklist">{{ step }}.</span>
           <span v-if="!isEditing" class="flex-1 wrap-break-word leading-snug" :class="[
             compact ? 'text-sm' : 'text-base font-medium',
             item.done ? 'line-through text-fg-4' : 'text-fg',
