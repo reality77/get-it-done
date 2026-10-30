@@ -63,6 +63,7 @@ async function handleCreate(name: string): Promise<void> {
     <ChecklistFilterBar
       v-model="query"
       v-model:show-archived="showArchived"
+      :has-matches="filteredActive.length + filteredArchived.length > 0"
       placeholder="Filter or create a checklist…"
       @create="handleCreate"
     />

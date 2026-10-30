@@ -2,8 +2,10 @@
 import VField from '../atoms/VField.vue'
 import VButton from '../atoms/VButton.vue'
 
-defineProps<{
+const props = defineProps<{
   placeholder?: string
+  /** True when the current query matches existing checklists */
+  hasMatches?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -18,13 +20,19 @@ function confirm(): void {
   if (name) emit('create', name)
 }
 
+// Enter (or the mobile Search/Go key) only creates when nothing matches,
+// so searching for an existing list never creates a duplicate.
+function onSubmit(): void {
+  if (!props.hasMatches) confirm()
+}
+
 function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape') query.value = ''
 }
 </script>
 
 <template>
-  <form @submit.prevent="confirm" class="flex items-center gap-2 w-full mb-4">
+  <form @submit.prevent="onSubmit" class="flex items-center gap-2 w-full mb-4">
     <VField
       v-model="query"
       type="search"
@@ -46,9 +54,9 @@ function onKeydown(event: KeyboardEvent): void {
     </button>
     <VButton
       variant="primary"
-      type="submit"
       class="shrink-0"
       :disabled="!query.trim()"
+      @click="confirm"
     >
       Create
     </VButton>

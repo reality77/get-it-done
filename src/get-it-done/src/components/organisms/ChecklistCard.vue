@@ -48,7 +48,11 @@ const {
   confirmEdit: confirmTitle, cancelEdit: cancelTitle,
 } = useEditableField(
   () => displayTitle.value,
-  (text) => updateChecklist(props.checklist.id, props.checklist.runLabel != null ? { runLabel: text } : { title: text }),
+  (text) => {
+    // Skip no-op writes: they would bump modifiedAt and could win a sync conflict.
+    if (text === displayTitle.value) return
+    updateChecklist(props.checklist.id, props.checklist.runLabel != null ? { runLabel: text } : { title: text })
+  },
 )
 const onTitleKeydown = makeKeydownHandler(confirmTitle, cancelTitle)
 
@@ -151,13 +155,15 @@ watch(isComplete, (val) => {
 // `archived` once here is enough.
 const cardHeaderEl = ref<HTMLElement | null>(null)
 const isArchived = props.checklist.archived
+const confirmingDelete = ref(false)
 
 const {
   isSwiping: isCardSwiping, style: cardStyle, leftProgress, rightProgress,
 } = useSwipeAction(cardHeaderEl, {
   threshold: 100,
   guard: () => props.checklist.kind !== 'template' && !isEditingTitle.value,
-  onLeft: () => isArchived ? emit('delete', props.checklist.id) : emit('archive', props.checklist.id),
+  // Deleting is permanent and syncs everywhere, so the swipe only asks.
+  onLeft: () => isArchived ? (confirmingDelete.value = true) : emit('archive', props.checklist.id),
   onRight: isArchived ? () => emit('unarchive', props.checklist.id) : undefined,
 })
 </script>
@@ -243,7 +249,7 @@ const {
         <!-- Desktop only; mobile archives by swiping. Wrapped because VButton's own inline-flex beats `hidden`. -->
         <span v-if="isArchived" class="hidden sm:contents">
           <VButton variant="ghost" size="sm" title="Restore" @click="$emit('unarchive', checklist.id)">↩</VButton>
-          <VButton variant="ghost" size="sm" title="Delete for good" @click="$emit('delete', checklist.id)">🗑</VButton>
+          <VButton variant="ghost" size="sm" title="Delete for good" @click="confirmingDelete = true">🗑</VButton>
         </span>
         <span v-else-if="checklist.kind !== 'template'" class="hidden sm:contents">
           <VButton
@@ -264,6 +270,16 @@ const {
           ⋯
         </button>
       </div>
+    </div>
+
+    <!-- Delete confirmation (archived only) -->
+    <div
+      v-if="confirmingDelete"
+      class="mt-3 flex items-center gap-2 rounded-lg bg-danger/10 border border-danger/30 px-3 py-2 text-sm"
+    >
+      <span class="flex-1 text-danger">Delete for good?</span>
+      <button class="px-3 py-1.5 rounded-md text-fg-2 hover:bg-bg-2" @click="confirmingDelete = false">Cancel</button>
+      <button class="px-3 py-1.5 rounded-md bg-danger text-white font-semibold" @click="$emit('delete', checklist.id)">Delete</button>
     </div>
 
     <ChecklistSettingsSheet

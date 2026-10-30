@@ -49,7 +49,7 @@ Key interfaces: `Checklist`, `ChecklistItem`, `ChecklistItemGroup`, `ChecklistNo
 ### Components (`src/components/`)
 
 - **atoms/** — `AppButton`, `AppInput`, `AppCheckbox`, `AppBadge`, `TaskStatusDot`
-- **molecules/** — `ItemRow`, `TabItem`, `TaskCard`, `ItemGroup`, `PriorityBadge`, `EffortBadge`, `KindBadge`, `SnoozeMenu`, `DayPlanBar`, `TrackButton`, `MobilePlanningSheet`
+- **molecules/** — `ItemRow`, `TabItem`, `TaskCard`, `ItemGroup`, `PriorityBadge`, `EffortBadge`, `KindBadge`, `SnoozeMenu`, `DayPlanBar`, `MobilePlanningSheet`, `ChecklistFilterBar` (filter / archived toggle / create), `ChecklistSettingsSheet` (⋯ sheet: tracking, priority/effort defaults, ordered)
 - **organisms/** — `ChecklistCard` (active and archived), `TabBar`, `DayView`, `WeekView`, `BacklogView`, `PasswordPrompt`
 - **templates/** — `ChecklistsView` (filter bar + archived toggle), `ActiveView`, `TasksView`
 
