@@ -98,10 +98,11 @@ export function useDayPlanning(
 
       if (cl.trackMode === 'items') {
         if (cl.archived) continue
-        // Ordered checklists only expose tasks up to the next undone step
+        // Ordered checklists only expose undone tasks up to the next step
+        // (done ones always count, even when ticked out of order)
         const unlockedIds = cl.ordered ? computeOrderedView(cl.items).unlockedIds : null
         walkNodes(cl.items, n => {
-          if (n.type === 'item' && (!unlockedIds || unlockedIds.has(n.id))) result.push({ item: n, checklistId: cl.id, checklistTitle: title })
+          if (n.type === 'item' && (n.done || !unlockedIds || unlockedIds.has(n.id))) result.push({ item: n, checklistId: cl.id, checklistTitle: title })
         })
       } else if (cl.trackMode === 'checklist') {
         const total = countItems(cl.items)

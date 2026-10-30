@@ -194,8 +194,8 @@ function openItemUrl(): void {
             class="flex-1 bg-transparent border-b border-border focus:border-primary outline-none text-fg py-0.5 transition-colors"
             :class="compact ? 'text-sm' : 'text-base'" @keydown="onKeydown" @blur="confirmEdit" @click.stop />
           <span v-if="!isEditing && step !== undefined"
-            class="shrink-0 tabular-nums leading-snug text-primary font-semibold"
-            :class="compact ? 'text-sm' : 'text-base'"
+            class="shrink-0 tabular-nums leading-snug"
+            :class="[compact ? 'text-sm' : 'text-base', item.done ? 'text-fg-4' : 'text-primary font-semibold']"
             title="Step in ordered checklist">{{ step }}.</span>
           <span v-if="!isEditing" class="flex-1 wrap-break-word leading-snug" :class="[
             compact ? 'text-sm' : 'text-base font-medium',

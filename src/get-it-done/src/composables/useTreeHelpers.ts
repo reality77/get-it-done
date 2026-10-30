@@ -1,4 +1,5 @@
 import type {
+  Checklist,
   ChecklistItem,
   ChecklistItemGroup,
   ChecklistNode,
@@ -118,6 +119,25 @@ export function computeOrderedView(nodes: ChecklistNode[]): OrderedView {
     }
   })
   return { steps, unlockedIds, nextItemId }
+}
+
+/**
+ * Drop day/week selections of locked steps (undone items past the next one) of
+ * an ordered checklist. Returns true when something changed.
+ */
+export function clearLockedSelections(cl: Checklist): boolean {
+  if (!cl.ordered || cl.trackMode !== 'items') return false
+  const { unlockedIds } = computeOrderedView(cl.items)
+  let changed = false
+  walkNodes(cl.items, n => {
+    if (n.type !== 'item' || n.done || unlockedIds.has(n.id)) return
+    if (n.selectedForToday || n.selectedForWeek) {
+      n.selectedForToday = false
+      n.selectedForWeek = false
+      changed = true
+    }
+  })
+  return changed
 }
 
 // ── Counters ──────────────────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ import {
   walkNodes,
   findItemDeep,
   findGroupDeep,
+  clearLockedSelections,
   removeNodeDeep,
   cloneNodes,
   countItems,
@@ -168,6 +169,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     const checklist = getChecklist(id)
     if (!checklist) return
     checklist.ordered = ordered
+    clearLockedSelections(checklist)
     void sync.upsertChecklist(checklist)
   }
 
@@ -273,6 +275,8 @@ export const useChecklistStore = defineStore('checklists', () => {
           checklist.archivedAt = null
         }
       }
+      // Unticking may lock this item (or move the next step back) in an ordered checklist
+      clearLockedSelections(checklist)
     }
     if (
       checklist.kind !== 'template' &&
