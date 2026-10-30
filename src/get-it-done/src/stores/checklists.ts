@@ -98,11 +98,12 @@ export const useChecklistStore = defineStore('checklists', () => {
 
   function updateChecklist(
     id: string,
-    patch: { title?: string; items?: ChecklistNode[] },
+    patch: { title?: string; runLabel?: string; items?: ChecklistNode[] },
   ): void {
     const checklist = getChecklist(id)
     if (!checklist) return
     if (patch.title !== undefined) checklist.title = patch.title
+    if (patch.runLabel !== undefined) checklist.runLabel = patch.runLabel
     if (patch.items !== undefined) checklist.items = patch.items
     void sync.upsertChecklist(checklist)
   }

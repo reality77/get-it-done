@@ -3,6 +3,7 @@ import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import type { Checklist } from '../../types'
 import { useSwipeAction } from '../../composables/useSwipeAction'
 import { makeKeydownHandler } from '../../composables/useKeyboardConfirm'
+import { useEditableField } from '../../composables/useEditableField'
 import { useChecklistStore } from '../../stores/checklists'
 import { countItems, countDone, computeOrderedView } from '../../composables/useTreeHelpers'
 import KindBadge from '../molecules/KindBadge.vue'
@@ -25,7 +26,7 @@ const emit = defineEmits<{
 
 const {
   toggleItem, addItem, updateItemText, removeItem, addGroup,
-  updateGroupTitle, toggleGroupCollapsed, removeGroup,
+  updateGroupTitle, toggleGroupCollapsed, removeGroup, updateChecklist,
 } = useChecklistStore()
 
 const isExpanded = ref(props.forceExpanded ?? false)
@@ -39,11 +40,16 @@ const order = computed(() => props.checklist.ordered ? computeOrderedView(props.
 // ── Settings sheet ────────────────────────────────────────────────────────────
 const settingsOpen = ref(false)
 
-const trackLabel = computed(() =>
-  props.checklist.trackMode === 'items' ? 'Items'
-  : props.checklist.trackMode === 'checklist' ? 'List'
-  : null
+// ── Rename (tap the title) ────────────────────────────────────────────────────
+// Runs display their run label, so that is what gets renamed.
+const {
+  isEditing: isEditingTitle, editText: titleText, startEdit: startTitleEdit,
+  confirmEdit: confirmTitle, cancelEdit: cancelTitle,
+} = useEditableField(
+  () => displayTitle.value,
+  (text) => updateChecklist(props.checklist.id, props.checklist.runLabel != null ? { runLabel: text } : { title: text }),
 )
+const onTitleKeydown = makeKeydownHandler(confirmTitle, cancelTitle)
 
 // ── Item rows ─────────────────────────────────────────────────────────────────
 const itemRowRefs = ref<InstanceType<typeof ItemRow>[]>([])
@@ -143,7 +149,7 @@ const cardHeaderEl = ref<HTMLElement | null>(null)
 
 const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgress } = useSwipeAction(cardHeaderEl, {
   threshold: 100,
-  guard: () => props.checklist.kind !== 'template',
+  guard: () => props.checklist.kind !== 'template' && !isEditingTitle.value,
   onLeft: () => emit('archive', props.checklist.id),
 })
 </script>
@@ -178,7 +184,19 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
         {{ isExpanded ? '▾' : '▸' }}
       </button>
 
-      <span class="font-medium text-lg text-fg truncate flex-1">{{ displayTitle }}</span>
+      <input
+        v-if="isEditingTitle"
+        v-focus
+        v-model="titleText"
+        class="flex-1 min-w-0 bg-transparent border-b border-border focus:border-primary outline-none font-medium text-lg text-fg py-0.5"
+        @keydown="onTitleKeydown"
+        @blur="confirmTitle"
+      />
+      <span
+        v-else
+        class="font-medium text-lg text-fg truncate flex-1 cursor-text"
+        @click="startTitleEdit"
+      >{{ displayTitle }}</span>
 
       <span class="hidden sm:contents"><KindBadge :kind="checklist.kind" /></span>
 
@@ -192,18 +210,9 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
 
       <!-- Actions -->
       <div class="flex items-center gap-2 shrink-0">
-        <!-- Read-only status; tapping opens the settings -->
-        <button
-          v-if="trackLabel || checklist.ordered"
-          class="flex items-center gap-1 text-xs text-primary"
-          title="Checklist settings"
-          @click="settingsOpen = true"
-        >
-          <span v-if="trackLabel" class="px-1.5 py-0.5 rounded-full bg-primary/15">
-            ◎<span class="hidden sm:inline"> {{ trackLabel }}</span>
-          </span>
-          <span v-if="checklist.ordered" class="px-1.5 py-0.5 rounded-full bg-primary/15">1→2</span>
-        </button>
+        <!-- Status hints (changed via the ⋯ sheet) -->
+        <span v-if="checklist.trackMode !== 'none'" class="text-xs text-primary" title="Tracked as tasks">◎</span>
+        <span v-if="checklist.ordered" class="text-xs text-primary" title="Ordered steps">1→2</span>
         <VButton
           v-if="checklist.kind === 'template'"
           variant="primary"
@@ -229,7 +238,6 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
       :open="settingsOpen"
       @close="settingsOpen = false"
       @archive="(cId: string) => $emit('archive', cId)"
-      @run="(cId: string) => $emit('run', cId)"
       @delete="(cId: string) => $emit('delete', cId)"
     />
 
