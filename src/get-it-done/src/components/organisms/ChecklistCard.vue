@@ -222,16 +222,17 @@ const { isSwiping: isCardSwiping, style: cardStyle, leftProgress: archiveProgres
         >
           ▷
         </VButton>
-        <VButton
-          v-if="checklist.kind !== 'template'"
-          variant="ghost"
-          size="sm"
-          class="hidden sm:inline-flex"
-          title="Archive"
-          @click="$emit('archive', checklist.id)"
-        >
-          🗄
-        </VButton>
+        <!-- Desktop only; mobile archives by swiping. Wrapped because VButton's own inline-flex beats `hidden`. -->
+        <span v-if="checklist.kind !== 'template'" class="hidden sm:contents">
+          <VButton
+            variant="ghost"
+            size="sm"
+            title="Archive"
+            @click="$emit('archive', checklist.id)"
+          >
+            🗄
+          </VButton>
+        </span>
         <button
           class="w-9 h-9 -mr-2 flex items-center justify-center rounded-full text-fg-3 hover:text-fg hover:bg-bg-2 transition-colors text-xl leading-none"
           title="Checklist settings"
