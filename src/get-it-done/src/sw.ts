@@ -16,6 +16,7 @@ interface PushPayload {
   body?: string
   url?: string
   actions?: { action: string; title: string }[]
+  actionUrls?: Record<string, string>
 }
 
 // ── Push received (fires even when app is closed) ─────────────────────────────
@@ -41,7 +42,7 @@ self.addEventListener('push', (event) => {
       body,
       icon: '/get-it-done/pwa-192x192.png',
       badge: '/get-it-done/pwa-192x192.png',
-      data: { url },
+      data: { url, actionUrls: data.actionUrls ?? {} },
       actions: data.actions ?? [],
     } as NotificationOptions),
   )
@@ -52,7 +53,8 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
 
-  const url: string = (event.notification.data as { url: string })?.url ?? '/get-it-done/'
+  const data = event.notification.data as { url: string; actionUrls?: Record<string, string> }
+  const url = (event.action && data.actionUrls?.[event.action]) ?? data.url ?? '/get-it-done/'
 
   event.waitUntil(
     self.clients
