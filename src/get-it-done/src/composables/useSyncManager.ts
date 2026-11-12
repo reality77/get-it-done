@@ -29,6 +29,21 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
   let lastSeq: string | number = 'now'
   let localLoaded = false
 
+  // Settles the first time a sync attempt goes idle, fails or is refused —
+  // i.e. once whatever the remote had at startup has been pulled (or cannot be).
+  let markInitialSyncSettled: () => void = () => {}
+  const initialSyncSettled = new Promise<void>(resolve => { markInitialSyncSettled = resolve })
+
+  // Waits for the first sync pass, capped so a hanging network never blocks the
+  // caller for long. Used to decide on the day plan only after other devices'
+  // changes (plan date, selections) have replicated in.
+  function waitForInitialSync(timeoutMs: number): Promise<void> {
+    return Promise.race([
+      initialSyncSettled,
+      new Promise<void>(resolve => setTimeout(resolve, timeoutMs)),
+    ])
+  }
+
   // ── PouchDB helpers ─────────────────────────────────────────────────────────
 
   // Restores the in-memory checklist from the last successfully persisted state.
@@ -282,7 +297,7 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
       // review completed on another device updates this one within seconds.
       if (isReservedDocId(change.id)) {
         if (!change.deleted && change.doc) {
-          usePlanMetaStore().applyRemoteDoc(change.doc as unknown as PlanMeta & { _rev: string })
+          usePlanMetaStore().applyRemoteDoc(change.doc as unknown as PlanMeta & { _rev: string; _conflicts?: string[] })
         }
         return
       }
@@ -322,6 +337,7 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
     if (syncHandler) { syncHandler.cancel(); syncHandler = null }
 
     function scheduleRetry(): void {
+      markInitialSyncSettled()
       if (syncRetryTimer !== null) return  // already scheduled, don't double-fire
       syncStatus.value = 'offline'
       syncHandler?.cancel()
@@ -342,6 +358,7 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
     // Immediately shut down sync on auth failure without waiting for App.vue's
     // watcher to react. This keeps the store robust when used standalone.
     function handleAuthFailure(): void {
+      markInitialSyncSettled()
       if (syncRetryTimer) { clearTimeout(syncRetryTimer); syncRetryTimer = null }
       syncRetryDelay = SYNC_INITIAL_RETRY_MS
       syncHandler?.cancel()
@@ -363,6 +380,7 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
           // Successfully idle — reset back-off.
           syncRetryDelay = SYNC_INITIAL_RETRY_MS
           syncStatus.value = 'synced'
+          markInitialSyncSettled()
         }
       })
       .on('active', () => { syncStatus.value = 'syncing' })
@@ -373,6 +391,7 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
       .on('denied', (err) => {
         if (isAuthError(err)) handleAuthFailure()
         else syncStatus.value = 'offline'
+        markInitialSyncSettled()
       })
   }
 
@@ -405,6 +424,7 @@ export function useSyncManager(checklists: Ref<Checklist[]>, revCache: Map<strin
     removeFromLocal,
     loadLocal,
     initSync,
+    waitForInitialSync,
     unsubscribeRealtime,
   }
 }

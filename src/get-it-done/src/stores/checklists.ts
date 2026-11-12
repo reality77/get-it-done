@@ -545,6 +545,7 @@ export const useChecklistStore = defineStore('checklists', () => {
     // Sync
     loadLocal: sync.loadLocal,
     initSync: sync.initSync,
+    waitForInitialSync: sync.waitForInitialSync,
     unsubscribeRealtime: sync.unsubscribeRealtime,
   }
 })

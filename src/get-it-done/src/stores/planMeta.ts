@@ -36,48 +36,75 @@ export const usePlanMetaStore = defineStore('planMeta', () => {
   // without an extra get round-trip in the common case.
   let docRev: string | undefined
 
+  // Later of two plan dates, nulls ignored. A plan date only matters when it is
+  // today, and a later date is always at least as fresh, so "max of non-null" is a
+  // safe, commutative merge: a stale or cleared (null) value can never erase a
+  // fresher one, whichever device or revision it comes from.
+  function laterDate(a: string | null | undefined, b: string | null | undefined): string | null {
+    if (a == null) return b ?? null
+    if (b == null) return a
+    return b > a ? b : a
+  }
+
   // Merge an incoming plan-meta doc (from local get on init, or from the changes
   // feed on remote update) into the reactive state. Only assigns when a field
   // actually changes value, so an identical doc does NOT trigger the deep watcher
   // → persist → put → changes-feed loop. Returns true if anything changed.
+  // weekPlanDate is intentionally not merged — see persistToDB.
   function applyDoc(doc: PlanMeta): boolean {
-    let changed = false
-    // dayPlanDate: adopt the incoming date only when it is non-null AND strictly
-    // later (lexicographic, YYYY-MM-DD) than what we hold — the later date is the
-    // fresher plan. Using a deterministic max (rather than prefer-incoming) makes
-    // the merge commutative/idempotent: two devices holding different dates both
-    // converge to the later one instead of oscillating in a period-2 swap.
-    // weekPlanDate is intentionally not merged — see persistToDB.
-    if (
-      doc.dayPlanDate != null &&
-      (planMeta.value.dayPlanDate == null || doc.dayPlanDate > planMeta.value.dayPlanDate)
-    ) {
-      planMeta.value.dayPlanDate = doc.dayPlanDate
-      changed = true
-    }
-    return changed
+    const merged = laterDate(planMeta.value.dayPlanDate, doc.dayPlanDate)
+    if (merged === planMeta.value.dayPlanDate) return false
+    planMeta.value.dayPlanDate = merged
+    return true
   }
 
-  // Asynchronously load the synced doc on init and overwrite fields if it is
-  // newer than the localStorage seed. Records the _rev for later puts.
-  async function loadFromDB(): Promise<void> {
+  // Brings the synced doc in line with this device: merges every competing
+  // revision (replication conflicts — CouchDB picks an arbitrary winner, and the
+  // Sticky / other devices only read that winner), then writes the merged date
+  // back if the doc lags behind what we hold, and tombstones the losing revisions.
+  // Without this write-back a date that only reached localStorage (a failed put,
+  // a stale device that nulled the doc) would never reach CouchDB again.
+  async function reconcileDB(): Promise<void> {
+    let current: PouchDB.Core.ExistingDocument<PlanMetaDoc> & { _conflicts?: string[] }
     try {
-      const doc = await metaDB.get(PLAN_META_DOC_ID)
-      docRev = doc._rev
-      applyDoc(doc)
+      current = await metaDB.get(PLAN_META_DOC_ID, { conflicts: true })
     } catch {
-      // No synced doc yet (fresh install, or offline before first replication).
-      // localStorage seed already loaded; the doc is created on first persist.
+      // No synced doc yet (fresh install, or offline before first replication):
+      // create it from the localStorage seed if that holds a date.
+      if (planMeta.value.dayPlanDate) await persistToDB()
+      return
+    }
+    docRev = current._rev
+    applyDoc(current)
+    const conflictRevs = current._conflicts ?? []
+    for (const rev of conflictRevs) {
+      try {
+        applyDoc(await metaDB.get(PLAN_META_DOC_ID, { rev }))
+      } catch { /* rev compacted away — skip */ }
+    }
+    if (current.dayPlanDate !== planMeta.value.dayPlanDate) await persistToDB()
+    for (const rev of conflictRevs) {
+      try {
+        await metaDB.remove(PLAN_META_DOC_ID, rev)
+      } catch { /* already gone */ }
     }
   }
-  void loadFromDB()
 
-  // Called by the changes feed when a newer plan-meta doc replicates in from
-  // another device. Updates the _rev cache and merges fields in place (only on
-  // real change), so isDayPlanFresh recomputes automatically.
-  function applyRemoteDoc(doc: PlanMeta & { _rev: string }): void {
+  // Resolves once the synced doc has been read and reconciled on init. Callers
+  // that act on the plan date (refreshDayPlanIfStale) must await it: acting on the
+  // bare localStorage seed can see a stale date and clear a fresh plan.
+  const ready: Promise<void> = reconcileDB().catch(() => { /* non-fatal */ })
+
+  // Called by the changes feed when a plan-meta doc replicates in from another
+  // device. Merges it in place (so isDayPlanFresh recomputes) and, if the doc is
+  // behind us or carries conflicts, reconciles — e.g. a stale device that wrote
+  // null over today's date gets today's date back instead of silently diverging.
+  function applyRemoteDoc(doc: PlanMeta & { _rev: string; _conflicts?: string[] }): void {
     docRev = doc._rev
     applyDoc(doc)
+    if (doc.dayPlanDate !== planMeta.value.dayPlanDate || (doc._conflicts?.length ?? 0) > 0) {
+      void reconcileDB()
+    }
   }
 
   // Writes the localStorage fallback synchronously, then upserts the synced
@@ -93,20 +120,23 @@ export const usePlanMetaStore = defineStore('planMeta', () => {
     // (issue 012), so the field is vestigial. Syncing it would ping-pong stale
     // per-device values (pre-sync localStorage seeds) between devices forever.
     // PlanMeta still types it as optional, so an absent field is valid.
-    const body: PlanMetaDoc = {
+    const body = (): PlanMetaDoc => ({
       _id: PLAN_META_DOC_ID,
       dayPlanDate: planMeta.value.dayPlanDate,
-    }
+    })
     try {
-      const res = await metaDB.put(docRev ? { ...body, _rev: docRev } : body)
+      const res = await metaDB.put(docRev ? { ...body(), _rev: docRev } : body())
       docRev = res.rev
     } catch (e) {
       if ((e as PouchDB.Core.Error).status === 409) {
-        // Conflict: re-read the freshest doc, retry once with its _rev.
+        // Conflict: the doc moved under us (another device). Merge its date
+        // first — never overwrite a fresher date with an older one or null —
+        // then retry once with its _rev.
         try {
           const existing = await metaDB.get(PLAN_META_DOC_ID)
           docRev = existing._rev
-          const res = await metaDB.put({ ...body, _rev: existing._rev })
+          applyDoc(existing)
+          const res = await metaDB.put({ ...body(), _rev: existing._rev })
           docRev = res.rev
         } catch { /* give up; localStorage still holds the value */ }
       }
@@ -120,5 +150,5 @@ export const usePlanMetaStore = defineStore('planMeta', () => {
   // doc arriving from the changes feed with identical values does not re-persist.
   watch(planMeta, persistPlanMeta, { deep: true })
 
-  return { planMeta, persistPlanMeta, applyRemoteDoc }
+  return { planMeta, ready, persistPlanMeta, applyRemoteDoc }
 })

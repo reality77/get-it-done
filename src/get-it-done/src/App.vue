@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useChecklistStore } from './stores/checklists'
 import { useAuthStore } from './stores/auth'
+import { usePlanMetaStore } from './stores/planMeta'
 import TabBar from './components/organisms/TabBar.vue'
 import ChecklistsView from './components/templates/ChecklistsView.vue'
 import DayView from './components/organisms/DayView.vue'
@@ -18,6 +19,11 @@ const notificationsOpen = ref(false)
 
 const authStore = useAuthStore()
 const checklistStore = useChecklistStore()
+const planMetaStore = usePlanMetaStore()
+
+// Upper bound on how long startup waits for the first sync pass before deciding
+// whether the day plan is stale.
+const INITIAL_SYNC_WAIT_MS = 8000
 
 const loginPrompted = ref(false)
 
@@ -61,6 +67,8 @@ const {
 async function handleVisibilityChange(): Promise<void> {
   if (typeof document === 'undefined') return
   if (document.visibilityState === 'visible') {
+    // The app may have stayed open (or suspended) past midnight.
+    checklistStore.refreshDayPlanIfStale()
     if (authStore.isAuthenticated) {
       startKeepAlive()
     }
@@ -81,7 +89,6 @@ onMounted(async () => {
   // Do not "optimize" this ordering away — the merge is what makes it correct.
   checklistStore.ensureStandaloneChecklist()
   checklistStore.processDueSnoozed()       // now runs on real data (#4)
-  checklistStore.refreshDayPlanIfStale()  // idem
   const result = await authStore.checkSession()
   if (authStore.isAuthenticated) {
     startKeepAlive()
@@ -89,6 +96,14 @@ onMounted(async () => {
   } else if (result.status === 'expired') {
     loginPrompted.value = true
   }
+  // Decide whether the day plan is stale only once the synced plan date is known:
+  // the localStorage seed may be days old while another device planned today.
+  // Clearing on the seed would null the shared date and wipe today's selections
+  // for every device (and the Sticky). So wait for the local plan-meta doc and,
+  // when online, for the first pull from CouchDB (capped).
+  await planMetaStore.ready
+  if (authStore.isAuthenticated) await checklistStore.waitForInitialSync(INITIAL_SYNC_WAIT_MS)
+  checklistStore.refreshDayPlanIfStale()
   document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
