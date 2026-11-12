@@ -259,6 +259,9 @@ export function useDayPlanning(
   function toggleItemDayPlan(ref: ChecklistItemId): void {
     const cl = getChecklist(ref.checklistId)
     if (!cl) return
+    // A plan left over from another day (app kept open past midnight) is cleared
+    // first, so this toggle starts today's plan instead of reviving old picks.
+    refreshDayPlanIfStale()
     const key = itemKey(ref.checklistId, ref.itemId)
 
     if (cl.trackMode === 'checklist' && ref.itemId === ref.checklistId) {
@@ -282,7 +285,9 @@ export function useDayPlanning(
       item.selectedForToday = !item.selectedForToday
     }
 
-    if (!planMeta.dayPlanDate) planMeta.dayPlanDate = todayDateString()
+    // Date the plan as today's whenever it is not — a stale non-null date must
+    // not survive a toggle, or other devices and the Sticky see no plan.
+    if (planMeta.dayPlanDate !== todayDateString()) planMeta.dayPlanDate = todayDateString()
     void upsertChecklist(cl)
   }
 
